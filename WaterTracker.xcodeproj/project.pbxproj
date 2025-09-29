@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EE3F7D812E8AAA4B00031995 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = EE3F7D802E8AAA4B00031995 /* RevenueCat */; };
+		EE3F7D832E8AAA4B00031995 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = EE3F7D822E8AAA4B00031995 /* RevenueCatUI */; };
 		EE45299C2E7D5623007543B3 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = EE45299B2E7D5623007543B3 /* Lottie */; };
 /* End PBXBuildFile section */
 
@@ -27,7 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EE3F7D812E8AAA4B00031995 /* RevenueCat in Frameworks */,
 				EE45299C2E7D5623007543B3 /* Lottie in Frameworks */,
+				EE3F7D832E8AAA4B00031995 /* RevenueCatUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +75,8 @@
 			name = WaterTracker;
 			packageProductDependencies = (
 				EE45299B2E7D5623007543B3 /* Lottie */,
+				EE3F7D802E8AAA4B00031995 /* RevenueCat */,
+				EE3F7D822E8AAA4B00031995 /* RevenueCatUI */,
 			);
 			productName = WaterTracker;
 			productReference = EE73B70E2E6F09710061DE68 /* WaterTracker.app */;
@@ -102,6 +108,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				EE45299A2E7D5623007543B3 /* XCRemoteSwiftPackageReference "lottie-spm" */,
+				EE3F7D7F2E8AAA4B00031995 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EE73B70F2E6F09710061DE68 /* Products */;
@@ -337,6 +344,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		EE3F7D7F2E8AAA4B00031995 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.40.0;
+			};
+		};
 		EE45299A2E7D5623007543B3 /* XCRemoteSwiftPackageReference "lottie-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/airbnb/lottie-spm.git";
@@ -348,6 +363,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		EE3F7D802E8AAA4B00031995 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EE3F7D7F2E8AAA4B00031995 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+		EE3F7D822E8AAA4B00031995 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EE3F7D7F2E8AAA4B00031995 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCatUI;
+		};
 		EE45299B2E7D5623007543B3 /* Lottie */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EE45299A2E7D5623007543B3 /* XCRemoteSwiftPackageReference "lottie-spm" */;
