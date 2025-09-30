@@ -20,6 +20,7 @@ struct WaterTrackerApp: App {
         let schema = Schema([
             WaterPortion.self,
             WeatherAnalysisCache.self,
+            UserHealthProfile.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -46,7 +47,7 @@ struct WaterTrackerApp: App {
                         isConfigured = true
                     }
                     .onAppear {
-                        onboardingPassed = true
+                        onboardingPassed = false
                     }
                 }
             }

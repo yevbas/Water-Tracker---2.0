@@ -6,19 +6,25 @@
 //
 
 import SwiftUI
+import SwiftData
 import Lottie
 
 struct PersonalizedOnboarding: View {
+    @Environment(\.modelContext) private var modelContext
     @State var selectedMetric: MetricView.Configuration?
     @State var answers: [String: MetricView.Answer] = [:]
     @State var selectedAnswer: String?
     @State var selectedUnit: WaterUnit = .millilitres
     @State var planPreview: PlanPreviewModel?
     @State var stage = Stage.welcome
+    @StateObject private var healthKitService = HealthKitService.shared
+    @State private var hasHealthKitData = false
 
     enum Stage {
         case welcome
         case unitSelection
+        case healthKitPermission
+        case healthKitDataConfirmation
         case metricCollection
         case askingForReview
         case calculating
@@ -163,6 +169,19 @@ struct PersonalizedOnboarding: View {
                 selectedUnit = unit
                 // Save the selected unit to UserDefaults
                 UserDefaults.standard.set(unit == .ounces ? "fl_oz" : "ml", forKey: "measurement_units")
+                stage = .healthKitPermission
+            }
+        case .healthKitPermission:
+            HealthKitPermissionView {
+                // Permission granted - check if we have data and proceed accordingly
+                checkHealthKitDataAndProceed()
+            } onPermissionDenied: {
+                // Permission denied - proceed to metric collection anyway
+                stage = .metricCollection
+            }
+        case .healthKitDataConfirmation:
+            HealthKitDataConfirmationView {
+                // User confirmed their health data - proceed to metric collection for review/modification
                 stage = .metricCollection
             }
         case .metricCollection:
@@ -201,6 +220,20 @@ struct PersonalizedOnboarding: View {
 
     var metricsCollectingView: some View {
         VStack {
+            // Show HealthKit data notice if applicable
+            if hasHealthKitData {
+                HStack {
+                    Image(systemName: "heart.fill")
+                        .foregroundStyle(.blue)
+                    Text("Your health data from Health app has been pre-filled. You can modify any values below.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+            
             HStack(spacing: 16) {
                 Button {
                     previousMetric()
@@ -236,14 +269,8 @@ struct PersonalizedOnboarding: View {
         }
         .onAppear {
             selectedMetric = metrics.first
-
-            // default values
-            answers = [
-                "height": .init(value: "170 cm", title: String(localized: "\(170) cm")),
-                "weight": .init(value: "70 kg", title: String(localized: "\(70) kg")),
-                "age": .init(value: "25 years", title: String(localized: "\(25) years")),
-                "climate": .init(value: "temperate", title: String(localized: "Temperate")),
-            ]
+            healthKitService.setModelContextForOnboarding(modelContext)
+            populateAnswersWithHealthKitData()
         }
     }
 
@@ -274,6 +301,79 @@ struct PersonalizedOnboarding: View {
             return 0.0
         }
         return Float(index) / Float(metrics.count)
+    }
+    
+    // MARK: - HealthKit Integration
+    
+    private func checkHealthKitDataAndProceed() {
+        // Wait a moment for HealthKit data to be fetched
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if hasCompleteHealthKitData() {
+                hasHealthKitData = true
+                populateAnswersWithHealthKitData()
+                // Show confirmation screen with the retrieved data, then proceed to metric collection
+                stage = .healthKitDataConfirmation
+            } else {
+                // Not enough data, proceed with manual collection
+                stage = .metricCollection
+            }
+        }
+    }
+    
+    private func hasCompleteHealthKitData() -> Bool {
+        return healthKitService.userHeight != nil &&
+               healthKitService.userWeight != nil &&
+               healthKitService.userAge != nil &&
+               healthKitService.userGender != nil
+    }
+    
+    private func populateAnswersWithHealthKitData() {
+        var defaultAnswers: [String: MetricView.Answer] = [
+            "climate": .init(value: "temperate", title: String(localized: "Temperate")),
+        ]
+        
+        // Use HealthKit data if available, otherwise use defaults
+        if let height = healthKitService.userHeight {
+            let heightCm = Int(height * 100) // Convert meters to cm
+            defaultAnswers["height"] = .init(
+                value: "\(heightCm) cm",
+                title: String(localized: "\(heightCm) cm")
+            )
+        } else {
+            defaultAnswers["height"] = .init(value: "170 cm", title: String(localized: "\(170) cm"))
+        }
+        
+        if let weight = healthKitService.userWeight {
+            let weightKg = Int(weight) // Weight is already in kg
+            defaultAnswers["weight"] = .init(
+                value: "\(weightKg) kg",
+                title: String(localized: "\(weightKg) kg")
+            )
+        } else {
+            defaultAnswers["weight"] = .init(value: "70 kg", title: String(localized: "\(70) kg"))
+        }
+        
+        if let age = healthKitService.userAge {
+            defaultAnswers["age"] = .init(
+                value: "\(age) years",
+                title: String(localized: "\(age) years")
+            )
+        } else {
+            defaultAnswers["age"] = .init(value: "25 years", title: String(localized: "\(25) years"))
+        }
+        
+        if let gender = healthKitService.userGender {
+            let genderString = gender.stringValue
+            let genderTitle = genderString.capitalized
+            defaultAnswers["gender"] = .init(
+                value: genderString,
+                title: genderTitle
+            )
+        } else {
+            defaultAnswers["gender"] = .init(value: "other", title: String(localized: "Other"))
+        }
+        
+        answers = defaultAnswers
     }
 
 }

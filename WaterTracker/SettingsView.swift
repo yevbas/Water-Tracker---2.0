@@ -12,7 +12,11 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var portions: [WaterPortion]
+    @Query private var healthProfiles: [UserHealthProfile]
+    @StateObject private var healthKitService = HealthKitService.shared
     @State private var isConvertingUnits: Bool = false
+    @State private var showingHealthKitAlert = false
+    @State private var healthKitAlertMessage = ""
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
     
@@ -65,6 +69,80 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Health & Data") {
+                    Toggle(isOn: Binding(
+                        get: { healthKitService.isHealthKitEnabled() },
+                        set: { isEnabled in
+                            if isEnabled {
+                                enableHealthKit()
+                            } else {
+                                disableHealthKit()
+                            }
+                        }
+                    )) {
+                        Label("HealthKit Integration", systemImage: "heart.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    
+                    if healthKitService.isHealthKitEnabled() {
+                        Button {
+                            refreshHealthData()
+                        } label: {
+                            Label("Refresh Health Data", systemImage: "arrow.clockwise")
+                        }
+                        .foregroundStyle(.blue)
+                        
+                        if let profile = healthProfiles.first, profile.isDataComplete {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Health Data", systemImage: "person.crop.circle")
+                                    .foregroundStyle(.blue)
+                                
+                                HStack {
+                                    Text("Height:")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    if let height = profile.heightInCm {
+                                        Text("\(height) cm")
+                                            .foregroundStyle(.primary)
+                                    }
+                                }
+                                
+                                HStack {
+                                    Text("Weight:")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    if let weight = profile.weightInKg {
+                                        Text("\(weight) kg")
+                                            .foregroundStyle(.primary)
+                                    }
+                                }
+                                
+                                HStack {
+                                    Text("Age:")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    if let age = profile.age {
+                                        Text("\(age) years")
+                                            .foregroundStyle(.primary)
+                                    }
+                                }
+                                
+                                if let sleepHours = profile.averageSleepHours {
+                                    HStack {
+                                        Text("Avg Sleep:")
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text("\(String(format: "%.1f", sleepHours)) hours")
+                                            .foregroundStyle(.primary)
+                                    }
+                                }
+                            }
+                            .font(.caption)
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
                 Section("General") {
                     Link(destination: URL(string: UIApplication.openSettingsURLString)!) {
                         Label("Change language", systemImage: "globe")
@@ -90,6 +168,14 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .onAppear {
+                healthKitService.setModelContext(modelContext)
+            }
+            .alert("HealthKit", isPresented: $showingHealthKitAlert) {
+                Button("OK") { }
+            } message: {
+                Text(healthKitAlertMessage)
+            }
         .overlay {
             if isConvertingUnits {
                 ZStack {
@@ -132,6 +218,45 @@ struct SettingsView: View {
             }
             try? modelContext.save()
             isConvertingUnits = false
+        }
+    }
+    
+    private func enableHealthKit() {
+        if healthKitService.isAuthorized() {
+            healthKitService.enableHealthKit()
+            healthKitService.refreshHealthData()
+            healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
+            showingHealthKitAlert = true
+        } else {
+            healthKitService.requestPermission { success, error in
+                DispatchQueue.main.async {
+                    if success {
+                        healthKitService.enableHealthKit()
+                        healthKitService.refreshHealthData()
+                        healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
+                    } else {
+                        healthKitAlertMessage = "Failed to enable HealthKit integration. Please check your Health app permissions."
+                    }
+                    showingHealthKitAlert = true
+                }
+            }
+        }
+    }
+    
+    private func disableHealthKit() {
+        healthKitService.disableHealthKit()
+        healthKitAlertMessage = "HealthKit integration disabled. You can re-enable it anytime in settings."
+        showingHealthKitAlert = true
+    }
+    
+    private func refreshHealthData() {
+        if healthKitService.isAuthorized() {
+            healthKitService.refreshHealthData()
+            healthKitAlertMessage = "Health data refreshed successfully."
+            showingHealthKitAlert = true
+        } else {
+            healthKitAlertMessage = "HealthKit permission required. Please enable HealthKit integration first."
+            showingHealthKitAlert = true
         }
     }
 }
