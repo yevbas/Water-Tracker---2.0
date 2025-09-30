@@ -22,7 +22,7 @@ struct DrinkSelector: View {
     @FocusState var isFocused: Bool
     @State var formattedAmount: String = ""
     @State var drink: Drink = .water
-    @StateObject private var rc = RevenueCatMonitor.shared
+    @EnvironmentObject private var rc: RevenueCatMonitor
     @State private var isShowingPaywall: Bool = false
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
     

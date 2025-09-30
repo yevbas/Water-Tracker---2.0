@@ -10,7 +10,7 @@ import RevenueCatUI
 
 struct DrinkTypeSelector: View {
     @Binding var drink: Drink
-    @StateObject private var rc = RevenueCatMonitor.shared
+    @EnvironmentObject private var rc: RevenueCatMonitor
     @State private var isShowingPaywall: Bool = false
 
     var body: some View {

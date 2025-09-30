@@ -100,10 +100,17 @@ struct GeneratingPlanView: View {
                     colors: [.blue, .cyan],
                     isDisabled: !isMainButtonEnabled
                 ) {
+                    print("🔍 GeneratingPlanView: Button pressed")
+                    print("🔍 GeneratingPlanView: answers = \(answers)")
+                    print("🔍 GeneratingPlanView: selectedUnit = \(selectedUnit)")
+                    
                     if let dailyTargets = dailyWaterTargets(
                         from: answers
                     ) {
+                        print("✅ GeneratingPlanView: dailyTargets created successfully = \(dailyTargets)")
                         onSubmit(dailyTargets)
+                    } else {
+                        print("❌ GeneratingPlanView: Failed to create dailyTargets")
                     }
                 }
                 .shimmer()

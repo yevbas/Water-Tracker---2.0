@@ -47,14 +47,10 @@ enum AppConfigurator {
 #endif
         // Use RC API key from Remote Config
         let apiKey = RemoteConfigService.shared.string(for: .revenueCatAPIKey)
-        do {
-            try await Purchases.configure(withAPIKey: apiKey)
-        } catch {
-            return
-        }
+        Purchases.configure(withAPIKey: apiKey)
 
         // Initial entitlement check
-        let monitor = RevenueCatMonitor.shared
+        let monitor = RevenueCatMonitor()
 
         if monitor.userHasFullAccess == false {
             NotificationsManager.shared.keepOnlyOneReminder()
@@ -62,6 +58,9 @@ enum AppConfigurator {
 
         // Listen to entitlement changes
         Task {
+            // Wait a moment to ensure Purchases is fully configured
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            
             for await info in Purchases.shared.customerInfoStream {
                 let hasAccess = info.userHasFullAccess
                 if hasAccess == false {

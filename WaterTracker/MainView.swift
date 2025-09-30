@@ -10,7 +10,7 @@ import SwiftData
 
 struct MainView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var healthKitService = HealthKitService.shared
+    @EnvironmentObject private var healthKitService: HealthKitService
     
     var body: some View {
 //        TabView {
@@ -24,7 +24,7 @@ struct MainView: View {
                 // Initialize HealthKit service with model context
                 healthKitService.setModelContext(modelContext)
                 
-                // Refresh health data if HealthKit is enabled
+                // Always refresh health data on app launch if HealthKit is enabled
                 if healthKitService.isHealthKitEnabled() {
                     healthKitService.refreshHealthData()
                 }

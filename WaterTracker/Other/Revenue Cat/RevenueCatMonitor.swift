@@ -17,8 +17,6 @@ protocol RevenueCatMonitorProtocol {
 final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
     @Published private(set) var customerInfo: CustomerInfo?
 
-    static let shared = RevenueCatMonitor()
-
     var userHasFullAccess: Bool {
 #if DEBUG
         switch state {
@@ -30,7 +28,7 @@ final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
 #endif
     }
 
-    private let customerInfoStream: AsyncStream<CustomerInfo>?
+    private var customerInfoStream: AsyncStream<CustomerInfo>?
     private var updateTask: Task<Void, Never>?
     private let state: MonitorState
 
@@ -44,8 +42,17 @@ final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
 
         switch state {
         case .default:
-            self.customerInfoStream = Purchases.shared.customerInfoStream
-            startListeningForUpdates()
+            // Check if Purchases is configured before accessing shared
+            if Purchases.isConfigured {
+                self.customerInfoStream = Purchases.shared.customerInfoStream
+                startListeningForUpdates()
+            } else {
+                self.customerInfoStream = nil
+                // Start listening once Purchases is configured
+                Task {
+                    await waitForPurchasesConfiguration()
+                }
+            }
         case .preview(_):
             self.customerInfoStream = nil
         }
@@ -55,6 +62,19 @@ final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
         updateTask?.cancel()
     }
 
+    private func waitForPurchasesConfiguration() async {
+        // Poll until Purchases is configured
+        while !Purchases.isConfigured {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        }
+        
+        // Now that Purchases is configured, set up the stream
+        await MainActor.run {
+            self.customerInfoStream = Purchases.shared.customerInfoStream
+            startListeningForUpdates()
+        }
+    }
+    
     private func startListeningForUpdates() {
         guard let customerInfoStream else { return }
         updateTask = Task {

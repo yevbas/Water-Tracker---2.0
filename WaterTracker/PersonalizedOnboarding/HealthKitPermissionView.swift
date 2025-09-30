@@ -15,7 +15,7 @@ struct HealthKitPermissionView: View {
     @State private var isRequestingPermission = false
     @State private var showingError = false
     @State private var errorMessage = ""
-    @StateObject private var healthKitService = HealthKitService.shared
+    @EnvironmentObject private var healthKitService: HealthKitService
     
     var body: some View {
         ScrollView {
@@ -243,4 +243,5 @@ struct DataUsageCard: View {
         onPermissionGranted: { print("Permission granted") },
         onPermissionDenied: { print("Permission denied") }
     )
+    .environmentObject(HealthKitService())
 }

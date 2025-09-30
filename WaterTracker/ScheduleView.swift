@@ -11,7 +11,7 @@ import RevenueCatUI
 
 struct ScheduleView: View {
     @StateObject private var notifications = NotificationsManager.shared
-    @StateObject private var rc = RevenueCatMonitor.shared
+    @EnvironmentObject private var rc: RevenueCatMonitor
     @State private var isPresentingAdd: Bool = false
     @State private var newTime: Date = .init()
     @State private var reminders: [Reminder] = []

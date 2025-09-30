@@ -13,10 +13,12 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var portions: [WaterPortion]
     @Query private var healthProfiles: [UserHealthProfile]
-    @StateObject private var healthKitService = HealthKitService.shared
+    @EnvironmentObject private var healthKitService: HealthKitService
     @State private var isConvertingUnits: Bool = false
     @State private var showingHealthKitAlert = false
     @State private var healthKitAlertMessage = ""
+    @State private var showingRecalculateAlert = false
+    @State private var hasMetricsChanged = false
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
     
@@ -140,6 +142,16 @@ struct SettingsView: View {
                             .font(.caption)
                             .padding(.vertical, 4)
                         }
+                        
+                        // Re-calculate button if metrics have changed
+                        if hasMetricsChanged {
+                            Button {
+                                showingRecalculateAlert = true
+                            } label: {
+                                Label("Re-calculate Water Amount", systemImage: "arrow.triangle.2.circlepath")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
                     }
                 }
 
@@ -169,12 +181,36 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .onAppear {
+                print("⚙️ Settings view appeared")
                 healthKitService.setModelContext(modelContext)
+                // Refresh HealthKit status first
+                healthKitService.refreshHealthKitStatus()
+                // Fetch fresh HealthKit data on every app launch
+                if healthKitService.isHealthKitEnabled() {
+                    print("⚙️ HealthKit is enabled, refreshing data")
+                    healthKitService.refreshHealthData()
+                } else {
+                    print("⚙️ HealthKit is disabled")
+                }
+                // Check for changes after a brief delay to allow data fetching
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    checkForMetricChanges()
+                }
             }
+            // Note: Metric change detection temporarily disabled since we're not storing
+            // HealthKit data in the service anymore. This could be re-implemented if needed.
             .alert("HealthKit", isPresented: $showingHealthKitAlert) {
                 Button("OK") { }
             } message: {
                 Text(healthKitAlertMessage)
+            }
+            .alert("Re-calculate Water Amount", isPresented: $showingRecalculateAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Re-calculate") {
+                    recalculateWaterAmount()
+                }
+            } message: {
+                Text("Your health metrics have changed. Would you like to re-calculate your daily water goal based on your updated health data?")
             }
         .overlay {
             if isConvertingUnits {
@@ -222,23 +258,17 @@ struct SettingsView: View {
     }
     
     private func enableHealthKit() {
-        if healthKitService.isAuthorized() {
-            healthKitService.enableHealthKit()
-            healthKitService.refreshHealthData()
-            healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
-            showingHealthKitAlert = true
-        } else {
-            healthKitService.requestPermission { success, error in
-                DispatchQueue.main.async {
-                    if success {
-                        healthKitService.enableHealthKit()
-                        healthKitService.refreshHealthData()
-                        healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
-                    } else {
-                        healthKitAlertMessage = "Failed to enable HealthKit integration. Please check your Health app permissions."
-                    }
-                    showingHealthKitAlert = true
+        // Always request permission when enabling HealthKit to show the native permission window
+        healthKitService.requestPermission { success, error in
+            DispatchQueue.main.async {
+                if success {
+                    healthKitService.enableHealthKit()
+                    healthKitService.refreshHealthData()
+                    healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
+                } else {
+                    healthKitAlertMessage = "Failed to enable HealthKit integration. Please check your Health app permissions."
                 }
+                showingHealthKitAlert = true
             }
         }
     }
@@ -257,6 +287,58 @@ struct SettingsView: View {
         } else {
             healthKitAlertMessage = "HealthKit permission required. Please enable HealthKit integration first."
             showingHealthKitAlert = true
+        }
+    }
+    
+    private func checkForMetricChanges() {
+        // For now, we'll disable the metric change detection since we're not storing
+        // HealthKit data in the service anymore. This could be re-implemented by
+        // fetching fresh data and comparing with stored profile if needed.
+        hasMetricsChanged = false
+    }
+    
+    private func recalculateWaterAmount() {
+        guard let profile = healthProfiles.first else { return }
+        
+        // Use profile's stored data for recalculation
+        if let height = profile.height,
+           let weight = profile.weight,
+           let age = profile.age,
+           let gender = profile.genderEnum {
+            
+            // Convert stored data to answers format for UserMetrics
+            let heightCm = height * 100 // Convert meters to cm
+            let answers: [String: MetricView.Answer] = [
+                "gender": MetricView.Answer(value: gender.stringValue, title: gender.stringValue.capitalized),
+                "height": MetricView.Answer(value: "\(Int(heightCm)) cm", title: "\(Int(heightCm)) cm"),
+                "weight": MetricView.Answer(value: "\(Int(weight)) kg", title: "\(Int(weight)) kg"),
+                "age": MetricView.Answer(value: "\(age) years", title: "\(age) years"),
+                "activity-factor": MetricView.Answer(value: "moderate", title: "Moderate (3–5 days/week)"),
+                "climate": MetricView.Answer(value: "temperate", title: "Temperate")
+            ]
+            
+            guard let userMetrics = UserMetrics(answers: answers) else {
+                healthKitAlertMessage = "Failed to create user metrics from health data."
+                showingHealthKitAlert = true
+                return
+            }
+            
+            // Use the same WaterPlanner logic as onboarding
+            let plan = WaterPlanner.plan(for: userMetrics, unit: measurementUnits)
+            
+            // Update the water goal
+            waterGoalMl = plan.waterMl
+            
+            // Save changes
+            do {
+                try modelContext.save()
+                hasMetricsChanged = false
+                healthKitAlertMessage = "Water goal updated to \(waterGoalMl)ml based on your health data."
+                showingHealthKitAlert = true
+            } catch {
+                healthKitAlertMessage = "Failed to save updated water goal. Please try again."
+                showingHealthKitAlert = true
+            }
         }
     }
 }

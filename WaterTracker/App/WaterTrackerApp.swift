@@ -15,6 +15,8 @@ struct WaterTrackerApp: App {
     @AppStorage("onboarding_passed")
     private var onboardingPassed = false
     @State private var isConfigured = false
+    @StateObject private var healthKitService = HealthKitService()
+    @StateObject private var revenueCatMonitor = RevenueCatMonitor()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -37,18 +39,21 @@ struct WaterTrackerApp: App {
                     if onboardingPassed {
                         MainView()
                             .modelContainer(sharedModelContainer)
-                            .environmentObject(RevenueCatMonitor.shared)
+                            .environmentObject(revenueCatMonitor)
+                            .environmentObject(healthKitService)
                     } else {
                         PersonalizedOnboarding()
-                            .environmentObject(RevenueCatMonitor.shared)
+                            .modelContainer(sharedModelContainer)
+                            .environmentObject(revenueCatMonitor)
+                            .environmentObject(healthKitService)
                     }
                 } else {
                     ConfigureView(container: sharedModelContainer) {
                         isConfigured = true
                     }
-                    .onAppear {
-                        onboardingPassed = false
-                    }
+//                    .onAppear {
+//                        onboardingPassed = false
+//                    }
                 }
             }
         }

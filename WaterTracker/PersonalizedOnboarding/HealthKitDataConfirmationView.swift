@@ -6,10 +6,15 @@
 //
 
 import SwiftUI
+import HealthKit
 
 struct HealthKitDataConfirmationView: View {
     let onContinue: () -> Void
-    @StateObject private var healthKitService = HealthKitService.shared
+    let userHeight: Double?
+    let userWeight: Double?
+    let userAge: Int?
+    let userGender: HKBiologicalSex?
+    let averageSleepHours: Double?
     
     var body: some View {
         ScrollView {
@@ -63,7 +68,7 @@ struct HealthKitDataConfirmationView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     VStack(spacing: 12) {
-                        if let height = healthKitService.userHeight {
+                        if let height = userHeight {
                             HealthDataCard(
                                 icon: "ruler.fill",
                                 title: "Height",
@@ -72,7 +77,7 @@ struct HealthKitDataConfirmationView: View {
                             )
                         }
 
-                        if let weight = healthKitService.userWeight {
+                        if let weight = userWeight {
                             HealthDataCard(
                                 icon: "scalemass.fill",
                                 title: "Weight",
@@ -81,7 +86,7 @@ struct HealthKitDataConfirmationView: View {
                             )
                         }
 
-                        if let age = healthKitService.userAge {
+                        if let age = userAge {
                             HealthDataCard(
                                 icon: "calendar.circle.fill",
                                 title: "Age",
@@ -90,7 +95,7 @@ struct HealthKitDataConfirmationView: View {
                             )
                         }
 
-                        if let gender = healthKitService.userGender {
+                        if let gender = userGender {
                             HealthDataCard(
                                 icon: "person.circle.fill",
                                 title: "Gender",
@@ -184,7 +189,14 @@ struct HealthDataCard: View {
 }
 
 #Preview {
-    HealthKitDataConfirmationView {
-        print("Continue tapped")
-    }
+    HealthKitDataConfirmationView(
+        onContinue: {
+            print("Continue tapped")
+        },
+        userHeight: 1.75,
+        userWeight: 70.0,
+        userAge: 25,
+        userGender: .male,
+        averageSleepHours: 8.0
+    )
 }
