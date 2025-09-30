@@ -7,15 +7,19 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
+import RevenueCat
 
 @main
 struct WaterTrackerApp: App {
     @AppStorage("onboarding_passed")
     private var onboardingPassed = false
+    @State private var isConfigured = false
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             WaterPortion.self,
+            WeatherAnalysisCache.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -27,13 +31,25 @@ struct WaterTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if onboardingPassed {
-                MainView()
-                    .modelContainer(sharedModelContainer)
-            } else {
-                PersonalizedOnboarding()
+            Group {
+                if isConfigured {
+                    if onboardingPassed {
+                        MainView()
+                            .modelContainer(sharedModelContainer)
+                            .environmentObject(RevenueCatMonitor.shared)
+                    } else {
+                        PersonalizedOnboarding()
+                            .environmentObject(RevenueCatMonitor.shared)
+                    }
+                } else {
+                    ConfigureView(container: sharedModelContainer) {
+                        isConfigured = true
+                    }
+                    .onAppear {
+                        onboardingPassed = true
+                    }
+                }
             }
-//            DrinkSelector()
         }
     }
 
@@ -67,3 +83,5 @@ struct WaterTrackerApp: App {
     }
 
 }
+
+// Moved RevenueCat configuration into AppConfigurator

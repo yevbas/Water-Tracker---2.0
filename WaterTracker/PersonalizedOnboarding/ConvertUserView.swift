@@ -11,17 +11,18 @@ import RevenueCat
 
 struct ConvertUserView: View {
     @State var isPresentedPaywall: Bool = false
+    var planPreview: PlanPreviewModel?
 
     var body: some View {
         VStack(spacing: 16) {
             if #available(iOS 17.0, *) {
-                (Text("We want you to try PlateAI") + Text(" FOR FREE").foregroundStyle(LinearGradient(colors: [.yellow, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                (Text("Try ") + Text("WaterTracker PRO").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .multilineTextAlignment(.center)
                     .lineLimit(4)
                     .padding(.horizontal)
             } else {
-                Text("We want you to try PlateAI FOR FREE")
+                Text("Try WaterTracker PRO")
                     .font(.system(.largeTitle, design: .rounded).weight(.bold))
                     .multilineTextAlignment(.center)
                 .lineLimit(4)
@@ -35,7 +36,7 @@ struct ConvertUserView: View {
                     .font(.subheadline)
                 PrimaryButton(
                     title: String(localized: "Try for $0.00"),
-                    colors: [.yellow, .pink]
+                    colors: [.blue, .cyan]
                 ) {
                     isPresentedPaywall = true
                 }
@@ -58,6 +59,10 @@ struct ConvertUserView: View {
     }
 
     private func endOnboarding() {
+        // Set the water goal based on the plan
+        if let plan = planPreview {
+            UserDefaults.standard.set(plan.waterMl, forKey: "water_goal_ml")
+        }
         UserDefaults.standard.set(true, forKey: "onboarding_passed")
     }
 

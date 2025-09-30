@@ -13,23 +13,24 @@ struct WelcomeView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            LottieView(animation: .named("plate"))
+            LottieView(animation: .named("h2o-rocket"))
+                .animationSpeed(0.5)
                 .looping()
             VStack(alignment: .leading, spacing: 12) {
                 if #available(iOS 17.0, *) {
-                    (Text("Welcome to ") + Text("PlateAI").foregroundStyle(LinearGradient(colors: [.yellow, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                    (Text("Welcome to ") + Text("WaterTracker").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 } else {
-                    Text("Thanks for installing PlateAI")
+                    Text("Thanks for installing WaterTracker")
                     font(.system(.largeTitle, design: .rounded, weight: .bold))
                 }
-                Text("You've just installed the best calorie counter app EVER!")
+                Text("Stay hydrated with a personalized daily water goal.")
                     .font(.title2)
             }
             .offset(y: -64)
             PrimaryButton(
                 title: String(localized: "Start!"),
-                colors: [.yellow, .pink]
+                colors: [.blue, .cyan]
             ) {
                 onContinue()
             }

@@ -13,23 +13,26 @@ struct EditWaterPortionView: View {
     @Environment(\.dismiss) var dismiss
     @State var waterPortion: WaterPortion
 
+    @EnvironmentObject var revenueCatMonitor: RevenueCatMonitor
+
     var body: some View {
         VStack(spacing: 16) {
-//            if modelContext.hasChanges {
-//                Button("Discard changes") {
-//                    modelContext.rollback()
-//                }
-//            }
-            DatePicker(
-                selection: .init(
-                    get: { waterPortion.createDate },
-                    set: { waterPortion.createDate = $0 }
-                )
-            ) {
-                Text(verbatim: "")
+            VStack(spacing: 16) {
+                if !revenueCatMonitor.userHasFullAccess {
+                    buildAdBannerView(.editScreen)
+                        .padding(.horizontal)
+                }
+                DatePicker(
+                    selection: .init(
+                        get: { waterPortion.createDate },
+                        set: { waterPortion.createDate = $0 }
+                    )
+                ) {
+                    Text(verbatim: "")
+                }
+                .font(.title2.weight(.medium))
             }
             .padding(16)
-            .font(.title2.weight(.medium))
 
             DrinkSelector(
                 amount: waterPortion.amount.description,
@@ -60,6 +63,7 @@ struct EditWaterPortionView: View {
                 createDate: Date()
             )
         )
+        .environmentObject(RevenueCatMonitor(state: .preview(false)))
     }
     .modelContainer(for: WaterPortion.self, inMemory: true)
 }

@@ -6,9 +6,12 @@
 //
 
 import SwiftUI
+import RevenueCatUI
 
 struct DrinkTypeSelector: View {
     @Binding var drink: Drink
+    @StateObject private var rc = RevenueCatMonitor.shared
+    @State private var isShowingPaywall: Bool = false
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -35,12 +38,19 @@ struct DrinkTypeSelector: View {
 
     func buildDrinkButton(_ drink: Drink) -> some View {
         Button(action: {
-            self.drink = drink
+            if rc.userHasFullAccess || drink == .water {
+                self.drink = drink
+            } else {
+                isShowingPaywall = true
+            }
         }) {
             Text(drink.emoji)
                 .font(.system(size: 44))
         }
         .frame(width: 64, height: 64)
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView()
+        }
 //        .background {
 //            if self.drink == drink {
 //                if #available(iOS 26.0, *) {

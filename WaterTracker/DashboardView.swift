@@ -16,6 +16,9 @@ struct DashboardView: View {
     @Query(sort: [.init(\WaterPortion.createDate, order: .reverse)], animation: .linear)
     var allWaterPortions: [WaterPortion]
 
+    @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
+    @AppStorage("measurement_units") private var measurementUnits: String = "ml"
+
     var waterPortionsByDate: [WaterPortion] {
         guard let selectedDate else { return [] }
         return allWaterPortions.filter {
@@ -26,10 +29,16 @@ struct DashboardView: View {
         }
     }
 
+    @EnvironmentObject var revenueCatMonitor: RevenueCatMonitor
+
     @State var selectedDate: Date? = Date().rounded()
     @State var editingWaterPortion: WaterPortion?
     @State var isPresentedSchedule = false
     @State var isPresentedDrinkSelector = false
+    @State var isPresentedImagePicker = false
+    @State var selectedImage: UIImage?
+    @State var isPresentedDrinkAnalysis = false
+    @State var isPresentedWeatherAnalysis = false
 
     // MARK: - Scroll Animation
 
@@ -106,6 +115,7 @@ struct DashboardView: View {
             }
         })
         .animation(.linear, value: contentYOffset)
+        .animation(.smooth, value: selectedDate)
         .overlay(alignment: .bottomTrailing) {
             addDrinkButton
                 .padding(.trailing, 8)
@@ -123,10 +133,17 @@ struct DashboardView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-
-                } label: {
-                    Image(systemName: "gear")
+                HStack {
+                    if revenueCatMonitor.userHasFullAccess {
+                        Button {
+                            isPresentedWeatherAnalysis = true
+                        } label: {
+                            Image(systemName: "cloud.sun.fill")
+                        }
+                    }
+                    NavigationLink(destination: SettingsView.init) {
+                        Image(systemName: "gear")
+                    }
                 }
             }
         }
@@ -139,6 +156,25 @@ struct DashboardView: View {
         .sheet(item: $editingWaterPortion) { waterPortion in
             EditWaterPortionView(waterPortion: waterPortion)
         }
+        .sheet(isPresented: $isPresentedWeatherAnalysis) {
+            WeatherAnalysisView()
+        }
+        .sheet(isPresented: $isPresentedImagePicker) {
+            ImagePickerView(selectedImage: $selectedImage)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $isPresentedDrinkAnalysis) {
+            if let image = selectedImage {
+                DrinkAnalysisLoaderView()
+            }
+        }
+        .onChange(of: selectedImage) { _, newImage in
+            if newImage != nil {
+                isPresentedImagePicker = false
+                isPresentedDrinkAnalysis = true
+            }
+        }
     }
 
     var headerBackgroundView: some View {
@@ -149,13 +185,17 @@ struct DashboardView: View {
                 .overlay {
                     VStack {
                         if scrollOffset < scrollUpThreshold {
+                            if !revenueCatMonitor.userHasFullAccess {
+                                buildAdBannerView(.mainScreen)
+                                    .padding(.horizontal)
+                            }
                             datePicker
                         }
                         HStack {
                             ZStack {
                                 ProgressCircle(
                                     ringWidth: scrollOffset < scrollUpThreshold ? 22 : 12,
-                                    percent: 50,
+                                    percent: progressPercent,
                                     foregroundColors: [.blue.opacity(0.55), .blue]
                                 )
                                 .overlay {
@@ -202,7 +242,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     var contentBackgroundView: some View {
-        if allWaterPortions.isEmpty {
+        if waterPortionsByDate.isEmpty {
             NoDrinksView()
         } else {
             LazyVGrid(
@@ -234,23 +274,81 @@ struct DashboardView: View {
     }
 
     var circleInformationView: some View {
-        VStack {
-            Group {
-                Text("50%")
-                Text("Subtitle 2")
-                Text("Subtitle 3")
+        VStack(spacing: 6) {
+            Text(percentageDisplay)
+                .font(.system(size: scrollOffset < scrollUpThreshold ? 44 : 22, weight: .bold, design: .rounded))
+                .contentTransition(.numericText())
+            Text(consumedDisplay)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(goalDisplay)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(
+            maxWidth: .infinity,
+            alignment: scrollOffset >= scrollUpThreshold ? .leading : .center
+        )
+    }
+
+    private var progressPercent: Double {
+        let consumedMl = totalConsumedMl(for: selectedDate)
+        let goalMl = Double(waterGoalMl)
+        guard goalMl > 0 else { return 0 }
+        return min(100, max(0, (consumedMl / goalMl) * 100))
+    }
+
+    private func totalConsumedMl(for date: Date?) -> Double {
+        let items = waterPortionsByDate
+        var sumMl: Double = 0
+        for p in items {
+            switch p.unit {
+            case .millilitres:
+                sumMl += p.amount
+            case .ounces:
+                sumMl += p.amount * 29.5735
             }
-            .frame(
-                maxWidth: .infinity,
-                alignment: scrollOffset >= scrollUpThreshold ? .leading : .center
-            )
+        }
+        return sumMl
+    }
+
+    private var percentageDisplay: String {
+        "\(Int(progressPercent.rounded()))%"
+    }
+
+    private var consumedDisplay: String {
+        let consumedMl = totalConsumedMl(for: selectedDate)
+        if measurementUnits == "fl_oz" {
+            let oz = consumedMl / 29.5735
+            return "\(Int(oz.rounded())) fl oz consumed"
+        } else {
+            return "\(Int(consumedMl.rounded())) ml consumed"
+        }
+    }
+
+    private var goalDisplay: String {
+        if measurementUnits == "fl_oz" {
+            let oz = Double(waterGoalMl) / 29.5735
+            return "Goal \(Int(oz.rounded())) fl oz"
+        } else {
+            return "Goal \(waterGoalMl) ml"
         }
     }
 
     var addDrinkButton: some View {
-        Button(action: {
-            isPresentedDrinkSelector = true
-        }) {
+        Menu {
+            Button(action: {
+                isPresentedDrinkSelector = true
+            }) {
+                Label("Manual Input", systemImage: "hand.tap")
+            }
+            
+            Button(action: {
+                isPresentedImagePicker = true
+            }) {
+                Label("AI Photo Analysis", systemImage: "camera")
+            }
+        } label: {
             Image(systemName: "drop.circle.fill")
                 .foregroundStyle(.blue)
                 .font(.system(size: 74))
@@ -299,6 +397,7 @@ struct DashboardView: View {
         modelContext.delete(waterPortion)
         try? modelContext.save()
     }
+    
 
 }
 
@@ -314,5 +413,153 @@ struct ViewOffsetKey: PreferenceKey {
     NavigationStack {
         DashboardView()
             .modelContainer(for: WaterPortion.self, inMemory: true)
+    }
+}
+
+struct ImagePickerView: View {
+    @Binding var selectedImage: UIImage?
+    @Environment(\.dismiss) var dismiss
+    @State private var showingActionSheet = false
+    @State private var showingCamera = false
+    @State private var showingPhotoLibrary = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with gradient background
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Add Drink Photo")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+                
+                Text("Choose how you'd like to capture your drink")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 32)
+            .background(
+                LinearGradient(
+                    colors: [.blue, .blue.opacity(0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            
+            // Content area
+            VStack(spacing: 24) {
+                Spacer()
+                
+                // Camera option
+                Button(action: {
+                    showingCamera = true
+                }) {
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(.blue.opacity(0.1))
+                                .frame(width: 60, height: 60)
+                            
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.blue)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Take Photo")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.primary)
+                            
+                            Text("Capture your drink with the camera")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                            .stroke(.blue.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Photo Library option
+                Button(action: {
+                    showingPhotoLibrary = true
+                }) {
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(.green.opacity(0.1))
+                                .frame(width: 60, height: 60)
+                            
+                            Image(systemName: "photo.on.rectangle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.green)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Choose from Library")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.primary)
+                            
+                            Text("Select an existing photo from your library")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                            .stroke(.green.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .background(.regularMaterial)
+        }
+        .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .sheet(isPresented: $showingCamera) {
+            CameraPhotoPicker(image: $selectedImage)
+        }
+        .sheet(isPresented: $showingPhotoLibrary) {
+            PhotoLibraryPicker(image: $selectedImage)
+        }
     }
 }

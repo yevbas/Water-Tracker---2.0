@@ -21,21 +21,21 @@ struct RateUsView: View {
             .playing(loopMode: .playOnce)
             .frame(height: 75)
             VStack(spacing: 16) {
-                Text("Left rating for us!")
+                Text("Enjoying WaterTracker?")
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-                Text("PlateAI makes hundreds of people daily closer to their health goals!")
+                Text("Your review helps others stay hydrated too.")
                     .font(.system(.title, design: .rounded, weight: .regular))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
+                LottieView(animation: .named("h2o-rocket"))
+                    .looping()
+                    .animationSpeed(0.5)
             }
             .padding(.horizontal)
             .padding(.top, 24)
-            LottieView(
-                animation: .named("plate")
-            )
-            .looping()
+            Spacer(minLength: 0)
             Spacer()
             PrimaryButton(
                 title: String(localized: "Continue"),

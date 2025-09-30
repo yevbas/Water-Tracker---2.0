@@ -12,10 +12,13 @@ struct PersonalizedOnboarding: View {
     @State var selectedMetric: MetricView.Configuration?
     @State var answers: [String: MetricView.Answer] = [:]
     @State var selectedAnswer: String?
+    @State var selectedUnit: WaterUnit = .millilitres
+    @State var planPreview: PlanPreviewModel?
     @State var stage = Stage.welcome
 
     enum Stage {
         case welcome
+        case unitSelection
         case metricCollection
         case askingForReview
         case calculating
@@ -24,29 +27,6 @@ struct PersonalizedOnboarding: View {
     }
 
     var metrics: [MetricView.Configuration] = [
-        .init(
-            id: "goal",
-            title: String(
-                localized: "Used for individual plan"
-            ),
-            question: String(
-                localized: "What's your goal?"
-            ),
-            answerType: .strings([
-                .init(
-                    value: Goal.lose.rawValue,
-                    title: String(localized: "Lose weight")
-                ),
-                .init(
-                    value: Goal.maintain.rawValue,
-                    title: String(localized: "Maintain")
-                ),
-                .init(
-                    value: Goal.gain.rawValue,
-                    title: String(localized: "Gain weight")
-                )
-            ])
-        ),
         .init(
             id: "activity-factor",
             title: String(
@@ -76,6 +56,20 @@ struct PersonalizedOnboarding: View {
                     value: "Extra (physical job + training)",
                     title: String(localized: "Extra (physical job + training)")
                 )
+            ])
+        ),
+        .init(
+            id: "climate",
+            title: String(
+                localized: "Used for individual plan"
+            ),
+            question: String(
+                localized: "Your climate?"
+            ),
+            answerType: .strings([
+                .init(value: "cool", title: String(localized: "Cool")),
+                .init(value: "temperate", title: String(localized: "Temperate")),
+                .init(value: "hot", title: String(localized: "Hot"))
             ])
         ),
         .init(
@@ -151,24 +145,6 @@ struct PersonalizedOnboarding: View {
                     )
                 }
             )
-        ),
-        .init(
-            id: "expected-weight-change",
-            title: String(
-                localized: "Used for individual plan"
-            ),
-            question: String(
-                localized: "Expected change per week (kg)"
-            ),
-            answerType: .selection(
-                stride(from: 0.1, to: 1.4, by: 0.1)
-                    .map {
-                        .init(
-                            value: "\($0.formatted(.number.precision(.fractionLength(1)))) kg",
-                            title: String(localized: "\($0.formatted(.number.precision(.fractionLength(1)))) kg")
-                        )
-                    }
-            )
         )
     ]
 
@@ -180,20 +156,29 @@ struct PersonalizedOnboarding: View {
         switch stage {
         case .welcome:
             WelcomeView {
+                stage = .unitSelection
+            }
+        case .unitSelection:
+            UnitSelectionView { unit in
+                selectedUnit = unit
+                // Save the selected unit to UserDefaults
+                UserDefaults.standard.set(unit == .ounces ? "fl_oz" : "ml", forKey: "measurement_units")
                 stage = .metricCollection
             }
         case .metricCollection:
             metricsCollectingView
         case .calculating:
             GeneratingPlanView(
-                answers: answers
+                answers: answers,
+                selectedUnit: selectedUnit
             ) { newPlan in
                 stage = .planPreview(newPlan)
             }
         case .planPreview(let plantPreview):
-            PlanReviewView(
+            GeneratedPlanReviewView(
                 plantPreview: plantPreview
             ) {
+                planPreview = plantPreview
                 stage = .convertUser
             }
         case .askingForReview:
@@ -201,7 +186,7 @@ struct PersonalizedOnboarding: View {
                 stage = .calculating
             }
         case .convertUser:
-            ConvertUserView()
+            ConvertUserView(planPreview: planPreview)
         }
     }
 
@@ -228,7 +213,7 @@ struct PersonalizedOnboarding: View {
                 .disabled(progress == 0.0)
 
                 ProgressView(value: progress)
-                    .tint(.black)
+                    .tint(.blue)
                     .progressViewStyle(.linear)
 //                    .animation(.linear, value: selectedMetric)
             }
@@ -257,7 +242,7 @@ struct PersonalizedOnboarding: View {
                 "height": .init(value: "170 cm", title: String(localized: "\(170) cm")),
                 "weight": .init(value: "70 kg", title: String(localized: "\(70) kg")),
                 "age": .init(value: "25 years", title: String(localized: "\(25) years")),
-                "expected-weight-change": .init(value: "0,1 kg", title: String(localized: "\(0.1) kg")),
+                "climate": .init(value: "temperate", title: String(localized: "Temperate")),
             ]
         }
     }

@@ -57,7 +57,55 @@ enum Drink: String, Codable, Equatable, Hashable, CaseIterable {
     }
 }
 
-enum WaterUnit: Codable, Equatable {
+enum WaterUnit: Codable, Equatable, CaseIterable {
     case ounces
     case millilitres
+    
+    var displayName: String {
+        switch self {
+        case .ounces:
+            return "Fluid ounces (fl oz)"
+        case .millilitres:
+            return "Milliliters (ml)"
+        }
+    }
+    
+    var shortName: String {
+        switch self {
+        case .ounces:
+            return "fl oz"
+        case .millilitres:
+            return "ml"
+        }
+    }
+    
+    var conversionFactor: Double {
+        switch self {
+        case .ounces:
+            return 29.5735 // 1 fl oz = 29.5735 ml
+        case .millilitres:
+            return 1.0
+        }
+    }
+    
+    static func fromString(_ string: String) -> WaterUnit {
+        switch string {
+        case "fl_oz", "fl oz", "ounces":
+            return .ounces
+        case "ml", "millilitres", "milliliters":
+            return .millilitres
+        default:
+            return .millilitres // default to ml
+        }
+    }
+    
+    func convertTo(_ targetUnit: WaterUnit, amount: Double) -> Double {
+        if self == targetUnit {
+            return amount
+        }
+        
+        // Convert to ml first, then to target unit
+        let amountInMl = amount * self.conversionFactor
+        return amountInMl / targetUnit.conversionFactor
+    }
 }

@@ -11,21 +11,22 @@ import Lottie
 struct GeneratingPlanView: View {
 
     var answers: [String: MetricView.Answer] = [:]
+    var selectedUnit: WaterUnit = .millilitres
 
     var onSubmit: (PlanPreviewModel) -> Void = { _ in }
 
     @State var progress: CGFloat = 0.0
 
-    @State var isBMRAnalysisCompleted: Bool = false
-    @State var isProteinsCalculated: Bool = false
-    @State var isCarbohydratesCalculated: Bool = false
-    @State var isFatsCalculated: Bool = false
+    @State var isBaseCalcCompleted: Bool = false
+    @State var isActivityApplied: Bool = false
+    @State var isClimateApplied: Bool = false
+    @State var isGoalReady: Bool = false
 
     @State var isMainButtonEnabled: Bool = false
 
     var body:some View {
         VStack {
-            if isFatsCalculated {
+            if isGoalReady {
                 LottieView(animation: .named("succeess"))
                     .playing(.fromProgress(0.0, toProgress: 1.0, loopMode: .playOnce))
                     .animationSpeed(2)
@@ -36,70 +37,70 @@ struct GeneratingPlanView: View {
             }
             VStack {
                 HStack {
-                    Text(isFatsCalculated ? "Plan is ready!" : "Creating plan...")
-                        .foregroundStyle(LinearGradient(colors: [.yellow, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    Text(isGoalReady ? "Goal is ready!" : "Creating goal...")
+                        .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
                         .font(.system(.title, design: .rounded, weight: .bold))
                         .onAppear {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 withAnimation {
-                                    isBMRAnalysisCompleted = true
+                                    isBaseCalcCompleted = true
                                 }
                             }
                         }
-                    if !isFatsCalculated {
+                    if !isGoalReady {
                         ProgressView()
                     }
                 }
-                if isBMRAnalysisCompleted {
+                if isBaseCalcCompleted {
                     GroupBox {
                         VStack(alignment: .leading, spacing: 16) {
-                            if isBMRAnalysisCompleted {
-                                Label("Applying BMR analysis", systemImage: "checkmark.circle.fill")
+                            if isBaseCalcCompleted {
+                                Label("Calculating base intake", systemImage: "checkmark.circle.fill")
                                     .onAppear {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                                             withAnimation {
-                                                isProteinsCalculated = true
+                                                isActivityApplied = true
                                             }
                                         }
                                     }
                             }
-                            if isProteinsCalculated {
-                                Label("Completed Protein Analysis", systemImage: "checkmark.circle.fill")
+                            if isActivityApplied {
+                                Label("Applying activity adjustments", systemImage: "checkmark.circle.fill")
                                     .onAppear {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                                             withAnimation {
-                                                isCarbohydratesCalculated = true
+                                                isClimateApplied = true
                                             }
                                         }
                                     }
                             }
-                            if isCarbohydratesCalculated {
-                                Label("Completed Carbohydrate Analysis", systemImage: "checkmark.circle.fill")
+                            if isClimateApplied {
+                                Label("Applying climate adjustments", systemImage: "checkmark.circle.fill")
                                     .onAppear {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                                             withAnimation {
-                                                isFatsCalculated = true
+                                                isGoalReady = true
                                             }
                                         }
                                     }
                             }
-                            if isFatsCalculated {
-                                Label("Completed Fat Analysis", systemImage: "checkmark.circle.fill")
+                            if isGoalReady {
+                                Label("Daily water goal ready", systemImage: "checkmark.circle.fill")
                             }
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
             }
-            .offset(y: isFatsCalculated ? -64 : 0)
-            if isFatsCalculated {
+            .offset(y: isGoalReady ? -64 : 0)
+            if isGoalReady {
                 Spacer()
                 PrimaryButton(
-                    title: String(localized: "Check out your plan"),
-                    colors: [.yellow, .pink],
+                    title: String(localized: "See your goal"),
+                    colors: [.blue, .cyan],
                     isDisabled: !isMainButtonEnabled
                 ) {
-                    if let dailyTargets = dailyNutritionTargets(
+                    if let dailyTargets = dailyWaterTargets(
                         from: answers
                     ) {
                         onSubmit(dailyTargets)
@@ -114,9 +115,9 @@ struct GeneratingPlanView: View {
 
     // MARK: - Convenience: Build plan directly from your UI answers
 
-    func dailyNutritionTargets(from answers: [String: MetricView.Answer]) -> PlanPreviewModel? {
+    func dailyWaterTargets(from answers: [String: MetricView.Answer]) -> PlanPreviewModel? {
         guard let m = UserMetrics(answers: answers) else { return nil }
-        return NutritionPlanner.plan(for: m)
+        return WaterPlanner.plan(for: m, unit: selectedUnit)
     }
 
 }

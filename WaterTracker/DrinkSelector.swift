@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RevenueCatUI
 
 enum PortionSize: CaseIterable {
     case cup
@@ -21,6 +22,14 @@ struct DrinkSelector: View {
     @FocusState var isFocused: Bool
     @State var formattedAmount: String = ""
     @State var drink: Drink = .water
+    @StateObject private var rc = RevenueCatMonitor.shared
+    @State private var isShowingPaywall: Bool = false
+    @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
+    
+    private var measurementUnits: WaterUnit {
+        get { WaterUnit.fromString(measurementUnitsString) }
+        set { measurementUnitsString = newValue == .ounces ? "fl_oz" : "ml" }
+    }
 
     var onDrinkSelected: (Drink, Double) -> Void = { _, _  in }
 
@@ -62,13 +71,20 @@ struct DrinkSelector: View {
     var addDrinkButton: some View {
         Button(action: {
             if let amount = Double(amount) {
-                onDrinkSelected(drink, amount)
-                dismiss()
+                if rc.userHasFullAccess || drink == .water {
+                    onDrinkSelected(drink, amount)
+                    dismiss()
+                } else {
+                    isShowingPaywall = true
+                }
             }
         }) {
             Image(systemName: "drop.circle.fill")
                 .foregroundStyle(.blue)
                 .font(.system(size: 74))
+        }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView()
         }
     }
 
@@ -88,7 +104,7 @@ struct DrinkSelector: View {
                 }
                 .contentTransition(.numericText())
                 .animation(.smooth, value: formattedAmount)
-            Text("ml")
+            Text(measurementUnits.shortName)
                 .font(.system(.largeTitle, design: .rounded, weight: .medium))
         }
         .padding(.horizontal, 24)

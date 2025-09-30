@@ -11,11 +11,26 @@ struct CustomDatePicker: View {
     @Binding var selectedDate: Date?
     @State private var dates: [Date] = []
     @State private var viewHeight: CGFloat?
+    @State private var isPrepending: Bool = false
+    @State private var showingDatePicker = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             ScrollViewReader { scroll in
                 LazyHStack(spacing: 8) {
+                    // Date picker item at the beginning
+                    Button {
+                        showingDatePicker = true
+                    } label: {
+                        buildDatePickerButtonContent()
+                            .background {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .foregroundStyle(.ultraThinMaterial)
+                            }
+                    }
+                    .id("datePicker")
+                    .buttonStyle(.plain)
+                    
                     ForEach(dates, id: \.self) { date in
                         Button {
                             selectedDate = date
@@ -37,43 +52,70 @@ struct CustomDatePicker: View {
                                 }
                             }
                         }
-                        // 👇 trigger infinite prepend
-//                        .onAppear {
-//                            if date == dates.first {
-//                                prependMoreDates()
-//                            }
-//                        }
+                        .onAppear {
+                            // Prepend more dates when reaching the first date
+                            if date == dates.first && !isPrepending {
+                                prependMoreDates()
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal)
                 .onAppear {
                     initiateDates()
-
-                    // Scroll to today (last element) after layout
-                    if let last = dates.last {
-                        DispatchQueue.main.async {
-                            scroll.scrollTo(last, anchor: .trailing)
+                    
+                    // Set today as selected and scroll to it
+                    if let today = dates.last {
+                        selectedDate = today
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                scroll.scrollTo(today, anchor: .center)
+                            }
                         }
                     }
                 }
             }
         }
         .frame(height: viewHeight ?? 58)
+        .sheet(isPresented: $showingDatePicker) {
+            datePickerSheet
+        }
     }
 
     private func initiateDates() {
-        // 30 past days + today
-        dates = (0...30).compactMap {
-            Calendar.current.date(byAdding: .day, value: -$0, to: Date())?.rounded()
-        }.reversed() // oldest → today
+        // Get last month's dates + current month up to today
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // Get first day of last month
+        guard let firstDayOfLastMonth = calendar.dateInterval(of: .month, for: calendar.date(byAdding: .month, value: -1, to: today)!)?.start else { return }
+        
+        // Get all days from first day of last month to today
+        var allDates: [Date] = []
+        var currentDate = firstDayOfLastMonth
+        
+        while currentDate <= today {
+            allDates.append(currentDate.rounded())
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+        
+        dates = allDates
     }
 
     private func prependMoreDates() {
-        guard let first = dates.first else { return }
+        guard !isPrepending, let first = dates.first else { return }
+        isPrepending = true
+        
         let newDates = (1...30).compactMap {
             Calendar.current.date(byAdding: .day, value: -$0, to: first)?.rounded()
         }.reversed()
+        
         dates.insert(contentsOf: newDates, at: 0)
+        
+        // Reset prepending flag
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isPrepending = false
+        }
     }
 
     func buildButtonContent(for date: Date) -> some View {
@@ -86,6 +128,54 @@ struct CustomDatePicker: View {
         }
         .foregroundStyle(selectedDate == date ? .blue : .primary)
         .padding()
+    }
+    
+    func buildDatePickerButtonContent() -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "calendar")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text("Pick")
+                .font(.headline)
+        }
+        .foregroundStyle(.primary)
+        .padding()
+    }
+    
+    private var datePickerSheet: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                DatePicker(
+                    "Select Date",
+                    selection: Binding(
+                        get: { selectedDate ?? Date() },
+                        set: { selectedDate = $0.rounded() }
+                    ),
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .padding()
+                
+                Spacer()
+            }
+            .navigationTitle("Select Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showingDatePicker = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        showingDatePicker = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

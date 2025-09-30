@@ -46,9 +46,7 @@ struct MetricView: View {
     var body: some View {
         VStack {
             VStack(alignment: .leading) {
-                Text(configuration.title)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                // Remove secondary title to reduce visual noise
                 Text(configuration.question)
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
             }
@@ -106,7 +104,7 @@ struct MetricView: View {
                 .background {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 16)
-                            .foregroundStyle(LinearGradient(colors: [.yellow, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
                     } else {
                         RoundedRectangle(cornerRadius: 16)
                             .foregroundStyle(.ultraThinMaterial)
