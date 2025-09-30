@@ -69,7 +69,7 @@ final class AIDrinkAnalysisClient: ObservableObject {
 
         let query = ChatQuery(
             messages: messages,
-            model: .gpt4_o
+            model: .gpt4_o_mini
         )
         
         let result = try await openAI.chats(query: query)
@@ -109,7 +109,7 @@ final class AIDrinkAnalysisClient: ObservableObject {
         ]
         
         let chatResult = try await openAI.chats(
-            query: .init(messages: messages, model: .gpt4_o)
+            query: .init(messages: messages, model: .gpt4_o_mini)
         )
         
         let response: DrinkAnalysisResponse = try extractResponse(from: chatResult)

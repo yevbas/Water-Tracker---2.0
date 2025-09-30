@@ -26,7 +26,7 @@ struct DrinkAnalysisView: View {
     
     var onDrinkAnalyzed: (Drink, Double) -> Void = { _, _ in }
     @Environment(\.dismiss) var dismiss
-    
+
     var body: some View {
         ZStack {
             VStack(spacing: 16) {
@@ -149,6 +149,12 @@ struct DrinkAnalysisView: View {
         }
         .onChange(of: selectedImage) { _, newImage in
             if let image = newImage {
+                analyzeImage(image)
+            }
+        }
+        .onAppear {
+            // If we have an initial image, start analysis immediately
+            if let image = selectedImage {
                 analyzeImage(image)
             }
         }
