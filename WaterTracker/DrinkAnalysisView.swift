@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import RevenueCatUI
 
 struct DrinkAnalysisView: View {
     @StateObject private var analysisClient = AIDrinkAnalysisClient.shared
@@ -16,7 +17,10 @@ struct DrinkAnalysisView: View {
     @State private var analysisResult: DrinkAnalysisResult?
     @State private var showingError = false
     @State private var errorMessage = ""
-    
+    @State private var isPresentedPaywall = false
+
+    @EnvironmentObject var revenueCatMonitor: RevenueCatMonitor
+
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
     
     private var measurementUnits: WaterUnit {
@@ -141,6 +145,10 @@ struct DrinkAnalysisView: View {
         }
         .sheet(isPresented: $showingCamera) {
             CameraPhotoPicker(image: $selectedImage)
+                .ignoresSafeArea()
+        }
+        .sheet(isPresented: $isPresentedPaywall) {
+            PaywallView()
         }
         .alert("Analysis Error", isPresented: $showingError) {
             Button("OK") { }
@@ -148,20 +156,19 @@ struct DrinkAnalysisView: View {
             Text(errorMessage)
         }
         .onChange(of: selectedImage) { _, newImage in
-            if let image = newImage {
+            if let image = newImage, revenueCatMonitor.userHasFullAccess {
                 analyzeImage(image)
-            }
-        }
-        .onAppear {
-            // If we have an initial image, start analysis immediately
-            if let image = selectedImage {
-                analyzeImage(image)
+            } else {
+                isPresentedPaywall = true
             }
         }
     }
     
     private func analyzeImage(_ image: UIImage) {
         Task {
+            // Show full screen ad before analyzing
+            await FullScreenAdService.shared.showAd()
+            
             do {
                 let result = try await analysisClient.analyzeDrink(
                     image: image,

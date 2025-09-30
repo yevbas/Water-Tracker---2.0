@@ -155,7 +155,17 @@ struct DashboardView: View {
             EditWaterPortionView(waterPortion: waterPortion)
         }
         .sheet(isPresented: $isPresentedWeatherAnalysis) {
-            WeatherAnalysisView()
+            var presentationDetents: Set<PresentationDetent> {
+                if revenueCatMonitor.userHasFullAccess {
+                    return [.large]
+                } else {
+                    return [.medium, .large]
+                }
+            }
+            return WeatherAnalysisView()
+                .presentationDetents(
+                    presentationDetents
+                )
         }
         .sheet(isPresented: $isPresentedImagePicker) {
             DrinkAnalysisView { drink, amount in
