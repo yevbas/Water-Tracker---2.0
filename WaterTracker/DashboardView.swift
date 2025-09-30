@@ -132,18 +132,16 @@ struct DashboardView: View {
                     Image(systemName: "clock")
                 }
             }
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    isPresentedWeatherAnalysis = true
+                } label: {
+                    Image(systemName: "cloud.sun.fill")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
-                HStack {
-                    if revenueCatMonitor.userHasFullAccess {
-                        Button {
-                            isPresentedWeatherAnalysis = true
-                        } label: {
-                            Image(systemName: "cloud.sun.fill")
-                        }
-                    }
-                    NavigationLink(destination: SettingsView.init) {
-                        Image(systemName: "gear")
-                    }
+                NavigationLink(destination: SettingsView.init) {
+                    Image(systemName: "gear")
                 }
             }
         }

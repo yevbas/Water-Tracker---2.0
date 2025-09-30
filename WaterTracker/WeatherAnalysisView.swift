@@ -8,6 +8,7 @@
 import SwiftUI
 import WeatherKit
 import SwiftData
+import RevenueCatUI
 
 struct WeatherAnalysisView: View {
     @Environment(\.modelContext) var modelContext
@@ -20,7 +21,7 @@ struct WeatherAnalysisView: View {
     @State private var aiComment: String = ""
     @State private var lastAnalysisDate: Date?
     @State private var isAnalyzing = false
-    @State private var showSubscriptionPrompt = false
+    @State private var isPresentedPaywall = false
     @State private var cachedAnalysis: WeatherAnalysisCache?
     
     var body: some View {
@@ -57,10 +58,8 @@ struct WeatherAnalysisView: View {
                 loadTodaysAnalysis()
             }
         }
-        .sheet(isPresented: $showSubscriptionPrompt) {
-            // Add your subscription view here
-            Text("Subscription Required")
-                .padding()
+        .sheet(isPresented: $isPresentedPaywall) {
+            PaywallView()
         }
     }
 
@@ -79,7 +78,7 @@ struct WeatherAnalysisView: View {
                 .foregroundStyle(.secondary)
             
             Button("Upgrade to Premium") {
-                showSubscriptionPrompt = true
+                isPresentedPaywall = true
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
