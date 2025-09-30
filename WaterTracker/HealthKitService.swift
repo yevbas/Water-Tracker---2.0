@@ -78,9 +78,194 @@ class HealthKitService: ObservableObject {
     // MARK: - Data Refresh (for Settings)
     
     func refreshHealthData() {
-        // This method is called from Settings to refresh data
-        // The actual data fetching is now handled by the views
         print("🔄 HealthKit data refresh requested from Settings")
+        fetchUserHeight()
+        fetchUserWeight()
+        fetchUserAge()
+        fetchUserGender()
+        fetchRecentSleepData()
+    }
+    
+    private func fetchUserHeight() {
+        guard let heightType = HKQuantityType.quantityType(forIdentifier: .height) else { 
+            print("❌ Height type not available")
+            return 
+        }
+        
+        print("🔍 Fetching height data...")
+        let query = HKSampleQuery(
+            sampleType: heightType,
+            predicate: nil,
+            limit: 1,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+        ) { _, samples, error in
+            if let error = error {
+                print("❌ Error fetching height: \(error)")
+                return
+            }
+            
+            guard let sample = samples?.first as? HKQuantitySample else { 
+                print("❌ No height samples found")
+                return 
+            }
+            
+            let heightInMeters = sample.quantity.doubleValue(for: HKUnit.meter())
+            print("✅ Height fetched: \(heightInMeters) meters")
+            
+            DispatchQueue.main.async {
+                self.updateProfileWithHeight(heightInMeters)
+            }
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    private func fetchUserWeight() {
+        guard let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { 
+            print("❌ Weight type not available")
+            return 
+        }
+        
+        print("🔍 Fetching weight data...")
+        let query = HKSampleQuery(
+            sampleType: weightType,
+            predicate: nil,
+            limit: 1,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+        ) { _, samples, error in
+            if let error = error {
+                print("❌ Error fetching weight: \(error)")
+                return
+            }
+            
+            guard let sample = samples?.first as? HKQuantitySample else { 
+                print("❌ No weight samples found")
+                return 
+            }
+            
+            let weightInKg = sample.quantity.doubleValue(for: HKUnit.gramUnit(with: .kilo))
+            print("✅ Weight fetched: \(weightInKg) kg")
+            
+            DispatchQueue.main.async {
+                self.updateProfileWithWeight(weightInKg)
+            }
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    private func fetchUserAge() {
+        do {
+            let birthDateComponents = try healthStore.dateOfBirthComponents()
+            let calendar = Calendar.current
+            
+            // Convert DateComponents to Date
+            guard let birthDate = calendar.date(from: birthDateComponents) else {
+                print("❌ Could not convert birth date components to Date")
+                return
+            }
+            
+            let age = calendar.dateComponents([.year], from: birthDate, to: Date()).year
+            print("✅ Age fetched: \(age ?? 0) years")
+            
+            DispatchQueue.main.async {
+                self.updateProfileWithAge(age)
+            }
+        } catch {
+            print("❌ Error fetching age: \(error)")
+        }
+    }
+    
+    private func fetchUserGender() {
+        do {
+            let biologicalSex = try healthStore.biologicalSex()
+            print("✅ Gender fetched: \(biologicalSex.biologicalSex.rawValue)")
+            
+            DispatchQueue.main.async {
+                self.updateProfileWithGender(biologicalSex.biologicalSex)
+            }
+        } catch {
+            print("❌ Error fetching gender: \(error)")
+        }
+    }
+    
+    private func fetchRecentSleepData() {
+        guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else {
+            print("❌ Sleep type not available")
+            return
+        }
+        
+        print("🔍 Fetching sleep data...")
+        let calendar = Calendar.current
+        let endDate = Date()
+        let startDate = calendar.date(byAdding: .day, value: -30, to: endDate) ?? endDate
+        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        
+        let query = HKSampleQuery(
+            sampleType: sleepType,
+            predicate: predicate,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+        ) { _, samples, error in
+            if let error = error {
+                print("❌ Error fetching sleep data: \(error)")
+                return
+            }
+            
+            guard let samples = samples else {
+                print("❌ No sleep samples found")
+                return
+            }
+            
+            let sleepHours = self.calculateAverageSleepHours(from: samples)
+            print("✅ Sleep data fetched: \(sleepHours) hours average")
+            
+            DispatchQueue.main.async {
+                self.updateProfileWithSleep(sleepHours)
+            }
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    private func calculateAverageSleepHours(from samples: [HKSample]) -> Double? {
+        let sleepSamples = samples.compactMap { $0 as? HKCategorySample }
+        let inBedSamples = sleepSamples.filter { $0.value == HKCategoryValueSleepAnalysis.inBed.rawValue }
+        
+        guard !inBedSamples.isEmpty else { return nil }
+        
+        let totalHours = inBedSamples.reduce(0.0) { total, sample in
+            let duration = sample.endDate.timeIntervalSince(sample.startDate)
+            return total + duration / 3600.0 // Convert to hours
+        }
+        
+        return totalHours / Double(inBedSamples.count)
+    }
+    
+    private func updateProfileWithHeight(_ height: Double) {
+        userHealthProfile?.height = height
+        saveProfile()
+    }
+    
+    private func updateProfileWithWeight(_ weight: Double) {
+        userHealthProfile?.weight = weight
+        saveProfile()
+    }
+    
+    private func updateProfileWithAge(_ age: Int?) {
+        userHealthProfile?.age = age
+        saveProfile()
+    }
+    
+    private func updateProfileWithGender(_ gender: HKBiologicalSex) {
+        userHealthProfile?.gender = gender.stringValue
+        saveProfile()
+    }
+    
+    private func updateProfileWithSleep(_ sleepHours: Double?) {
+        userHealthProfile?.averageSleepHours = sleepHours
+        saveProfile()
     }
     
     // MARK: - Private Methods

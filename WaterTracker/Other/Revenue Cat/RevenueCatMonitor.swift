@@ -20,7 +20,7 @@ final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
     var userHasFullAccess: Bool {
 #if DEBUG
         switch state {
-        case .default: return false
+        case .default: return true
         case .preview(let isFullAccessAvailable): return isFullAccessAvailable
         }
 #else

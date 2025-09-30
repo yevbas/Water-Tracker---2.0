@@ -94,7 +94,8 @@ struct SettingsView: View {
                         }
                         .foregroundStyle(.blue)
                         
-                        if let profile = healthProfiles.first, profile.isDataComplete {
+                        // Always show health data section when HealthKit is enabled
+                        if let profile = healthProfiles.first {
                             VStack(alignment: .leading, spacing: 8) {
                                 Label("Health Data", systemImage: "person.crop.circle")
                                     .foregroundStyle(.blue)
@@ -106,6 +107,9 @@ struct SettingsView: View {
                                     if let height = profile.heightInCm {
                                         Text("\(height) cm")
                                             .foregroundStyle(.primary)
+                                    } else {
+                                        Text("Not available")
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                                 
@@ -116,6 +120,9 @@ struct SettingsView: View {
                                     if let weight = profile.weightInKg {
                                         Text("\(weight) kg")
                                             .foregroundStyle(.primary)
+                                    } else {
+                                        Text("Not available")
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                                 
@@ -126,20 +133,37 @@ struct SettingsView: View {
                                     if let age = profile.age {
                                         Text("\(age) years")
                                             .foregroundStyle(.primary)
+                                    } else {
+                                        Text("Not available")
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                                 
-                                if let sleepHours = profile.averageSleepHours {
-                                    HStack {
-                                        Text("Avg Sleep:")
-                                            .foregroundStyle(.secondary)
-                                        Spacer()
+                                HStack {
+                                    Text("Avg Sleep:")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    if let sleepHours = profile.averageSleepHours {
                                         Text("\(String(format: "%.1f", sleepHours)) hours")
                                             .foregroundStyle(.primary)
+                                    } else {
+                                        Text("Not available")
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                             }
                             .font(.caption)
+                            .padding(.vertical, 4)
+                        } else {
+                            // Show message when no profile exists yet
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Health Data", systemImage: "person.crop.circle")
+                                    .foregroundStyle(.blue)
+                                
+                                Text("No health data available yet. Tap 'Refresh Health Data' to fetch your information from the Health app.")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                            }
                             .padding(.vertical, 4)
                         }
                         
@@ -280,14 +304,29 @@ struct SettingsView: View {
     }
     
     private func refreshHealthData() {
-        if healthKitService.isAuthorized() {
-            healthKitService.refreshHealthData()
-            healthKitAlertMessage = "Health data refreshed successfully."
-            showingHealthKitAlert = true
+        if healthKitService.isHealthKitEnabled() {
+            if healthKitService.isAuthorized() {
+                healthKitService.refreshHealthData()
+                healthKitAlertMessage = "Health data refreshed successfully."
+            } else {
+                // HealthKit is enabled but not authorized yet - request permission
+                healthKitService.requestPermission { success, error in
+                    DispatchQueue.main.async {
+                        if success {
+                            healthKitService.refreshHealthData()
+                            healthKitAlertMessage = "Health data refreshed successfully."
+                        } else {
+                            healthKitAlertMessage = "Failed to refresh health data. Please check your Health app permissions."
+                        }
+                        showingHealthKitAlert = true
+                    }
+                }
+                return // Don't show alert here, it will be shown in the completion handler
+            }
         } else {
-            healthKitAlertMessage = "HealthKit permission required. Please enable HealthKit integration first."
-            showingHealthKitAlert = true
+            healthKitAlertMessage = "HealthKit integration is disabled. Please enable it first."
         }
+        showingHealthKitAlert = true
     }
     
     private func checkForMetricChanges() {
