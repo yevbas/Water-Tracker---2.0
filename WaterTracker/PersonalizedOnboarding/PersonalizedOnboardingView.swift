@@ -288,7 +288,6 @@ struct PersonalizedOnboarding: View {
         }
         .onAppear {
             selectedMetric = metrics.first
-            healthKitService.setModelContextForOnboarding(modelContext)
         }
     }
 
@@ -323,7 +322,7 @@ struct PersonalizedOnboarding: View {
     
     // MARK: - HealthKit Integration
     
-    private func handleHealthKitPermissionGranted(_ profile: UserHealthProfile?) {
+    private func handleHealthKitPermissionGranted(_ profile: HealthKitData?) {
         guard let profile = profile else {
             // No profile returned, proceed to metric collection
             stage = .metricCollection
@@ -335,7 +334,7 @@ struct PersonalizedOnboarding: View {
             userHeight = profile.height
             userWeight = profile.weight
             userAge = profile.age
-            userGender = HKBiologicalSex.from(string: profile.gender)
+            userGender = profile.gender
             averageSleepHours = profile.averageSleepHours
             
             hasHealthKitData = true
@@ -348,7 +347,7 @@ struct PersonalizedOnboarding: View {
         }
     }
     
-    private func hasCompleteHealthKitData(from profile: UserHealthProfile) -> Bool {
+    private func hasCompleteHealthKitData(from profile: HealthKitData) -> Bool {
         return profile.height != nil &&
                profile.weight != nil &&
                profile.age != nil &&

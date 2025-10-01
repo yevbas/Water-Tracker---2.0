@@ -14,13 +14,10 @@ import HealthKitUI
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var portions: [WaterPortion]
-    @Query private var healthProfiles: [UserHealthProfile]
     @EnvironmentObject private var healthKitService: HealthKitService
     @State private var isConvertingUnits: Bool = false
     @State private var showingHealthKitAlert = false
     @State private var healthKitAlertMessage = ""
-    @State private var showingRecalculateAlert = false
-    @State private var hasMetricsChanged = false
     @State private var isRequestingHealthKitPermission = false
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
@@ -45,7 +42,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 hydrationSettingsCard
-                healthDataCard
+                healthKitCard
                 generalSettingsCard
                 aboutCard
             }
@@ -54,37 +51,10 @@ struct SettingsView: View {
             .padding(.bottom, 30)
         }
         .navigationTitle("Settings")
-        .onAppear {
-            print("⚙️ Settings view appeared")
-            healthKitService.setModelContext(modelContext)
-            // Refresh HealthKit status first
-            healthKitService.refreshHealthKitStatus()
-            // Fetch fresh HealthKit data on every app launch
-            if healthKitService.isHealthKitEnabled() {
-                print("⚙️ HealthKit is enabled, refreshing data")
-                healthKitService.refreshHealthData()
-            } else {
-                print("⚙️ HealthKit is disabled")
-            }
-            // Check for changes after a brief delay to allow data fetching
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                checkForMetricChanges()
-            }
-        }
-        // Note: Metric change detection temporarily disabled since we're not storing
-        // HealthKit data in the service anymore. This could be re-implemented if needed.
         .alert("HealthKit", isPresented: $showingHealthKitAlert) {
             Button("OK") { }
         } message: {
             Text(healthKitAlertMessage)
-        }
-        .alert("Re-calculate Water Amount", isPresented: $showingRecalculateAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Re-calculate") {
-                recalculateWaterAmount()
-            }
-        } message: {
-            Text("Your health metrics have changed. Would you like to re-calculate your daily water goal based on your updated health data?")
         }
         .overlay {
             if isConvertingUnits {
@@ -249,21 +219,65 @@ struct SettingsView: View {
         }
     }
 
-    private var healthDataCard: some View {
+    private var healthKitCard: some View {
         VStack(spacing: 16) {
-            healthDataCardHeader
+            HStack {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(.white)
+                    .font(.title2)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        LinearGradient(
+                            colors: [.red, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Health & Data")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.primary)
+                    Text("Connect with HealthKit")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
 
             VStack(spacing: 16) {
-                healthKitToggle
-
-                if healthKitService.isHealthKitEnabled() {
-                    refreshHealthDataButton
-                    healthDataDisplay
-
-                    if hasMetricsChanged {
-                        recalculateButton
+                Button {
+                    isRequestingHealthKitPermission = true
+                } label: {
+                    HStack {
+                        Image(systemName: "heart.text.square")
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16))
+                        Text("Request HealthKit Access")
+                            .foregroundStyle(.white)
+                            .font(.headline)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [.red, .pink],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                
+                Text("Grant HealthKit permission to get personalized hydration recommendations based on your health data.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
@@ -273,229 +287,15 @@ struct SettingsView: View {
                 .fill(.ultraThinMaterial)
                 .shadow(color: .red.opacity(0.1), radius: 10, x: 0, y: 5)
         )
-    }
-
-    private var healthDataCardHeader: some View {
-        HStack {
-            Image(systemName: "heart.fill")
-                .foregroundStyle(.white)
-                .font(.title2)
-                .frame(width: 40, height: 40)
-                .background(
-                    LinearGradient(
-                        colors: [.red, .pink],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Health & Data")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.primary)
-                Text("Connect with HealthKit")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-    }
-
-    private var healthKitToggle: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "heart.text.square")
-                .foregroundStyle(.red)
-                .font(.system(size: 16, weight: .medium))
-                .frame(width: 20, height: 20)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("HealthKit Integration")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
-                Text("Sync with Apple Health")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Toggle(isOn: Binding(
-                get: { healthKitService.isHealthKitEnabled() },
-                set: { isEnabled in
-                    if isEnabled {
-                        enableHealthKit()
-                    } else {
-                        disableHealthKit()
-                    }
-                }
-            )) {
-                EmptyView()
-            }
-            .tint(.red)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.red.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.red.opacity(0.15), lineWidth: 0.5)
-                )
-        )
-    }
-
-    private var refreshHealthDataButton: some View {
-        Button {
-            refreshHealthData()
-        } label: {
-            HStack {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(.white)
-                    .font(.system(size: 16))
-                Text("Refresh Health Data")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.white.opacity(0.7))
-                    .font(.system(size: 12))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                LinearGradient(
-                    colors: [.red, .pink],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+        .healthDataAccessRequest(
+            store: healthKitService.healthStore,
+            readTypes: healthKitService.healthKitTypes,
+            trigger: isRequestingHealthKitPermission
+        ) { result in
+            handleHealthKitPermissionResult(result)
         }
     }
 
-    @ViewBuilder
-    private var healthDataDisplay: some View {
-        if let profile = healthProfiles.first {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.crop.circle")
-                        .foregroundStyle(.red)
-                        .font(.system(size: 16, weight: .medium))
-                        .frame(width: 20, height: 20)
-                    Text("Your Health Data")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                }
-
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 14) {
-                    HealthDataItem(
-                        title: "Height",
-                        value: profile.heightInCm != nil ? "\(profile.heightInCm!) cm" : "Not available",
-                        icon: "ruler",
-                        color: .blue
-                    )
-
-                    HealthDataItem(
-                        title: "Weight",
-                        value: profile.weightInKg != nil ? "\(profile.weightInKg!) kg" : "Not available",
-                        icon: "scalemass",
-                        color: .green
-                    )
-
-                    HealthDataItem(
-                        title: "Age",
-                        value: profile.age != nil ? "\(profile.age!) years" : "Not available",
-                        icon: "calendar",
-                        color: .orange
-                    )
-
-                    HealthDataItem(
-                        title: "Sleep",
-                        value: profile.averageSleepHours != nil ? "\(String(format: "%.1f", profile.averageSleepHours!)) hrs" : "Not available",
-                        icon: "moon",
-                        color: .purple
-                    )
-                }
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.red.opacity(0.05))
-            )
-        } else {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.crop.circle")
-                        .foregroundStyle(.red)
-                        .font(.system(size: 16, weight: .medium))
-                        .frame(width: 20, height: 20)
-                    Text("Health Data")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                }
-
-                Text("No health data available yet. Tap 'Refresh Health Data' to fetch your information from the Health app.")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(3)
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.red.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(.red.opacity(0.15), lineWidth: 0.5)
-                    )
-            )
-        }
-    }
-
-    private var recalculateButton: some View {
-        Button {
-            showingRecalculateAlert = true
-        } label: {
-            HStack {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(.white)
-                    .font(.system(size: 16))
-                Text("Re-calculate Water Amount")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.white.opacity(0.7))
-                    .font(.system(size: 12))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                LinearGradient(
-                    colors: [.orange, .yellow],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
 
     private var generalSettingsCard: some View {
         VStack(spacing: 16) {
@@ -659,100 +459,16 @@ struct SettingsView: View {
         }
     }
 
-    private func enableHealthKit() {
-        // Use SwiftUI healthDataAccessRequest modifier
-        isRequestingHealthKitPermission = true
-    }
-
-    private func disableHealthKit() {
-        healthKitService.disableHealthKit()
-        healthKitAlertMessage = "HealthKit integration disabled. You can re-enable it anytime in settings."
-        showingHealthKitAlert = true
-    }
-
-    private func refreshHealthData() {
-        if healthKitService.isHealthKitEnabled() {
-            if healthKitService.isAuthorized() {
-                // Already authorized, just refresh data
-                healthKitService.refreshHealthData()
-                healthKitAlertMessage = "Health data refreshed successfully."
-                showingHealthKitAlert = true
-            } else {
-                // HealthKit is enabled but not authorized yet - request permission using SwiftUI modifier
-                isRequestingHealthKitPermission = true
-            }
-        } else {
-            healthKitAlertMessage = "HealthKit integration is disabled. Please enable it first."
-            showingHealthKitAlert = true
-        }
-    }
-
     private func handleHealthKitPermissionResult(_ result: Result<Bool, Error>) {
         isRequestingHealthKitPermission = false
         
         switch result {
         case .success:
-            // Permission granted - enable HealthKit and refresh data
-            healthKitService.enableHealthKit()
-            healthKitService.refreshHealthData()
-            healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
-        case .failure:
-            // Permission denied or failed
-            healthKitAlertMessage = "Failed to enable HealthKit integration. Please check your Health app permissions."
+            healthKitAlertMessage = "HealthKit access granted. Your health data can now be used for personalized hydration recommendations."
+        case .failure(let error):
+            healthKitAlertMessage = "Failed to access HealthKit: \(error.localizedDescription)"
         }
         showingHealthKitAlert = true
-    }
-    
-    private func checkForMetricChanges() {
-        // For now, we'll disable the metric change detection since we're not storing
-        // HealthKit data in the service anymore. This could be re-implemented by
-        // fetching fresh data and comparing with stored profile if needed.
-        hasMetricsChanged = false
-    }
-
-    private func recalculateWaterAmount() {
-        guard let profile = healthProfiles.first else { return }
-
-        // Use profile's stored data for recalculation
-        if let height = profile.height,
-           let weight = profile.weight,
-           let age = profile.age,
-           let gender = profile.genderEnum {
-
-            // Convert stored data to answers format for UserMetrics
-            let heightCm = height * 100 // Convert meters to cm
-            let answers: [String: MetricView.Answer] = [
-                "gender": MetricView.Answer(value: gender.stringValue, title: gender.stringValue.capitalized),
-                "height": MetricView.Answer(value: "\(Int(heightCm)) cm", title: "\(Int(heightCm)) cm"),
-                "weight": MetricView.Answer(value: "\(Int(weight)) kg", title: "\(Int(weight)) kg"),
-                "age": MetricView.Answer(value: "\(age) years", title: "\(age) years"),
-                "activity-factor": MetricView.Answer(value: "moderate", title: "Moderate (3–5 days/week)"),
-                "climate": MetricView.Answer(value: "temperate", title: "Temperate")
-            ]
-
-            guard let userMetrics = UserMetrics(answers: answers) else {
-                healthKitAlertMessage = "Failed to create user metrics from health data."
-                showingHealthKitAlert = true
-                return
-            }
-
-            // Use the same WaterPlanner logic as onboarding
-            let plan = WaterPlanner.plan(for: userMetrics, unit: measurementUnits)
-
-            // Update the water goal
-            waterGoalMl = plan.waterMl
-
-            // Save changes
-            do {
-                try modelContext.save()
-                hasMetricsChanged = false
-                healthKitAlertMessage = "Water goal updated to \(waterGoalMl)ml based on your health data."
-                showingHealthKitAlert = true
-            } catch {
-                healthKitAlertMessage = "Failed to save updated water goal. Please try again."
-                showingHealthKitAlert = true
-            }
-        }
     }
 }
 
@@ -866,7 +582,7 @@ private extension Double {
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: WaterPortion.self, UserHealthProfile.self, configurations: config)
+    let container = try! ModelContainer(for: WaterPortion.self, configurations: config)
 
     return NavigationStack {
         SettingsView()

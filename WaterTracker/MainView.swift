@@ -20,15 +20,6 @@ struct MainView: View {
             .tabItem {
                 Label("Dashboard", systemImage: "house")
             }
-            .onAppear {
-                // Initialize HealthKit service with model context
-                healthKitService.setModelContext(modelContext)
-                
-                // Always refresh health data on app launch if HealthKit is enabled
-                if healthKitService.isHealthKitEnabled() {
-                    healthKitService.refreshHealthData()
-                }
-            }
 
 //            NavigationStack {
 //                ScheduleView()

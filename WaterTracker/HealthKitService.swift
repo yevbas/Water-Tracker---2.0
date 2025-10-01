@@ -1,6 +1,5 @@
 import Foundation
 import HealthKit
-import SwiftData
 
 // MARK: - Helper Struct for Data Collection
 struct HealthKitData {
@@ -13,10 +12,8 @@ struct HealthKitData {
 
 class HealthKitService: ObservableObject {
     let healthStore = HKHealthStore()
-    private var modelContext: ModelContext?
-    private var userHealthProfile: UserHealthProfile?
     
-    // HealthKit types for permission request
+    // HealthKit types for reference
     let healthKitTypes: Set<HKObjectType> = [
         HKObjectType.quantityType(forIdentifier: .height)!,
         HKObjectType.quantityType(forIdentifier: .bodyMass)!,
@@ -25,225 +22,107 @@ class HealthKitService: ObservableObject {
         HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
     ]
 
-    init() {
-        // Note: loadUserHealthProfile() will be called when modelContext is set
-    }
-    
-    // MARK: - Model Context Management
-    
-    func setModelContext(_ context: ModelContext) {
-        self.modelContext = context
-        loadUserHealthProfile()
-    }
-    
-    func setModelContextForOnboarding(_ context: ModelContext) {
-        self.modelContext = context
-        // Don't load existing profile during onboarding - we'll create a new one
-    }
-    
-    // MARK: - Permission Management
-    
-    func isAuthorized() -> Bool {
-        return healthKitTypes.allSatisfy { healthStore.authorizationStatus(for: $0) == .sharingAuthorized }
-    }
-    
-    func requestPermission(completion: @escaping (Bool, Error?) -> Void) {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            completion(false, NSError(domain: "HealthKitError", code: 1, userInfo: [NSLocalizedDescriptionKey: "HealthKit is not available on this device"]))
-            return
-        }
-        
-        healthStore.requestAuthorization(toShare: nil, read: healthKitTypes) { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    // Permission granted - the view will handle data fetching and saving
-                    completion(true, nil)
-                } else {
-                    completion(false, error)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Status Management
-    
-    func isHealthKitEnabled() -> Bool {
-        return userHealthProfile?.isHealthKitEnabled ?? false
-    }
-    
-    func enableHealthKit() {
-        userHealthProfile?.enableHealthKit()
-        saveProfile()
-    }
-    
-    func disableHealthKit() {
-        userHealthProfile?.disableHealthKit()
-        saveProfile()
-    }
-    
-    func refreshHealthKitStatus() {
-        loadUserHealthProfile()
-    }
+    init() {}
     
     // MARK: - Unified HealthKit Data Fetching
     
-    func fetchAllHealthData(completion: @escaping (UserHealthProfile?) -> Void) {
+    func fetchAllHealthData() async -> HealthKitData {
         print("🚀 Starting unified HealthKit data fetch...")
         
-        let group = DispatchGroup()
-        var fetchedData = HealthKitData()
+        async let height = fetchUserHeight()
+        async let weight = fetchUserWeight()
+        async let age = fetchUserAge()
+        async let gender = fetchUserGender()
+        async let sleepHours = fetchRecentSleepData()
         
-        // Fetch height
-        group.enter()
-        fetchUserHeight { height in
-            fetchedData.height = height
-            group.leave()
-        }
+        let (fetchedHeight, fetchedWeight, fetchedAge, fetchedGender, fetchedSleepHours) = await (height, weight, age, gender, sleepHours)
         
-        // Fetch weight
-        group.enter()
-        fetchUserWeight { weight in
-            fetchedData.weight = weight
-            group.leave()
-        }
+        print("✅ All HealthKit data fetched - height: \(fetchedHeight != nil), weight: \(fetchedWeight != nil), age: \(fetchedAge != nil), gender: \(fetchedGender != nil), sleep: \(fetchedSleepHours != nil)")
         
-        // Fetch age
-        group.enter()
-        fetchUserAge { age in
-            fetchedData.age = age
-            group.leave()
-        }
-        
-        // Fetch gender
-        group.enter()
-        fetchUserGender { gender in
-            fetchedData.gender = gender
-            group.leave()
-        }
-        
-        // Fetch sleep data
-        group.enter()
-        fetchRecentSleepData { sleepHours in
-            fetchedData.averageSleepHours = sleepHours
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            print("✅ All HealthKit data fetched - height: \(fetchedData.height != nil), weight: \(fetchedData.weight != nil), age: \(fetchedData.age != nil), gender: \(fetchedData.gender != nil), sleep: \(fetchedData.averageSleepHours != nil)")
-            
-            let profile = UserHealthProfile(
-                height: fetchedData.height,
-                weight: fetchedData.weight,
-                age: fetchedData.age,
-                gender: fetchedData.gender?.stringValue,
-                isHealthKitEnabled: true,
-                averageSleepHours: fetchedData.averageSleepHours
-            )
-            
-            completion(profile)
-        }
+        return HealthKitData(
+            height: fetchedHeight,
+            weight: fetchedWeight,
+            age: fetchedAge,
+            gender: fetchedGender,
+            averageSleepHours: fetchedSleepHours
+        )
     }
     
-    // MARK: - Data Refresh (for Settings)
+    // MARK: - Individual Fetch Methods
     
-    func refreshHealthData() {
-        print("🔄 HealthKit data refresh requested from Settings")
-        fetchUserHeight()
-        fetchUserWeight()
-        fetchUserAge()
-        fetchUserGender()
-        fetchRecentSleepData()
-    }
-    
-    private func fetchUserHeight(completion: @escaping (Double?) -> Void) {
-        guard let heightType = HKQuantityType.quantityType(forIdentifier: .height) else { 
+    func fetchUserHeight() async -> Double? {
+        guard let heightType = HKQuantityType.quantityType(forIdentifier: .height) else {
             print("❌ Height type not available")
-            completion(nil)
-            return 
+            return nil
         }
         
         print("🔍 Fetching height data...")
-        let query = HKSampleQuery(
-            sampleType: heightType,
-            predicate: nil,
-            limit: 1,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-        ) { _, samples, error in
-            if let error = error {
-                print("❌ Error fetching height: \(error)")
-                completion(nil)
-                return
-            }
-            
-            guard let sample = samples?.first as? HKQuantitySample else { 
-                print("❌ No height samples found")
-                completion(nil)
-                return 
-            }
-            
-            let heightInMeters = sample.quantity.doubleValue(for: HKUnit.meter())
-            print("✅ Height fetched: \(heightInMeters) meters")
-            completion(heightInMeters)
-        }
         
-        healthStore.execute(query)
-    }
-    
-    private func fetchUserHeight() {
-        fetchUserHeight { height in
-            if let height = height {
-                DispatchQueue.main.async {
-                    self.updateProfileWithHeight(height)
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: heightType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+            ) { _, samples, error in
+                if let error = error {
+                    print("❌ Error fetching height: \(error)")
+                    continuation.resume(returning: nil)
+                    return
                 }
+                
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    print("❌ No height samples found")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                let heightInMeters = sample.quantity.doubleValue(for: HKUnit.meter())
+                print("✅ Height fetched: \(heightInMeters) meters")
+                continuation.resume(returning: heightInMeters)
             }
+            
+            healthStore.execute(query)
         }
     }
     
-    private func fetchUserWeight(completion: @escaping (Double?) -> Void) {
-        guard let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { 
+    func fetchUserWeight() async -> Double? {
+        guard let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
             print("❌ Weight type not available")
-            completion(nil)
-            return 
+            return nil
         }
         
         print("🔍 Fetching weight data...")
-        let query = HKSampleQuery(
-            sampleType: weightType,
-            predicate: nil,
-            limit: 1,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-        ) { _, samples, error in
-            if let error = error {
-                print("❌ Error fetching weight: \(error)")
-                completion(nil)
-                return
-            }
-            
-            guard let sample = samples?.first as? HKQuantitySample else { 
-                print("❌ No weight samples found")
-                completion(nil)
-                return 
-            }
-            
-            let weightInKg = sample.quantity.doubleValue(for: HKUnit.gramUnit(with: .kilo))
-            print("✅ Weight fetched: \(weightInKg) kg")
-            completion(weightInKg)
-        }
         
-        healthStore.execute(query)
-    }
-    
-    private func fetchUserWeight() {
-        fetchUserWeight { weight in
-            if let weight = weight {
-                DispatchQueue.main.async {
-                    self.updateProfileWithWeight(weight)
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: weightType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+            ) { _, samples, error in
+                if let error = error {
+                    print("❌ Error fetching weight: \(error)")
+                    continuation.resume(returning: nil)
+                    return
                 }
+                
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    print("❌ No weight samples found")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                let weightInKg = sample.quantity.doubleValue(for: HKUnit.gramUnit(with: .kilo))
+                print("✅ Weight fetched: \(weightInKg) kg")
+                continuation.resume(returning: weightInKg)
             }
+            
+            healthStore.execute(query)
         }
     }
     
-    private func fetchUserAge(completion: @escaping (Int?) -> Void) {
+    func fetchUserAge() async -> Int? {
         do {
             let birthDateComponents = try healthStore.dateOfBirthComponents()
             let calendar = Calendar.current
@@ -251,55 +130,33 @@ class HealthKitService: ObservableObject {
             // Convert DateComponents to Date
             guard let birthDate = calendar.date(from: birthDateComponents) else {
                 print("❌ Could not convert birth date components to Date")
-                completion(nil)
-                return
+                return nil
             }
             
             let age = calendar.dateComponents([.year], from: birthDate, to: Date()).year
             print("✅ Age fetched: \(age ?? 0) years")
-            completion(age)
+            return age
         } catch {
             print("❌ Error fetching age: \(error)")
-            completion(nil)
+            return nil
         }
     }
     
-    private func fetchUserAge() {
-        fetchUserAge { age in
-            if let age = age {
-                DispatchQueue.main.async {
-                    self.updateProfileWithAge(age)
-                }
-            }
-        }
-    }
-    
-    private func fetchUserGender(completion: @escaping (HKBiologicalSex?) -> Void) {
+    func fetchUserGender() async -> HKBiologicalSex? {
         do {
             let biologicalSex = try healthStore.biologicalSex()
             print("✅ Gender fetched: \(biologicalSex.biologicalSex.rawValue)")
-            completion(biologicalSex.biologicalSex)
+            return biologicalSex.biologicalSex
         } catch {
             print("❌ Error fetching gender: \(error)")
-            completion(nil)
+            return nil
         }
     }
     
-    private func fetchUserGender() {
-        fetchUserGender { gender in
-            if let gender = gender {
-                DispatchQueue.main.async {
-                    self.updateProfileWithGender(gender)
-                }
-            }
-        }
-    }
-    
-    private func fetchRecentSleepData(completion: @escaping (Double?) -> Void) {
+    func fetchRecentSleepData() async -> Double? {
         guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else {
             print("❌ Sleep type not available")
-            completion(nil)
-            return
+            return nil
         }
         
         print("🔍 Fetching sleep data...")
@@ -309,41 +166,35 @@ class HealthKitService: ObservableObject {
         
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         
-        let query = HKSampleQuery(
-            sampleType: sleepType,
-            predicate: predicate,
-            limit: HKObjectQueryNoLimit,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-        ) { _, samples, error in
-            if let error = error {
-                print("❌ Error fetching sleep data: \(error)")
-                completion(nil)
-                return
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+            ) { _, samples, error in
+                if let error = error {
+                    print("❌ Error fetching sleep data: \(error)")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                guard let samples = samples else {
+                    print("❌ No sleep samples found")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                let sleepHours = self.calculateAverageSleepHours(from: samples)
+                print("✅ Sleep data fetched: \(sleepHours ?? 0) hours average")
+                continuation.resume(returning: sleepHours)
             }
             
-            guard let samples = samples else {
-                print("❌ No sleep samples found")
-                completion(nil)
-                return
-            }
-            
-            let sleepHours = self.calculateAverageSleepHours(from: samples)
-            print("✅ Sleep data fetched: \(sleepHours ?? 0) hours average")
-            completion(sleepHours)
+            healthStore.execute(query)
         }
-        
-        healthStore.execute(query)
     }
     
-    private func fetchRecentSleepData() {
-        fetchRecentSleepData { sleepHours in
-            if let sleepHours = sleepHours {
-                DispatchQueue.main.async {
-                    self.updateProfileWithSleep(sleepHours)
-                }
-            }
-        }
-    }
+    // MARK: - Private Helper Methods
     
     private func calculateAverageSleepHours(from samples: [HKSample]) -> Double? {
         let sleepSamples = samples.compactMap { $0 as? HKCategorySample }
@@ -358,60 +209,26 @@ class HealthKitService: ObservableObject {
         
         return totalHours / Double(inBedSamples.count)
     }
-    
-    private func updateProfileWithHeight(_ height: Double) {
-        userHealthProfile?.height = height
-        saveProfile()
-    }
-    
-    private func updateProfileWithWeight(_ weight: Double) {
-        userHealthProfile?.weight = weight
-        saveProfile()
-    }
-    
-    private func updateProfileWithAge(_ age: Int?) {
-        userHealthProfile?.age = age
-        saveProfile()
-    }
-    
-    private func updateProfileWithGender(_ gender: HKBiologicalSex) {
-        userHealthProfile?.gender = gender.stringValue
-        saveProfile()
-    }
-    
-    private func updateProfileWithSleep(_ sleepHours: Double?) {
-        userHealthProfile?.averageSleepHours = sleepHours
-        saveProfile()
-    }
-    
-    // MARK: - Private Methods
-    
-    private func loadUserHealthProfile() {
-        guard let modelContext = modelContext else { return }
-        
-        let descriptor = FetchDescriptor<UserHealthProfile>()
-        do {
-            let profiles = try modelContext.fetch(descriptor)
-            self.userHealthProfile = profiles.first
-        } catch {
-            print("❌ Error loading user health profile: \(error)")
-        }
-    }
-    
-    private func saveProfile() {
-        guard let modelContext = modelContext else { return }
-        
-        do {
-            try modelContext.save()
-        } catch {
-            print("❌ Error saving profile: \(error)")
-        }
-    }
 }
 
 // MARK: - Extensions
 
 extension HKBiologicalSex {
+    var stringValue: String {
+        switch self {
+        case .male:
+            return "male"
+        case .female:
+            return "female"
+        case .other:
+            return "other"
+        case .notSet:
+            return "notSet"
+        @unknown default:
+            return "notSet"
+        }
+    }
+    
     static func from(string: String?) -> HKBiologicalSex? {
         guard let string = string else { return nil }
         switch string {

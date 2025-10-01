@@ -17,12 +17,12 @@ struct WaterTrackerApp: App {
     @State private var isConfigured = false
     @StateObject private var healthKitService = HealthKitService()
     @StateObject private var revenueCatMonitor = RevenueCatMonitor()
+    @StateObject private var weatherService = WeatherService()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             WaterPortion.self,
             WeatherAnalysisCache.self,
-            UserHealthProfile.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -41,6 +41,7 @@ struct WaterTrackerApp: App {
                             .modelContainer(sharedModelContainer)
                             .environmentObject(revenueCatMonitor)
                             .environmentObject(healthKitService)
+                            .environmentObject(weatherService)
                     } else {
                         PersonalizedOnboarding()
                             .modelContainer(sharedModelContainer)

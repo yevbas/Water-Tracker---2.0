@@ -12,9 +12,12 @@ import SwiftData
 
 struct DashboardView: View {
     @Environment(\.modelContext) var modelContext
+    @EnvironmentObject private var weatherService: WeatherService
 
     @Query(sort: [.init(\WaterPortion.createDate, order: .reverse)], animation: .linear)
     var allWaterPortions: [WaterPortion]
+    
+    @Query private var allWeatherAnalyses: [WeatherAnalysisCache]
 
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
@@ -26,6 +29,16 @@ struct DashboardView: View {
             let startDate = calendar.startOfDay(for: selectedDate)
             let endDate = calendar.date(byAdding: .day, value: 1, to: startDate)
             return $0.createDate >= startDate && $0.createDate < endDate!
+        }
+    }
+    
+    private var cachedAnalysis: WeatherAnalysisCache? {
+        guard let selectedDate else { return nil }
+        let startOfDay = Calendar.current.startOfDay(for: selectedDate)
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        return allWeatherAnalyses.first { analysis in
+            analysis.date >= startOfDay && analysis.date < endOfDay
         }
     }
 
@@ -158,6 +171,18 @@ struct DashboardView: View {
                 isPresentedDrinkAnalysis = true
             }
         }
+        .onAppear {
+            Task {
+                await weatherService.fetchWeatherData()
+                
+                #if DEBUG
+                // In debug mode, automatically create mock weather cache for today
+                if cachedAnalysis == nil {
+                    weatherService.createMockWeatherCache(for: selectedDate ?? Date(), modelContext: modelContext)
+                }
+                #endif
+            }
+        }
     }
 
     var headerBackgroundView: some View {
@@ -258,8 +283,10 @@ struct DashboardView: View {
             // Weather Card - Shows if cached data exists or if loading
             WeatherCardView(
                 selectedDate: selectedDate!,
-                isLoading: false
+                isLoading: weatherService.isLoading
             )
+
+            Spacer(minLength: 500)
         }
         .padding(.horizontal)
     }

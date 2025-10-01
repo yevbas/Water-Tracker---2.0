@@ -11,12 +11,11 @@ import HealthKitUI
 import SwiftData
 
 struct HealthKitPermissionView: View {
-    let onPermissionGranted: (UserHealthProfile?) -> Void
+    let onPermissionGranted: (HealthKitData?) -> Void
     let onPermissionDenied: () -> Void
     
     @State private var isRequestingHealthKitPermission = false
     @EnvironmentObject private var healthKitService: HealthKitService
-    @Environment(\.modelContext) private var modelContext
     
     // HealthKit data properties
     @State private var userHeight: Double?
@@ -166,93 +165,20 @@ struct HealthKitPermissionView: View {
     // MARK: - HealthKit Integration
     
     private func fetchHealthKitDataAndCreateProfile() {
-        // Use the unified HealthKit data fetching method from HealthKitService
-        healthKitService.fetchAllHealthData { profile in
-            DispatchQueue.main.async {
-                if let profile = profile, hasCompleteHealthKitData(from: profile) {
-                    // Extract data from the profile for UI state
-                    self.userHeight = profile.height
-                    self.userWeight = profile.weight
-                    self.userAge = profile.age
-                    self.userGender = HKBiologicalSex.from(string: profile.gender)
-                    self.averageSleepHours = profile.averageSleepHours
-                    
-                    // Save the profile to SwiftData
-                    saveHealthDataToSwiftData()
-                    
-                    // Return the profile to the parent view
-                    onPermissionGranted(profile)
-                } else {
-                    // Not enough data, create a basic profile with HealthKit enabled
-                    let basicProfile = createBasicHealthKitProfile()
-                    saveBasicProfileToSwiftData(basicProfile)
-                    onPermissionGranted(basicProfile)
-                }
-            }
-        }
-    }
-    
-    private func hasCompleteHealthKitData(from profile: UserHealthProfile) -> Bool {
-        return profile.height != nil &&
-               profile.weight != nil &&
-               profile.age != nil &&
-               profile.gender != nil
-    }
-    
-    private func createBasicHealthKitProfile() -> UserHealthProfile {
-        return UserHealthProfile(
-            height: nil,
-            weight: nil,
-            age: nil,
-            gender: nil,
-            isHealthKitEnabled: true,
-            averageSleepHours: nil
-        )
-    }
-    
-    private func saveHealthDataToSwiftData() {
-        print("📱 Saving HealthKit data to SwiftData from HealthKitPermissionView...")
-        print("📱 Current data - height: \(userHeight ?? 0), weight: \(userWeight ?? 0), age: \(userAge ?? 0)")
-        
-        let averageSleepHours = self.averageSleepHours ?? 0
-        
-        let newProfile = UserHealthProfile(
-            height: userHeight,
-            weight: userWeight,
-            age: userAge,
-            gender: userGender?.stringValue,
-            isHealthKitEnabled: true,
-            averageSleepHours: averageSleepHours
-        )
-        
-        modelContext.insert(newProfile)
-        
-        do {
-            try modelContext.save()
-            print("✅ HealthKit data saved to SwiftData with HealthKit enabled")
+        Task {
+            let healthData = await healthKitService.fetchAllHealthData()
             
-            // Verify the profile was saved
-            let descriptor = FetchDescriptor<UserHealthProfile>()
-            let profiles = try modelContext.fetch(descriptor)
-            print("📱 Verification: Found \(profiles.count) profiles after save")
-            if let savedProfile = profiles.first {
-                print("📱 Saved profile - enabled: \(savedProfile.isHealthKitEnabled), height: \(savedProfile.height ?? 0)")
+            await MainActor.run {
+                // Extract data for UI state
+                self.userHeight = healthData.height
+                self.userWeight = healthData.weight
+                self.userAge = healthData.age
+                self.userGender = healthData.gender
+                self.averageSleepHours = healthData.averageSleepHours
+                
+                // Return the health data to the parent view
+                onPermissionGranted(healthData)
             }
-        } catch {
-            print("❌ Error saving HealthKit data to SwiftData: \(error)")
-        }
-    }
-    
-    private func saveBasicProfileToSwiftData(_ profile: UserHealthProfile) {
-        print("📱 Saving basic HealthKit profile to SwiftData from HealthKitPermissionView...")
-        
-        modelContext.insert(profile)
-        
-        do {
-            try modelContext.save()
-            print("✅ Basic HealthKit profile saved to SwiftData")
-        } catch {
-            print("❌ Error saving basic HealthKit profile to SwiftData: \(error)")
         }
     }
 }

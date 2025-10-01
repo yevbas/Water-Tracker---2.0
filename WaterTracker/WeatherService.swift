@@ -8,6 +8,7 @@
 import Foundation
 import WeatherKit
 import CoreLocation
+import SwiftData
 
 @MainActor
 class WeatherService: NSObject, ObservableObject {
@@ -31,10 +32,22 @@ class WeatherService: NSObject, ObservableObject {
     }
     
     func fetchWeatherData() async {
+        isLoading = true
+        errorMessage = nil
+        
+        #if DEBUG
+        // In debug mode, always use mock data for consistent testing
+        errorMessage = "Debug mode: Using mock weather data"
+        await loadMockWeatherData()
+        isLoading = false
+        return
+        #endif
+        
         // Check location authorization status
         guard locationManager.authorizationStatus == .authorizedWhenInUse || 
               locationManager.authorizationStatus == .authorizedAlways else {
             errorMessage = "Location permission required. Please enable location access in Settings."
+            isLoading = false
             return
         }
         
@@ -43,11 +56,9 @@ class WeatherService: NSObject, ObservableObject {
             // If no location, try to start location updates
             locationManager.startUpdatingLocation()
             errorMessage = "Getting your location..."
+            isLoading = false
             return
         }
-        
-        isLoading = true
-        errorMessage = nil
         
         do {
             let (currentWeather, dailyForecast) = try await weatherService.weather(for: location, including: .current, .daily)
@@ -81,6 +92,11 @@ class WeatherService: NSObject, ObservableObject {
     }
     
     func getWeatherRecommendation() -> WeatherRecommendation? {
+        #if DEBUG
+        // In debug mode, always return mock data
+        return createMockWeatherRecommendation()
+        #endif
+        
         // If we have real weather data, use it
         if let current = currentWeather,
            let daily = dailyForecast?.forecast.first {
@@ -99,7 +115,7 @@ class WeatherService: NSObject, ObservableObject {
         }
         
         // If we're using mock data (WeatherKit not configured), return mock recommendation
-        if errorMessage?.contains("sample data") == true {
+        if errorMessage?.contains("sample data") == true || errorMessage?.contains("mock weather data") == true {
             return createMockWeatherRecommendation()
         }
         
@@ -107,20 +123,20 @@ class WeatherService: NSObject, ObservableObject {
     }
     
     private func createMockWeatherRecommendation() -> WeatherRecommendation {
-        // Mock weather data for development
-        let mockTemperature = 25.0
-        let mockMaxTemp = 28.0
-        let mockMinTemp = 18.0
-        let mockHumidity = 0.65
-        let mockUVIndex = 6
-        let mockCondition = WeatherCondition.partlyCloudy
+        // Mock weather data for development - varies for testing different scenarios
+        let mockTemperature = 27.0
+        let mockMaxTemp = 31.0
+        let mockMinTemp = 20.0
+        let mockHumidity = 0.45
+        let mockUVIndex = 8
+        let mockCondition = WeatherCondition.clear
         
         // Create mock recommendation data
         let mockRecommendation = WeatherRecommendationData(
-            additionalWaterMl: 300, // +300ml for warm weather
-            factors: ["Warm temperature (+300ml)", "Moderate humidity (+100ml)"],
-            confidence: 0.85,
-            priority: .medium
+            additionalWaterMl: 450, // +450ml for hot, sunny weather
+            factors: ["Hot temperature (+300ml)", "Low humidity (+200ml)", "High UV index (+150ml)"],
+            confidence: 0.92,
+            priority: .high
         )
         
         return WeatherRecommendation(
@@ -132,6 +148,24 @@ class WeatherService: NSObject, ObservableObject {
             condition: mockCondition,
             recommendation: mockRecommendation
         )
+    }
+    
+    // MARK: - Cache Management
+    
+    func createMockWeatherCache(for date: Date, modelContext: ModelContext) {
+        let recommendation = createMockWeatherRecommendation()
+        let aiComment = "🌞 Hot and sunny day ahead! With temperatures reaching 31°C and high UV levels, your body will need extra hydration to stay cool and healthy. Consider drinking water more frequently throughout the day."
+        
+        let cache = WeatherAnalysisCache.fromWeatherRecommendation(recommendation, aiComment: aiComment)
+        cache.date = date
+        
+        modelContext.insert(cache)
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save mock weather cache: \(error)")
+        }
     }
     
     private func calculateWaterRecommendation(current: CurrentWeather, daily: DayWeather) -> WeatherRecommendationData {
