@@ -22,6 +22,7 @@ final class WeatherAnalysisCache {
     var factors: [String]
     var priority: String
     var confidence: Double
+    var locationName: String?
     
     init(
         date: Date = Date(),
@@ -34,7 +35,8 @@ final class WeatherAnalysisCache {
         additionalWaterMl: Int,
         factors: [String],
         priority: String,
-        confidence: Double
+        confidence: Double,
+        locationName: String? = nil
     ) {
         self.date = date
         self.aiComment = aiComment
@@ -47,6 +49,7 @@ final class WeatherAnalysisCache {
         self.factors = factors
         self.priority = priority
         self.confidence = confidence
+        self.locationName = locationName
     }
     
     var isToday: Bool {
@@ -70,7 +73,7 @@ final class WeatherAnalysisCache {
         )
     }
     
-    static func fromWeatherRecommendation(_ recommendation: WeatherRecommendation, aiComment: String) -> WeatherAnalysisCache {
+    static func fromWeatherRecommendation(_ recommendation: WeatherRecommendation, aiComment: String, locationName: String? = nil) -> WeatherAnalysisCache {
         let recommendationData = try? JSONEncoder().encode(recommendation.recommendation)
         
         return WeatherAnalysisCache(
@@ -83,7 +86,8 @@ final class WeatherAnalysisCache {
             additionalWaterMl: recommendation.recommendation.additionalWaterMl,
             factors: recommendation.recommendation.factors,
             priority: recommendation.recommendation.priority.rawValue,
-            confidence: recommendation.recommendation.confidence
+            confidence: recommendation.recommendation.confidence,
+            locationName: locationName
         )
     }
 }

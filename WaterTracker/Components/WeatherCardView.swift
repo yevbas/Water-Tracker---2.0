@@ -15,10 +15,15 @@ struct WeatherCardView: View {
 
     @Environment(\.modelContext) var modelContext
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
+    @StateObject private var aiClient = AIDrinkAnalysisClient.shared
 
     @Query private var allWeatherAnalyses: [WeatherAnalysisCache]
 
     @State private var isExpanded = false
+    @State private var isGeneratingAIComment = false
+    @State private var isRefreshingWeather = false
+    @State private var currentAIComment = ""
+    @State private var weatherService = WeatherService()
 
     private var cachedAnalysis: WeatherAnalysisCache? {
         let startOfDay = Calendar.current.startOfDay(for: selectedDate)
@@ -38,7 +43,10 @@ struct WeatherCardView: View {
     }
 
     private var aiComment: String {
-        cachedAnalysis?.aiComment ?? ""
+        if !currentAIComment.isEmpty {
+            return currentAIComment
+        }
+        return cachedAnalysis?.aiComment ?? ""
     }
 
     private var lastAnalysisDate: Date? {
@@ -52,6 +60,11 @@ struct WeatherCardView: View {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     isExpanded.toggle()
                 }
+                
+                // Generate AI comment when expanding if we have weather data but no AI comment
+                if isExpanded && weatherRecommendation != nil && aiComment.isEmpty {
+                    generateAIComment()
+                }
             }) {
                 HStack(spacing: 12) {
                     // Weather Icon
@@ -62,9 +75,17 @@ struct WeatherCardView: View {
                         Text("Weather Analysis")
                             .font(.headline)
                             .fontWeight(.semibold)
+                        
+                        // Location name
+                        if let locationName = cachedAnalysis?.locationName ?? weatherService.locationName {
+                            Text(locationName)
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                                .fontWeight(.medium)
+                        }
 
-                        if isLoading {
-                            Text("Analyzing...")
+                        if isLoading || isRefreshingWeather {
+                            Text(isRefreshingWeather ? "Refreshing..." : "Analyzing...")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else if let recommendation = weatherRecommendation {
@@ -79,6 +100,22 @@ struct WeatherCardView: View {
                     }
 
                     Spacer()
+
+                    // Refresh Button
+                    Button(action: {
+                        refreshWeatherData()
+                    }) {
+                        if isRefreshingWeather {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.subheadline)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isRefreshingWeather)
 
                     // Expand/Collapse Icon
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -115,7 +152,7 @@ struct WeatherCardView: View {
                 .fill(.blue.opacity(0.1))
                 .frame(width: 44, height: 44)
 
-            if isLoading {
+            if isLoading || isRefreshingWeather {
                 ProgressView()
                     .scaleEffect(0.8)
             } else if let recommendation = weatherRecommendation {
@@ -225,19 +262,61 @@ struct WeatherCardView: View {
     private var aiInsightCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.subheadline)
-                    .foregroundStyle(.blue)
+                if isGeneratingAIComment {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "sparkles")
+                        .font(.subheadline)
+                        .foregroundStyle(.blue)
+                }
 
                 Text("AI Insight")
                     .font(.subheadline)
                     .fontWeight(.semibold)
+                
+                Spacer()
+                
+                // Regenerate button
+                if !aiComment.isEmpty && !isGeneratingAIComment {
+                    Button(action: {
+                        generateAIComment()
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
-            Text(aiComment)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if isGeneratingAIComment {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Generating personalized insight...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else if !aiComment.isEmpty {
+                Text(aiComment)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Button(action: {
+                    generateAIComment()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.caption2)
+                        Text("Generate AI insight")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -454,6 +533,104 @@ struct WeatherCardView: View {
             return "\(Int(oz.rounded())) fl oz"
         } else {
             return "\(ml) ml"
+        }
+    }
+    
+    // MARK: - Weather Data Refresh
+    
+    private func refreshWeatherData() {
+        isRefreshingWeather = true
+        
+        Task {
+            // Fetch fresh weather data
+            await weatherService.fetchWeatherData()
+            
+            // Get the latest recommendation
+            if let recommendation = weatherService.getWeatherRecommendation() {
+                // Create new cache entry with fresh data
+                let aiComment = weatherService.generateMockAIComment(for: recommendation)
+                let cache = WeatherAnalysisCache.fromWeatherRecommendation(recommendation, aiComment: aiComment, locationName: weatherService.locationName)
+                cache.date = selectedDate
+                
+                // Remove old cache for this date
+                removeOldCacheForDate(selectedDate)
+                
+                // Insert new cache
+                modelContext.insert(cache)
+                
+                do {
+                    try modelContext.save()
+                } catch {
+                    print("Failed to save refreshed weather data: \(error)")
+                }
+            }
+            
+            await MainActor.run {
+                isRefreshingWeather = false
+                // Clear current AI comment to trigger regeneration
+                currentAIComment = ""
+            }
+        }
+    }
+    
+    private func removeOldCacheForDate(_ date: Date) {
+        let startOfDay = Calendar.current.startOfDay(for: date)
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let descriptor = FetchDescriptor<WeatherAnalysisCache>(
+            predicate: #Predicate { analysis in
+                analysis.date >= startOfDay && analysis.date < endOfDay
+            }
+        )
+        
+        do {
+            let oldCaches = try modelContext.fetch(descriptor)
+            for cache in oldCaches {
+                modelContext.delete(cache)
+            }
+        } catch {
+            print("Failed to remove old cache: \(error)")
+        }
+    }
+    
+    // MARK: - AI Comment Generation
+    
+    private func generateAIComment() {
+        guard let recommendation = weatherRecommendation else { return }
+        
+        isGeneratingAIComment = true
+        
+        Task {
+            do {
+                let aiComment = try await aiClient.analyzeWeatherForHydration(weatherData: recommendation)
+                
+                await MainActor.run {
+                    currentAIComment = aiComment
+                    isGeneratingAIComment = false
+                    
+                    // Cache the AI comment for future use
+                    cacheAIComment(aiComment)
+                }
+            } catch {
+                await MainActor.run {
+                    // Fallback to mock comment if AI fails
+                    currentAIComment = weatherService.generateMockAIComment(for: recommendation)
+                    isGeneratingAIComment = false
+                }
+            }
+        }
+    }
+    
+    private func cacheAIComment(_ comment: String) {
+        // Update the cached analysis with the new AI comment
+        if let analysis = cachedAnalysis {
+            analysis.aiComment = comment
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Failed to save AI comment: \(error)")
+            }
         }
     }
 }
