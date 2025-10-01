@@ -8,6 +8,8 @@
 import SwiftUI
 import UIKit
 import SwiftData
+import HealthKit
+import HealthKitUI
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -19,6 +21,7 @@ struct SettingsView: View {
     @State private var healthKitAlertMessage = ""
     @State private var showingRecalculateAlert = false
     @State private var hasMetricsChanged = false
+    @State private var isRequestingHealthKitPermission = false
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
 
@@ -99,6 +102,13 @@ struct SettingsView: View {
                 }
                 .transition(.opacity)
             }
+        }
+        .healthDataAccessRequest(
+            store: healthKitService.healthStore,
+            readTypes: healthKitService.healthKitTypes,
+            trigger: isRequestingHealthKitPermission
+        ) { result in
+            handleHealthKitPermissionResult(result)
         }
     }
 
@@ -650,19 +660,8 @@ struct SettingsView: View {
     }
 
     private func enableHealthKit() {
-        // Always request permission when enabling HealthKit to show the native permission window
-        healthKitService.requestPermission { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    healthKitService.enableHealthKit()
-                    healthKitService.refreshHealthData()
-                    healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
-                } else {
-                    healthKitAlertMessage = "Failed to enable HealthKit integration. Please check your Health app permissions."
-                }
-                showingHealthKitAlert = true
-            }
-        }
+        // Use SwiftUI healthDataAccessRequest modifier
+        isRequestingHealthKitPermission = true
     }
 
     private func disableHealthKit() {
@@ -674,29 +673,36 @@ struct SettingsView: View {
     private func refreshHealthData() {
         if healthKitService.isHealthKitEnabled() {
             if healthKitService.isAuthorized() {
+                // Already authorized, just refresh data
                 healthKitService.refreshHealthData()
                 healthKitAlertMessage = "Health data refreshed successfully."
+                showingHealthKitAlert = true
             } else {
-                // HealthKit is enabled but not authorized yet - request permission
-                healthKitService.requestPermission { success, error in
-                    DispatchQueue.main.async {
-                        if success {
-                            healthKitService.refreshHealthData()
-                            healthKitAlertMessage = "Health data refreshed successfully."
-                        } else {
-                            healthKitAlertMessage = "Failed to refresh health data. Please check your Health app permissions."
-                        }
-                        showingHealthKitAlert = true
-                    }
-                }
-                return // Don't show alert here, it will be shown in the completion handler
+                // HealthKit is enabled but not authorized yet - request permission using SwiftUI modifier
+                isRequestingHealthKitPermission = true
             }
         } else {
             healthKitAlertMessage = "HealthKit integration is disabled. Please enable it first."
+            showingHealthKitAlert = true
+        }
+    }
+
+    private func handleHealthKitPermissionResult(_ result: Result<Bool, Error>) {
+        isRequestingHealthKitPermission = false
+        
+        switch result {
+        case .success:
+            // Permission granted - enable HealthKit and refresh data
+            healthKitService.enableHealthKit()
+            healthKitService.refreshHealthData()
+            healthKitAlertMessage = "HealthKit integration enabled. Your health data will be used to provide personalized hydration recommendations."
+        case .failure:
+            // Permission denied or failed
+            healthKitAlertMessage = "Failed to enable HealthKit integration. Please check your Health app permissions."
         }
         showingHealthKitAlert = true
     }
-
+    
     private func checkForMetricChanges() {
         // For now, we'll disable the metric change detection since we're not storing
         // HealthKit data in the service anymore. This could be re-implemented by
