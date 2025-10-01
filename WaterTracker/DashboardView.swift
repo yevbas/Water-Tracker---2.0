@@ -38,7 +38,6 @@ struct DashboardView: View {
     @State var isPresentedImagePicker = false
     @State var selectedImage: UIImage?
     @State var isPresentedDrinkAnalysis = false
-    @State var isPresentedWeatherAnalysis = false
 
     // MARK: - Scroll Animation
 
@@ -132,13 +131,6 @@ struct DashboardView: View {
                     Image(systemName: "clock")
                 }
             }
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    isPresentedWeatherAnalysis = true
-                } label: {
-                    Image(systemName: "cloud.sun.fill")
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: SettingsView.init) {
                     Image(systemName: "gear")
@@ -153,19 +145,6 @@ struct DashboardView: View {
         }
         .sheet(item: $editingWaterPortion) { waterPortion in
             EditWaterPortionView(waterPortion: waterPortion)
-        }
-        .sheet(isPresented: $isPresentedWeatherAnalysis) {
-            var presentationDetents: Set<PresentationDetent> {
-                if revenueCatMonitor.userHasFullAccess {
-                    return [.large]
-                } else {
-                    return [.medium, .large]
-                }
-            }
-            return WeatherAnalysisView()
-                .presentationDetents(
-                    presentationDetents
-                )
         }
         .sheet(isPresented: $isPresentedImagePicker) {
             DrinkAnalysisView { drink, amount in
@@ -246,35 +225,43 @@ struct DashboardView: View {
 
     @ViewBuilder
     var contentBackgroundView: some View {
-        if waterPortionsByDate.isEmpty {
-            NoDrinksView()
-        } else {
-            LazyVGrid(
-                columns: [.init()],
-                spacing: 12
-            ) {
-                ForEach(waterPortionsByDate) { waterPortion in
-                    WaterVGridItemView(waterPortion: waterPortion)
-                        .onTapGesture {
-                            editingWaterPortion = waterPortion
-                        }
-                        .contextMenu {
-                            Button.init(action: {
+        LazyVStack(spacing: 16, pinnedViews: []) {
+            if waterPortionsByDate.isEmpty {
+                NoDrinksView()
+            } else {
+                LazyVGrid(
+                    columns: [.init()],
+                    spacing: 12
+                ) {
+                    ForEach(waterPortionsByDate) { waterPortion in
+                        WaterVGridItemView(waterPortion: waterPortion)
+                            .onTapGesture {
                                 editingWaterPortion = waterPortion
-                            }) {
-                                Label("Change", systemImage: "pencil")
                             }
-                            Button(role: .destructive, action: {
-                                remove(waterPortion)
-                            }) {
-                                Label("Delete", systemImage: "trash")
+                            .contextMenu {
+                                Button.init(action: {
+                                    editingWaterPortion = waterPortion
+                                }) {
+                                    Label("Change", systemImage: "pencil")
+                                }
+                                Button(role: .destructive, action: {
+                                    remove(waterPortion)
+                                }) {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
-                        }
+                    }
+                    .animation(.smooth, value: allWaterPortions)
                 }
-                .animation(.smooth, value: allWaterPortions)
             }
-            .padding(.horizontal)
+            
+            // Weather Card - Shows if cached data exists or if loading
+            WeatherCardView(
+                selectedDate: selectedDate!,
+                isLoading: false
+            )
         }
+        .padding(.horizontal)
     }
 
     var circleInformationView: some View {
