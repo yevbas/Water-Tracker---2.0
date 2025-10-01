@@ -8,17 +8,11 @@
 import SwiftUI
 import UIKit
 import SwiftData
-import HealthKit
-import HealthKitUI
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var portions: [WaterPortion]
-    @EnvironmentObject private var healthKitService: HealthKitService
     @State private var isConvertingUnits: Bool = false
-    @State private var showingHealthKitAlert = false
-    @State private var healthKitAlertMessage = ""
-    @State private var isRequestingHealthKitPermission = false
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
 
@@ -42,7 +36,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 hydrationSettingsCard
-                healthKitCard
+                HealthKitCard()
                 generalSettingsCard
                 aboutCard
             }
@@ -51,11 +45,6 @@ struct SettingsView: View {
             .padding(.bottom, 30)
         }
         .navigationTitle("Settings")
-        .alert("HealthKit", isPresented: $showingHealthKitAlert) {
-            Button("OK") { }
-        } message: {
-            Text(healthKitAlertMessage)
-        }
         .overlay {
             if isConvertingUnits {
                 ZStack {
@@ -72,13 +61,6 @@ struct SettingsView: View {
                 }
                 .transition(.opacity)
             }
-        }
-        .healthDataAccessRequest(
-            store: healthKitService.healthStore,
-            readTypes: healthKitService.healthKitTypes,
-            trigger: isRequestingHealthKitPermission
-        ) { result in
-            handleHealthKitPermissionResult(result)
         }
     }
 
@@ -219,82 +201,6 @@ struct SettingsView: View {
         }
     }
 
-    private var healthKitCard: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "heart.fill")
-                    .foregroundStyle(.white)
-                    .font(.title2)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        LinearGradient(
-                            colors: [.red, .pink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Health & Data")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.primary)
-                    Text("Connect with HealthKit")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-
-            VStack(spacing: 16) {
-                Button {
-                    isRequestingHealthKitPermission = true
-                } label: {
-                    HStack {
-                        Image(systemName: "heart.text.square")
-                            .foregroundStyle(.white)
-                            .font(.system(size: 16))
-                        Text("Request HealthKit Access")
-                            .foregroundStyle(.white)
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            colors: [.red, .pink],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                
-                Text("Grant HealthKit permission to get personalized hydration recommendations based on your health data.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .red.opacity(0.1), radius: 10, x: 0, y: 5)
-        )
-        .healthDataAccessRequest(
-            store: healthKitService.healthStore,
-            readTypes: healthKitService.healthKitTypes,
-            trigger: isRequestingHealthKitPermission
-        ) { result in
-            handleHealthKitPermissionResult(result)
-        }
-    }
 
 
     private var generalSettingsCard: some View {
@@ -459,17 +365,6 @@ struct SettingsView: View {
         }
     }
 
-    private func handleHealthKitPermissionResult(_ result: Result<Bool, Error>) {
-        isRequestingHealthKitPermission = false
-        
-        switch result {
-        case .success:
-            healthKitAlertMessage = "HealthKit access granted. Your health data can now be used for personalized hydration recommendations."
-        case .failure(let error):
-            healthKitAlertMessage = "Failed to access HealthKit: \(error.localizedDescription)"
-        }
-        showingHealthKitAlert = true
-    }
 }
 
 // MARK: - Custom Components
@@ -587,7 +482,6 @@ private extension Double {
     return NavigationStack {
         SettingsView()
             .modelContainer(container)
-            .environmentObject(HealthKitService())
     }
 }
 
