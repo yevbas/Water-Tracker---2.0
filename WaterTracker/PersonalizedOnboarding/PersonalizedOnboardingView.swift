@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import Lottie
 import HealthKit
+import HealthKitUI
 
 struct PersonalizedOnboarding: View {
     @Environment(\.modelContext) private var modelContext
@@ -180,9 +181,9 @@ struct PersonalizedOnboarding: View {
                 stage = .healthKitPermission
             }
         case .healthKitPermission:
-            HealthKitPermissionView {
-                // Permission granted - check if we have data and proceed accordingly
-                checkHealthKitDataAndProceed()
+            HealthKitPermissionView { profile in
+                // Permission granted - handle the returned profile
+                handleHealthKitPermissionGranted(profile)
             } onPermissionDenied: {
                 // Permission denied - proceed to metric collection anyway
                 stage = .metricCollection
@@ -288,7 +289,6 @@ struct PersonalizedOnboarding: View {
         .onAppear {
             selectedMetric = metrics.first
             healthKitService.setModelContextForOnboarding(modelContext)
-            populateAnswersWithHealthKitData()
         }
     }
 
@@ -323,29 +323,36 @@ struct PersonalizedOnboarding: View {
     
     // MARK: - HealthKit Integration
     
-    private func checkHealthKitDataAndProceed() {
-        // Start fetching HealthKit data directly from the view
-        fetchHealthKitData()
+    private func handleHealthKitPermissionGranted(_ profile: UserHealthProfile?) {
+        guard let profile = profile else {
+            // No profile returned, proceed to metric collection
+            stage = .metricCollection
+            return
+        }
         
-        // Wait a moment for HealthKit data to be fetched
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            if hasCompleteHealthKitData() {
-                hasHealthKitData = true
-                populateAnswersWithHealthKitData()
-                // Show confirmation screen with the retrieved data, then proceed to metric collection
-                stage = .healthKitDataConfirmation
-            } else {
-                // Not enough data, proceed with manual collection
-                stage = .metricCollection
-            }
+        if hasCompleteHealthKitData(from: profile) {
+            // Extract data from the profile for UI state
+            userHeight = profile.height
+            userWeight = profile.weight
+            userAge = profile.age
+            userGender = HKBiologicalSex.from(string: profile.gender)
+            averageSleepHours = profile.averageSleepHours
+            
+            hasHealthKitData = true
+            populateAnswersWithHealthKitData()
+            // Show confirmation screen with the retrieved data, then proceed to metric collection
+            stage = .healthKitDataConfirmation
+        } else {
+            // Not enough data, proceed with manual collection
+            stage = .metricCollection
         }
     }
     
-    private func hasCompleteHealthKitData() -> Bool {
-        return userHeight != nil &&
-               userWeight != nil &&
-               userAge != nil &&
-               userGender != nil
+    private func hasCompleteHealthKitData(from profile: UserHealthProfile) -> Bool {
+        return profile.height != nil &&
+               profile.weight != nil &&
+               profile.age != nil &&
+               profile.gender != nil
     }
     
     private func populateAnswersWithHealthKitData() {
@@ -400,221 +407,6 @@ struct PersonalizedOnboarding: View {
         answers = defaultAnswers
     }
     
-    // MARK: - HealthKit Data Fetching
-    
-    private func fetchHealthKitData() {
-        print("🚀 Starting HealthKit data fetch from view...")
-        fetchUserHeight()
-        fetchUserWeight()
-        fetchUserAge()
-        fetchUserGender()
-        fetchRecentSleepData()
-    }
-    
-    private func fetchUserHeight() {
-        guard let heightType = HKQuantityType.quantityType(forIdentifier: .height) else { 
-            print("❌ Height type not available")
-            return 
-        }
-        
-        print("🔍 Fetching height data...")
-        let query = HKSampleQuery(
-            sampleType: heightType,
-            predicate: nil,
-            limit: 1,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-        ) { _, samples, error in
-            if let error = error {
-                print("❌ Error fetching height: \(error)")
-                return
-            }
-            
-            guard let sample = samples?.first as? HKQuantitySample else { 
-                print("❌ No height samples found")
-                return 
-            }
-            
-            let heightInMeters = sample.quantity.doubleValue(for: HKUnit.meter())
-            print("✅ Height fetched: \(heightInMeters) meters")
-            
-            DispatchQueue.main.async {
-                self.userHeight = heightInMeters
-                self.saveHealthDataIfReady()
-            }
-        }
-        
-        healthKitService.healthStore.execute(query)
-    }
-    
-    private func fetchUserWeight() {
-        guard let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { 
-            print("❌ Weight type not available")
-            return 
-        }
-        
-        print("🔍 Fetching weight data...")
-        let query = HKSampleQuery(
-            sampleType: weightType,
-            predicate: nil,
-            limit: 1,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-        ) { _, samples, error in
-            if let error = error {
-                print("❌ Error fetching weight: \(error)")
-                return
-            }
-            
-            guard let sample = samples?.first as? HKQuantitySample else { 
-                print("❌ No weight samples found")
-                return 
-            }
-            
-            let weightInKg = sample.quantity.doubleValue(for: HKUnit.gramUnit(with: .kilo))
-            print("✅ Weight fetched: \(weightInKg) kg")
-            
-            DispatchQueue.main.async {
-                self.userWeight = weightInKg
-                self.saveHealthDataIfReady()
-            }
-        }
-        
-        healthKitService.healthStore.execute(query)
-    }
-    
-    private func fetchUserAge() {
-        do {
-            let dateOfBirthComponents = try healthKitService.healthStore.dateOfBirthComponents()
-            let calendar = Calendar.current
-            let now = Date()
-            
-            // Convert DateComponents to Date
-            if let dateOfBirth = calendar.date(from: dateOfBirthComponents) {
-                let ageComponents = calendar.dateComponents([.year], from: dateOfBirth, to: now)
-                if let age = ageComponents.year {
-                    print("✅ Age fetched: \(age) years")
-                    DispatchQueue.main.async {
-                        self.userAge = age
-                        self.saveHealthDataIfReady()
-                    }
-                }
-            }
-        } catch {
-            print("❌ Error fetching age: \(error)")
-        }
-    }
-    
-    private func fetchUserGender() {
-        do {
-            let biologicalSex = try healthKitService.healthStore.biologicalSex()
-            print("✅ Gender fetched: \(biologicalSex.biologicalSex.stringValue)")
-            DispatchQueue.main.async {
-                self.userGender = biologicalSex.biologicalSex
-                self.saveHealthDataIfReady()
-            }
-        } catch {
-            print("❌ Error fetching gender: \(error)")
-        }
-    }
-    
-    private func fetchRecentSleepData() {
-        guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else {
-            print("❌ Sleep type not available")
-            return
-        }
-        
-        let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -30, to: endDate) ?? endDate
-        
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-        
-        let query = HKSampleQuery(
-            sampleType: sleepType,
-            predicate: predicate,
-            limit: HKObjectQueryNoLimit,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-        ) { _, samples, error in
-            if let error = error {
-                print("❌ Error fetching sleep data: \(error)")
-                return
-            }
-            
-            guard let samples = samples else {
-                print("❌ No sleep samples found")
-                return
-            }
-            
-            let sleepHours = self.calculateAverageSleepHours(from: samples)
-            print("✅ Sleep data fetched: \(sleepHours) hours average")
-            
-            DispatchQueue.main.async {
-                self.averageSleepHours = sleepHours
-                self.saveHealthDataIfReady()
-            }
-        }
-        
-        healthKitService.healthStore.execute(query)
-    }
-    
-    private func calculateAverageSleepHours(from samples: [HKSample]) -> Double {
-        var totalSleepHours: Double = 0
-        var sleepDays: Int = 0
-        
-        for sample in samples {
-            if let sleepSample = sample as? HKCategorySample,
-               sleepSample.value == HKCategoryValueSleepAnalysis.inBed.rawValue {
-                let duration = sample.endDate.timeIntervalSince(sample.startDate)
-                let hours = duration / 3600
-                totalSleepHours += hours
-                sleepDays += 1
-            }
-        }
-        
-        return sleepDays > 0 ? totalSleepHours / Double(sleepDays) : 0
-    }
-    
-    private func saveHealthDataIfReady() {
-        guard userHeight != nil && userWeight != nil else {
-            print("📱 Waiting for essential data (height: \(userHeight != nil), weight: \(userWeight != nil))")
-            return
-        }
-        
-        print("📱 Essential data available, saving to SwiftData...")
-        saveHealthDataToSwiftData()
-    }
-    
-    private func saveHealthDataToSwiftData() {
-        print("📱 Saving health data to SwiftData from view...")
-        print("📱 Current data - height: \(userHeight ?? 0), weight: \(userWeight ?? 0), age: \(userAge ?? 0)")
-        
-        let averageSleepHours = self.averageSleepHours ?? 0
-        
-        let newProfile = UserHealthProfile(
-            height: userHeight,
-            weight: userWeight,
-            age: userAge,
-            gender: userGender?.stringValue,
-            isHealthKitEnabled: true,
-            averageSleepHours: averageSleepHours
-        )
-        
-        modelContext.insert(newProfile)
-        
-        do {
-            try modelContext.save()
-            print("✅ Health data saved to SwiftData with HealthKit enabled")
-            
-            // Verify the profile was saved
-            let descriptor = FetchDescriptor<UserHealthProfile>()
-            let profiles = try modelContext.fetch(descriptor)
-            print("📱 Verification: Found \(profiles.count) profiles after save")
-            if let savedProfile = profiles.first {
-                print("📱 Saved profile - enabled: \(savedProfile.isHealthKitEnabled), height: \(savedProfile.height ?? 0)")
-            }
-        } catch {
-            print("❌ Error saving health data to SwiftData: \(error)")
-        }
-    }
 
 }
 

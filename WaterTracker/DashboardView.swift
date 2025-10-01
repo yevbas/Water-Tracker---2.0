@@ -359,33 +359,6 @@ struct DashboardView: View {
         }
     }
 
-//    private func seedTestData() {
-//        if !waterPortions.isEmpty { return }
-//        let samples = [
-//            WaterPortion(amount: 200, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .soda, createDate: Date()),
-//            WaterPortion(amount: 200, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .coffee, createDate: Date()),
-//            WaterPortion(amount: 200, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .juice, createDate: Date()),
-//            WaterPortion(amount: 200, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//            WaterPortion(amount: 400, drink: .milk, createDate: Date()),
-//        ]
-//        for s in samples { modelContext.insert(s) }
-//        try? modelContext.save()
-//    }
-
     func saveDrink(_ drink: Drink, _ amount: Double) {
         let waterPortion = WaterPortion(
             amount: amount,
@@ -417,6 +390,7 @@ struct ViewOffsetKey: PreferenceKey {
     NavigationStack {
         DashboardView()
             .modelContainer(for: WaterPortion.self, inMemory: true)
+            .environmentObject(RevenueCatMonitor(state: .preview(true)))
     }
 }
 

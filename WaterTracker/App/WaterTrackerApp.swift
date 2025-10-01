@@ -51,9 +51,9 @@ struct WaterTrackerApp: App {
                     ConfigureView(container: sharedModelContainer) {
                         isConfigured = true
                     }
-//                    .onAppear {
-//                        onboardingPassed = false
-//                    }
+                    .onAppear {
+                        onboardingPassed = true
+                    }
                 }
             }
         }
