@@ -16,6 +16,9 @@ struct HealthKitCard: View {
     @State private var showingEnableTutorial = false
     @State private var showingDisableTutorial = false
     @State private var isRefreshing = false
+    @State private var isCalculatingWaterIntake = false
+    @State private var showingCalculationResult = false
+    @State private var calculatedWaterGoal: Int?
     
     // Computed properties for connection state
     private var availableDataCount: Int {
@@ -43,6 +46,11 @@ struct HealthKitCard: View {
     
     private var isPartiallyConnected: Bool {
         healthDataAvailable && availableDataCount < 5
+    }
+    
+    private var canCalculateWaterIntake: Bool {
+        guard let data = healthData else { return false }
+        return data.height != nil && data.weight != nil && data.age != nil && data.gender != nil
     }
     
     var body: some View {
@@ -127,6 +135,18 @@ struct HealthKitCard: View {
         }
         .sheet(isPresented: $showingDisableTutorial) {
             DisableHealthKitTutorialView()
+        }
+        .alert("Water Intake Calculated", isPresented: $showingCalculationResult) {
+            Button("Update Goal") {
+                if let waterGoal = calculatedWaterGoal {
+                    UserDefaults.standard.set(waterGoal, forKey: "water_goal_ml")
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            if let waterGoal = calculatedWaterGoal {
+                Text("Based on your health data, your recommended daily water intake is \(waterGoal) ml. Would you like to update your current goal?")
+            }
         }
     }
     
@@ -235,6 +255,33 @@ struct HealthKitCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .disabled(isRefreshing)
+                
+                // Water intake calculation button
+                if canCalculateWaterIntake {
+                    Button {
+                        calculateWaterIntake()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isCalculatingWaterIntake {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "drop.circle")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            Text(isCalculatingWaterIntake ? "Calculating..." : "Calculate Water Intake")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(.green)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .disabled(isCalculatingWaterIntake || isRefreshing)
+                }
                 
                 if isPartiallyConnected {
                     Button {
@@ -421,6 +468,69 @@ struct HealthKitCard: View {
                 }
             } else {
                 print("❌ Permissions denied")
+            }
+        }
+    }
+    
+    private func calculateWaterIntake() {
+        guard let data = healthData,
+              let height = data.height,
+              let weight = data.weight,
+              let age = data.age,
+              let gender = data.gender else {
+            print("❌ Missing required health data for water intake calculation")
+            return
+        }
+        
+        isCalculatingWaterIntake = true
+        
+        Task {
+            // Convert HealthKit data to UserMetrics format
+            let heightCm = height * 100 // Convert meters to cm
+            let weightKg = weight // Already in kg
+            let ageYears = age
+            
+            // Convert HKBiologicalSex to Gender enum
+            let genderString: String
+            switch gender {
+            case .male:
+                genderString = "male"
+            case .female:
+                genderString = "female"
+            case .other:
+                genderString = "other"
+            case .notSet:
+                genderString = "other"
+            @unknown default:
+                genderString = "other"
+            }
+            
+            // Create UserMetrics using the answers format that the initializer expects
+            let answers: [String: MetricView.Answer] = [
+                "gender": MetricView.Answer(value: genderString, title: genderString.capitalized),
+                "height": MetricView.Answer(value: "\(Int(heightCm)) cm", title: "\(Int(heightCm)) cm"),
+                "weight": MetricView.Answer(value: "\(Int(weightKg)) kg", title: "\(Int(weightKg)) kg"),
+                "age": MetricView.Answer(value: "\(ageYears) years", title: "\(ageYears) years"),
+                "activity-factor": MetricView.Answer(value: "Moderate (3–5 days/week)", title: "Moderate (3–5 days/week)"),
+                "climate": MetricView.Answer(value: "temperate", title: "Temperate")
+            ]
+            
+            guard let userMetrics = UserMetrics(answers: answers) else {
+                await MainActor.run {
+                    self.isCalculatingWaterIntake = false
+                    print("❌ Failed to create UserMetrics from HealthKit data")
+                }
+                return
+            }
+            
+            // Calculate water intake using WaterPlanner
+            let plan = WaterPlanner.plan(for: userMetrics)
+            
+            await MainActor.run {
+                self.calculatedWaterGoal = plan.waterMl
+                self.isCalculatingWaterIntake = false
+                self.showingCalculationResult = true
+                print("✅ Water intake calculated: \(plan.waterMl) ml")
             }
         }
     }
