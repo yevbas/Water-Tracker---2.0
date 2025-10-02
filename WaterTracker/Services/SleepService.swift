@@ -10,50 +10,6 @@ import Foundation
 import HealthKit
 import SwiftData
 
-// MARK: - Sleep Data Models
-
-/// Represents a sleep recommendation based on analysis of sleep data
-struct SleepRecommendation {
-    let sleepDurationHours: Double
-    let sleepQualityScore: Double
-    let bedTime: Date?
-    let wakeTime: Date?
-    let deepSleepMinutes: Int
-    let remSleepMinutes: Int
-    let recommendation: SleepRecommendationData
-}
-
-/// Contains detailed hydration recommendations based on sleep analysis
-struct SleepRecommendationData: Codable {
-    let additionalWaterMl: Int
-    let factors: [String]
-    let confidence: Double
-    let priority: SleepPriority
-}
-
-/// Priority levels for sleep-based hydration recommendations
-enum SleepPriority: String, CaseIterable, Codable {
-    case low = "Low"
-    case medium = "Medium"
-    case high = "High"
-    
-    var color: String {
-        switch self {
-        case .low: return "green"
-        case .medium: return "orange"
-        case .high: return "red"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .low: return "checkmark.circle"
-        case .medium: return "exclamationmark.triangle"
-        case .high: return "exclamationmark.octagon"
-        }
-    }
-}
-
 @MainActor
 class SleepService: ObservableObject {
     @Published var isLoading = false
@@ -73,8 +29,8 @@ class SleepService: ObservableObject {
         errorMessage = nil
         
         // Request authorization if needed
-        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
-        
+        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepChanges)!
+
         // Note: HealthKit's read authorization status is intentionally opaque for privacy.
         // We should always request authorization if not determined, then attempt to read data.
         let status = healthStore.authorizationStatus(for: sleepType)
@@ -512,11 +468,14 @@ class SleepService: ObservableObject {
     
     /// Creates mock sleep cache for testing
     func createMockSleepCache(for date: Date, modelContext: ModelContext) {
+        // Clean up old sleep data first, keeping only current date
+        SleepAnalysisCache.cleanupOldData(modelContext: modelContext, keepingCurrentDate: date)
+        
         let recommendation = createMockSleepRecommendation()
         let aiComment = generateMockAIComment(for: recommendation)
         
         let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: aiComment)
-        cache.date = date
+        cache.date = date.rounded()
         
         modelContext.insert(cache)
         
@@ -555,6 +514,50 @@ class SleepService: ObservableObject {
             return "✅ Slight hydration adjustment! Your sleep data suggests a small increase (\(additionalWater)ml) in daily water intake. Even minor sleep variations can impact your body's fluid regulation systems."
         } else {
             return "🌟 Optimal sleep-hydration balance! Your sleep quality and duration support excellent fluid regulation. Keep maintaining these healthy sleep patterns for continued hydration optimization."
+        }
+    }
+}
+
+// MARK: - Sleep Data Models
+
+/// Represents a sleep recommendation based on analysis of sleep data
+struct SleepRecommendation {
+    let sleepDurationHours: Double
+    let sleepQualityScore: Double
+    let bedTime: Date?
+    let wakeTime: Date?
+    let deepSleepMinutes: Int
+    let remSleepMinutes: Int
+    let recommendation: SleepRecommendationData
+}
+
+/// Contains detailed hydration recommendations based on sleep analysis
+struct SleepRecommendationData: Codable {
+    let additionalWaterMl: Int
+    let factors: [String]
+    let confidence: Double
+    let priority: SleepPriority
+}
+
+/// Priority levels for sleep-based hydration recommendations
+enum SleepPriority: String, CaseIterable, Codable {
+    case low = "Low"
+    case medium = "Medium"
+    case high = "High"
+
+    var color: String {
+        switch self {
+        case .low: return "green"
+        case .medium: return "orange"
+        case .high: return "red"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .low: return "checkmark.circle"
+        case .medium: return "exclamationmark.triangle"
+        case .high: return "exclamationmark.octagon"
         }
     }
 }

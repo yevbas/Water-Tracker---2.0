@@ -15,7 +15,7 @@ struct SleepCardView: View {
     @Environment(\.modelContext) var modelContext
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @EnvironmentObject private var aiClient: AIDrinkAnalysisClient
-    @StateObject private var sleepService = SleepService()
+    @EnvironmentObject private var sleepService: SleepService
 
     @Query private var allSleepAnalyses: [SleepAnalysisCache]
     @Query private var allWaterPortions: [WaterPortion]
@@ -26,11 +26,10 @@ struct SleepCardView: View {
     @State private var currentAIComment = ""
 
     private var cachedAnalysis: SleepAnalysisCache? {
-        let startOfDay = Calendar.current.startOfDay(for: selectedDate)
-        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
-
+        let selectedRoundedDate = selectedDate.rounded()
+        
         return allSleepAnalyses.first { analysis in
-            analysis.date >= startOfDay && analysis.date < endOfDay
+            analysis.date.rounded() == selectedRoundedDate
         }
     }
 
@@ -506,6 +505,9 @@ struct SleepCardView: View {
         isRefreshingSleep = true
         
         Task {
+            // Clean up old sleep data first, keeping only current date
+            SleepAnalysisCache.cleanupOldData(modelContext: modelContext, keepingCurrentDate: selectedDate)
+            
             // Fetch fresh sleep data
             if let recommendation = await sleepService.fetchSleepData(for: selectedDate) {
                 // Generate AI comment
@@ -513,10 +515,7 @@ struct SleepCardView: View {
                 
                 // Create new cache entry with fresh data
                 let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: aiComment)
-                cache.date = selectedDate
-                
-                // Remove old cache for this date
-                removeOldCacheForDate(selectedDate)
+                cache.date = selectedDate.rounded()
                 
                 // Insert new cache
                 modelContext.insert(cache)
@@ -536,25 +535,6 @@ struct SleepCardView: View {
         }
     }
     
-    private func removeOldCacheForDate(_ date: Date) {
-        let startOfDay = Calendar.current.startOfDay(for: date)
-        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
-        
-        let descriptor = FetchDescriptor<SleepAnalysisCache>(
-            predicate: #Predicate { analysis in
-                analysis.date >= startOfDay && analysis.date < endOfDay
-            }
-        )
-        
-        do {
-            let oldCaches = try modelContext.fetch(descriptor)
-            for cache in oldCaches {
-                modelContext.delete(cache)
-            }
-        } catch {
-            print("Failed to remove old cache: \(error)")
-        }
-    }
     
     // MARK: - AI Comment Generation
     

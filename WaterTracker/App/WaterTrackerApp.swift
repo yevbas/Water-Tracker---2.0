@@ -48,6 +48,11 @@ struct WaterTrackerApp: App {
                             .environmentObject(weatherService)
                             .environmentObject(aiClient)
                             .environmentObject(sleepService)
+                            .onAppear {
+                                // Clean up old sleep data on app start
+                                let context = sharedModelContainer.mainContext
+                                SleepAnalysisCache.cleanupOldData(modelContext: context)
+                            }
                     } else {
                         PersonalizedOnboarding()
                             .modelContainer(sharedModelContainer)

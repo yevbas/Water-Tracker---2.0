@@ -25,7 +25,7 @@ final class SleepAnalysisCache {
     var confidence: Double
     
     init(
-        date: Date = Date(),
+        date: Date = Date().rounded(),
         aiComment: String,
         sleepRecommendation: Data? = nil,
         sleepDurationHours: Double,
@@ -39,7 +39,7 @@ final class SleepAnalysisCache {
         priority: String,
         confidence: Double
     ) {
-        self.date = date
+        self.date = date.rounded()
         self.aiComment = aiComment
         self.sleepRecommendation = sleepRecommendation
         self.sleepDurationHours = sleepDurationHours
@@ -92,5 +92,27 @@ final class SleepAnalysisCache {
             priority: recommendation.recommendation.priority.rawValue,
             confidence: recommendation.recommendation.confidence
         )
+    }
+    
+    /// Removes all sleep data except for the current date
+    /// This keeps only the most recent sleep analysis to avoid storing unnecessary historical data
+    static func cleanupOldData(modelContext: ModelContext, keepingCurrentDate currentDate: Date = Date().rounded()) {
+        let descriptor = FetchDescriptor<SleepAnalysisCache>()
+        
+        do {
+            let allCaches = try modelContext.fetch(descriptor)
+            let currentRoundedDate = currentDate.rounded()
+            
+            for cache in allCaches {
+                // Remove all sleep data that's not for the current date
+                if cache.date.rounded() != currentRoundedDate {
+                    modelContext.delete(cache)
+                }
+            }
+            
+            try modelContext.save()
+        } catch {
+            print("Failed to cleanup old sleep data: \(error)")
+        }
     }
 }
