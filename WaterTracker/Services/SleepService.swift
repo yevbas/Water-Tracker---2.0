@@ -24,7 +24,7 @@ struct SleepRecommendation {
 }
 
 /// Contains detailed hydration recommendations based on sleep analysis
-struct SleepRecommendationData {
+struct SleepRecommendationData: Codable {
     let additionalWaterMl: Int
     let factors: [String]
     let confidence: Double
@@ -32,10 +32,26 @@ struct SleepRecommendationData {
 }
 
 /// Priority levels for sleep-based hydration recommendations
-enum SleepPriority {
-    case low
-    case medium
-    case high
+enum SleepPriority: String, CaseIterable, Codable {
+    case low = "Low"
+    case medium = "Medium"
+    case high = "High"
+    
+    var color: String {
+        switch self {
+        case .low: return "green"
+        case .medium: return "orange"
+        case .high: return "red"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .low: return "checkmark.circle"
+        case .medium: return "exclamationmark.triangle"
+        case .high: return "exclamationmark.octagon"
+        }
+    }
 }
 
 @MainActor
@@ -448,6 +464,98 @@ class SleepService: ObservableObject {
             confidence: confidence,
             priority: priority
         )
+    }
+    
+    // MARK: - Mock Data for Testing
+    
+    /// Creates mock sleep data for testing and development
+    func createMockSleepRecommendation() -> SleepRecommendation {
+        let scenarios = [
+            // Excellent sleep
+            (duration: 8.2, quality: 0.85, deep: 95, rem: 120, bedTime: "22:30", wakeTime: "06:30"),
+            // Good sleep
+            (duration: 7.5, quality: 0.75, deep: 85, rem: 110, bedTime: "23:00", wakeTime: "06:30"),
+            // Moderate sleep deficit
+            (duration: 6.2, quality: 0.65, deep: 70, rem: 95, bedTime: "23:30", wakeTime: "06:00"),
+            // Poor sleep
+            (duration: 5.8, quality: 0.45, deep: 45, rem: 80, bedTime: "00:30", wakeTime: "06:30"),
+            // Severe sleep deprivation
+            (duration: 4.5, quality: 0.25, deep: 25, rem: 60, bedTime: "01:00", wakeTime: "05:30")
+        ]
+        
+        let scenario = scenarios.randomElement() ?? scenarios[0]
+        
+        let calendar = Calendar.current
+        let today = Date()
+        let bedTime = calendar.date(bySettingHour: Int(scenario.bedTime.split(separator: ":")[0]) ?? 22, minute: Int(scenario.bedTime.split(separator: ":")[1]) ?? 30, second: 0, of: today) ?? today
+        let wakeTime = calendar.date(bySettingHour: Int(scenario.wakeTime.split(separator: ":")[0]) ?? 6, minute: Int(scenario.wakeTime.split(separator: ":")[1]) ?? 30, second: 0, of: today) ?? today
+        
+        let recommendation = calculateEvidenceBasedWaterRecommendation(
+            duration: scenario.duration,
+            quality: scenario.quality,
+            deepMinutes: scenario.deep,
+            remMinutes: scenario.rem,
+            coreMinutes: Int(scenario.duration * 60) - scenario.deep - scenario.rem,
+            wakeTime: wakeTime
+        )
+        
+        return SleepRecommendation(
+            sleepDurationHours: scenario.duration,
+            sleepQualityScore: scenario.quality,
+            bedTime: bedTime,
+            wakeTime: wakeTime,
+            deepSleepMinutes: scenario.deep,
+            remSleepMinutes: scenario.rem,
+            recommendation: recommendation
+        )
+    }
+    
+    /// Creates mock sleep cache for testing
+    func createMockSleepCache(for date: Date, modelContext: ModelContext) {
+        let recommendation = createMockSleepRecommendation()
+        let aiComment = generateMockAIComment(for: recommendation)
+        
+        let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: aiComment)
+        cache.date = date
+        
+        modelContext.insert(cache)
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save mock sleep cache: \(error)")
+        }
+    }
+    
+    private func generateMockAIComment(for recommendation: SleepRecommendation) -> String {
+        let duration = recommendation.sleepDurationHours
+        let quality = recommendation.sleepQualityScore
+        let deepSleep = recommendation.deepSleepMinutes
+        let remSleep = recommendation.remSleepMinutes
+        let additionalWater = recommendation.recommendation.additionalWaterMl
+        
+        // Generate contextual AI comments based on sleep data and scientific research
+        if duration < 5.5 {
+            return "⚠️ Severe sleep deprivation detected! With only \(String(format: "%.1f", duration)) hours of sleep, your body's antidiuretic hormone (vasopressin) production is significantly reduced, increasing dehydration risk by up to 59%. Prioritize both sleep and hydration recovery today."
+        } else if duration < 6.5 {
+            return "😴 Sleep deficit alert! \(String(format: "%.1f", duration)) hours falls below the recommended 7-9 hours. Research shows this increases dehydration odds by 16-59%. Your body needs extra hydration to compensate for reduced vasopressin release during inadequate sleep."
+        } else if duration >= 7.0 && duration <= 9.0 && quality >= 0.8 {
+            return "✨ Excellent sleep quality! Your \(String(format: "%.1f", duration)) hours of restorative sleep with \(Int(quality * 100))% quality score supports optimal hydration regulation. Your body's natural fluid balance mechanisms are functioning well."
+        } else if quality < 0.5 {
+            return "🌙 Poor sleep quality detected! With a \(Int(quality * 100))% quality score, elevated cortisol levels are affecting your kidney function and fluid retention. Focus on sleep hygiene and increase morning hydration to support recovery."
+        } else if deepSleep < 60 {
+            return "🧠 Insufficient deep sleep! Only \(deepSleep) minutes of deep sleep means reduced physical restoration. Deep sleep is crucial for metabolic recovery - consider earlier bedtime and limit evening screen time to improve sleep architecture."
+        } else if remSleep < 90 {
+            return "💭 Low REM sleep detected! \(remSleep) minutes of REM sleep affects cognitive function and stress regulation. REM sleep increases metabolic activity by 20-30%, requiring extra hydration. Consider stress management techniques."
+        } else if additionalWater >= 300 {
+            return "💧 High hydration needs today! Your sleep pattern suggests significant overnight water loss (\(additionalWater)ml additional needed). The combination of sleep duration, quality, and metabolic demands requires focused hydration attention."
+        } else if additionalWater >= 150 {
+            return "🌅 Moderate hydration boost recommended! Based on your sleep analysis, your body needs \(additionalWater)ml extra water today. Sleep patterns affect fluid balance through hormonal regulation and metabolic processes."
+        } else if additionalWater > 0 {
+            return "✅ Slight hydration adjustment! Your sleep data suggests a small increase (\(additionalWater)ml) in daily water intake. Even minor sleep variations can impact your body's fluid regulation systems."
+        } else {
+            return "🌟 Optimal sleep-hydration balance! Your sleep quality and duration support excellent fluid regulation. Keep maintaining these healthy sleep patterns for continued hydration optimization."
+        }
     }
 }
 

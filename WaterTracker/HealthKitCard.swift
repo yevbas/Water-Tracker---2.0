@@ -302,28 +302,12 @@ struct HealthKitCard: View {
     private func fetchHealthData() {
         isLoading = true
         Task {
-            // First check if we have permissions
-            let hasPermissions = healthKitService.checkHealthKitPermissions()
-            
-            if !hasPermissions {
-                // Request permissions if we don't have them
-                let granted = await healthKitService.requestHealthKitPermissions()
-                if !granted {
-                    await MainActor.run {
-                        self.healthData = nil
-                        self.healthDataAvailable = false
-                        self.isLoading = false
-                    }
-                    return
-                }
-            }
-            
             do {
                 let data = await healthKitService.fetchAllHealthData()
                 await MainActor.run {
                     self.healthData = data
-                    // Consider health data available if we have ANY data (not all)
-                    self.healthDataAvailable = data.height != nil || data.weight != nil || data.age != nil || data.gender != nil || data.averageSleepHours != nil
+                    // Consider health data available only if ALL data fields are not null
+                    self.healthDataAvailable = data.height != nil && data.weight != nil && data.age != nil && data.gender != nil && data.averageSleepHours != nil
                     self.isLoading = false
                 }
             } catch {
@@ -339,22 +323,11 @@ struct HealthKitCard: View {
     private func refreshHealthData() {
         isRefreshing = true
         Task {
-            // Request permissions again in case they were denied
-            let granted = await healthKitService.requestHealthKitPermissions()
-            if !granted {
-                await MainActor.run {
-                    self.healthData = nil
-                    self.healthDataAvailable = false
-                    self.isRefreshing = false
-                }
-                return
-            }
-            
             do {
                 let data = await healthKitService.fetchAllHealthData()
                 await MainActor.run {
                     self.healthData = data
-                    self.healthDataAvailable = data.height != nil || data.weight != nil || data.age != nil || data.gender != nil || data.averageSleepHours != nil
+                    self.healthDataAvailable = data.height != nil && data.weight != nil && data.age != nil && data.gender != nil && data.averageSleepHours != nil
                     self.isRefreshing = false
                 }
             } catch {

@@ -39,6 +39,9 @@ struct SettingsView: View {
                 HealthKitCard()
                 generalSettingsCard
                 aboutCard
+                #if DEBUG
+                DebugSettingsCard()
+                #endif
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)

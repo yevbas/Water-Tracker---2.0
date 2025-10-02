@@ -60,7 +60,8 @@ struct EditWaterPortionView: View {
             waterPortion: .init(
                 amount: 2200,
                 drink: .coffee,
-                createDate: Date()
+                createDate: Date(),
+                dayDate: Date().rounded()
             )
         )
         .environmentObject(RevenueCatMonitor(state: .preview(false)))

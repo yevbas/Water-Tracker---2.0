@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 import RevenueCat
+import StoreKit
 
 @main
 struct WaterTrackerApp: App {
@@ -18,11 +19,14 @@ struct WaterTrackerApp: App {
     @StateObject private var healthKitService = HealthKitService()
     @StateObject private var revenueCatMonitor = RevenueCatMonitor()
     @StateObject private var weatherService = WeatherService()
+    @StateObject private var aiClient = AIDrinkAnalysisClient()
+    @StateObject private var sleepService = SleepService()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             WaterPortion.self,
             WeatherAnalysisCache.self,
+            SleepAnalysisCache.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -42,6 +46,8 @@ struct WaterTrackerApp: App {
                             .environmentObject(revenueCatMonitor)
                             .environmentObject(healthKitService)
                             .environmentObject(weatherService)
+                            .environmentObject(aiClient)
+                            .environmentObject(sleepService)
                     } else {
                         PersonalizedOnboarding()
                             .modelContainer(sharedModelContainer)

@@ -24,6 +24,42 @@ class HealthKitService: ObservableObject {
 
     init() {}
     
+    // MARK: - HealthKit Authorization
+    
+    func requestHealthKitPermissions() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit is not available on this device")
+            return false
+        }
+        
+        print("🔐 Requesting HealthKit permissions...")
+        
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: healthKitTypes)
+            print("✅ HealthKit permissions granted")
+            return true
+        } catch {
+            print("❌ Failed to request HealthKit permissions: \(error)")
+            return false
+        }
+    }
+    
+    func checkHealthKitPermissions() -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            return false
+        }
+        
+        // Check if we have permission for at least one data type
+        for healthType in healthKitTypes {
+            let status = healthStore.authorizationStatus(for: healthType)
+            if status == .sharingAuthorized {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
     // MARK: - Unified HealthKit Data Fetching
     
     func fetchAllHealthData() async -> HealthKitData {

@@ -1,40 +1,36 @@
 //
-//  WeatherCardView.swift
+//  SleepCardView.swift
 //  WaterTracker
 //
 //  Created by AI Assistant
 //
 
 import SwiftUI
-import WeatherKit
 import SwiftData
 
-struct WeatherCardView: View {
-    // Current date rounded for saving
-    let selectedDate: Date = Date().rounded()
-
-    @State var isLoading: Bool = false
+struct SleepCardView: View {
+    let selectedDate: Date
+    let isLoading: Bool
 
     @Environment(\.modelContext) var modelContext
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @EnvironmentObject private var aiClient: AIDrinkAnalysisClient
-    @EnvironmentObject private var weatherService: WeatherService
+    @StateObject private var sleepService = SleepService()
 
-    @Query private var allWeatherAnalyses: [WeatherAnalysisCache]
+    @Query private var allSleepAnalyses: [SleepAnalysisCache]
+    @Query private var allWaterPortions: [WaterPortion]
 
     @State private var isExpanded = false
     @State private var isGeneratingAIComment = false
-    @State private var isRefreshingWeather = false
+    @State private var isRefreshingSleep = false
     @State private var currentAIComment = ""
-    @State private var errorMessage: String?
 
-    private var cachedAnalysis: WeatherAnalysisCache? {
-        // Use rounded date for identification
-        let roundedDate = selectedDate.rounded()
-        
-        return allWeatherAnalyses.first { analysis in
-            // Compare dates by checking if they're within the same day
-            Calendar.current.isDate(analysis.date, inSameDayAs: roundedDate)
+    private var cachedAnalysis: SleepAnalysisCache? {
+        let startOfDay = Calendar.current.startOfDay(for: selectedDate)
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        return allSleepAnalyses.first { analysis in
+            analysis.date >= startOfDay && analysis.date < endOfDay
         }
     }
 
@@ -42,8 +38,8 @@ struct WeatherCardView: View {
         cachedAnalysis != nil
     }
 
-    private var weatherRecommendation: WeatherRecommendation? {
-        cachedAnalysis?.toWeatherRecommendation()
+    private var sleepRecommendation: SleepRecommendation? {
+        cachedAnalysis?.toSleepRecommendation()
     }
 
     private var aiComment: String {
@@ -57,6 +53,17 @@ struct WeatherCardView: View {
         cachedAnalysis?.date
     }
 
+    // Get water data for the last week to compare with sleep
+    private var lastWeekWaterData: [WaterPortion] {
+        let calendar = Calendar.current
+        let weekAgo = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+        
+        return allWaterPortions.filter { portion in
+            portion.createDate >= weekAgo && portion.createDate <= endOfDay
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Header - Always Visible
@@ -65,39 +72,35 @@ struct WeatherCardView: View {
                     isExpanded.toggle()
                 }
                 
-                // Generate AI comment when expanding if we have weather data but no AI comment
-                if isExpanded && weatherRecommendation != nil && aiComment.isEmpty {
+                // Generate AI comment when expanding if we have sleep data but no AI comment
+                if isExpanded && sleepRecommendation != nil && aiComment.isEmpty {
                     generateAIComment()
                 }
             }) {
                 HStack(spacing: 12) {
-                    // Weather Icon
-                    weatherIconView
+                    // Sleep Icon
+                    sleepIconView
 
-                    // Weather Info
+                    // Sleep Info
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Weather Analysis")
+                        Text("Sleep Analysis")
                             .font(.headline)
                             .fontWeight(.semibold)
                         
-                        // Location name
-                        if let locationName = cachedAnalysis?.locationName {
-                            Text(locationName)
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                                .fontWeight(.medium)
-                        }
-
-                        if isLoading || isRefreshingWeather {
-                            Text(isRefreshingWeather ? "Refreshing..." : "Analyzing...")
+                        if isLoading || isRefreshingSleep {
+                            Text(isRefreshingSleep ? "Refreshing..." : "Analyzing...")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                        } else if let recommendation = weatherRecommendation {
-                            Text("\(Int(recommendation.currentTemperature))°C • \(recommendation.condition.description)")
+                        } else if let recommendation = sleepRecommendation {
+                            Text(formatSleepDuration(recommendation.sleepDurationHours))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                        } else if sleepService.errorMessage != nil {
+                            Text("Sleep data unavailable")
+                                .font(.subheadline)
+                                .foregroundStyle(.red)
                         } else {
-                            Text("Tap to analyze weather")
+                            Text("Tap to analyze sleep")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -107,19 +110,19 @@ struct WeatherCardView: View {
 
                     // Refresh Button
                     Button(action: {
-                        refreshWeatherData()
+                        refreshSleepData()
                     }) {
-                        if isRefreshingWeather {
+                        if isRefreshingSleep {
                             ProgressView()
                                 .scaleEffect(0.8)
                         } else {
                             Image(systemName: "arrow.clockwise")
                                 .font(.subheadline)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.purple)
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(isRefreshingWeather)
+                    .disabled(isRefreshingSleep)
 
                     // Expand/Collapse Icon
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -144,29 +147,33 @@ struct WeatherCardView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(.blue.opacity(0.2), lineWidth: 1)
+                .stroke(.purple.opacity(0.2), lineWidth: 1)
         )
     }
 
-    // MARK: - Weather Icon
+    // MARK: - Sleep Icon
 
-    private var weatherIconView: some View {
+    private var sleepIconView: some View {
         ZStack {
             Circle()
-                .fill(.blue.opacity(0.1))
+                .fill(.purple.opacity(0.1))
                 .frame(width: 44, height: 44)
 
-            if isLoading || isRefreshingWeather {
+            if isLoading || isRefreshingSleep {
                 ProgressView()
                     .scaleEffect(0.8)
-            } else if let recommendation = weatherRecommendation {
-                Image(systemName: weatherIcon(for: recommendation.condition))
+            } else if let recommendation = sleepRecommendation {
+                Image(systemName: sleepIcon(for: recommendation.sleepQualityScore))
                     .font(.title3)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.purple)
+            } else if sleepService.errorMessage != nil {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.red)
             } else {
-                Image(systemName: "cloud.sun.fill")
+                Image(systemName: "moon.fill")
                     .font(.title3)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.purple)
             }
         }
     }
@@ -183,20 +190,18 @@ struct WeatherCardView: View {
                 loadingView
                     .padding(.horizontal)
                     .padding(.bottom)
-            } else if let recommendation = weatherRecommendation {
-                weatherDetailsView(recommendation)
+            } else if let recommendation = sleepRecommendation {
+                sleepDetailsView(recommendation)
+                    .padding(.horizontal)
+                    .padding(.bottom)
+            } else if sleepService.errorMessage != nil {
+                noDataView
                     .padding(.horizontal)
                     .padding(.bottom)
             } else {
-                if let errorMessage = errorMessage {
-                    errorView(errorMessage)
-                        .padding(.horizontal)
-                        .padding(.bottom)
-                } else {
-                    noDataView
-                        .padding(.horizontal)
-                        .padding(.bottom)
-                }
+                noDataView
+                    .padding(.horizontal)
+                    .padding(.bottom)
             }
         }
     }
@@ -208,7 +213,7 @@ struct WeatherCardView: View {
             ProgressView()
                 .scaleEffect(1.1)
 
-            Text("Analyzing weather conditions...")
+            Text("Analyzing sleep patterns...")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -220,15 +225,15 @@ struct WeatherCardView: View {
 
     private var noDataView: some View {
         VStack(spacing: 12) {
-            Image(systemName: "cloud.sun")
+            Image(systemName: "moon.zzz")
                 .font(.title2)
-                .foregroundStyle(.blue.opacity(0.6))
+                .foregroundStyle(.purple.opacity(0.6))
 
-            Text("No weather data available")
+            Text("No sleep data available")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Text("Weather analysis will help optimize your hydration goals based on current conditions.")
+            Text("Sleep analysis helps optimize your hydration schedule. Please check your Health app settings to enable sleep tracking.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -237,39 +242,17 @@ struct WeatherCardView: View {
         .padding(.vertical, 20)
     }
 
-    // MARK: - Error View
+    // MARK: - Sleep Details
 
-    private func errorView(_ message: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.title2)
-                .foregroundStyle(.orange)
-
-            Text("Weather Error")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.primary)
-
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-    }
-
-    // MARK: - Weather Details
-
-    private func weatherDetailsView(_ recommendation: WeatherRecommendation) -> some View {
+    private func sleepDetailsView(_ recommendation: SleepRecommendation) -> some View {
         VStack(spacing: 16) {
             // AI Insight (if available)
             if !aiComment.isEmpty {
                 aiInsightCard
             }
 
-            // Weather Stats
-            weatherStatsGrid(recommendation)
+            // Sleep Stats
+            sleepStatsGrid(recommendation)
 
             // Recommendation
             recommendationCard(recommendation)
@@ -300,7 +283,7 @@ struct WeatherCardView: View {
                 } else {
                     Image(systemName: "sparkles")
                         .font(.subheadline)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.purple)
                 }
 
                 Text("AI Insight")
@@ -316,7 +299,7 @@ struct WeatherCardView: View {
                     }) {
                         Image(systemName: "arrow.clockwise")
                             .font(.caption)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.purple)
                     }
                     .buttonStyle(.plain)
                 }
@@ -345,7 +328,7 @@ struct WeatherCardView: View {
                         Text("Generate AI insight")
                             .font(.caption)
                     }
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.purple)
                 }
                 .buttonStyle(.plain)
             }
@@ -354,41 +337,41 @@ struct WeatherCardView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(.blue.opacity(0.05))
+                .fill(.purple.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(.blue.opacity(0.2), lineWidth: 1)
+                        .stroke(.purple.opacity(0.2), lineWidth: 1)
                 )
         )
     }
 
-    private func weatherStatsGrid(_ recommendation: WeatherRecommendation) -> some View {
+    private func sleepStatsGrid(_ recommendation: SleepRecommendation) -> some View {
         HStack(spacing: 12) {
-            weatherStatItem(
-                icon: "thermometer",
-                label: "High",
-                value: "\(Int(recommendation.maxTemperature))°C"
+            sleepStatItem(
+                icon: "moon.fill",
+                label: "Duration",
+                value: formatSleepDuration(recommendation.sleepDurationHours)
             )
 
-            weatherStatItem(
-                icon: "drop.fill",
-                label: "Humidity",
-                value: "\(Int(recommendation.humidity * 100))%"
+            sleepStatItem(
+                icon: "star.fill",
+                label: "Quality",
+                value: "\(Int(recommendation.sleepQualityScore * 100))%"
             )
 
-            weatherStatItem(
-                icon: "sun.max.fill",
-                label: "UV Index",
-                value: "\(recommendation.uvIndex)"
+            sleepStatItem(
+                icon: "brain.head.profile",
+                label: "Deep Sleep",
+                value: "\(recommendation.deepSleepMinutes)min"
             )
         }
     }
 
-    private func weatherStatItem(icon: String, label: String, value: String) -> some View {
+    private func sleepStatItem(icon: String, label: String, value: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundStyle(.blue)
+                .foregroundStyle(.purple)
 
             Text(label)
                 .font(.caption2)
@@ -402,18 +385,18 @@ struct WeatherCardView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(.blue.opacity(0.05))
+                .fill(.purple.opacity(0.05))
         )
     }
 
-    private func recommendationCard(_ recommendation: WeatherRecommendation) -> some View {
+    private func recommendationCard(_ recommendation: SleepRecommendation) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: recommendation.recommendation.priority.icon)
                     .font(.subheadline)
                     .foregroundStyle(colorForPriority(recommendation.recommendation.priority))
 
-                Text("Recommendation")
+                Text("Hydration Recommendation")
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }
@@ -452,7 +435,7 @@ struct WeatherCardView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "circle.fill")
                                 .font(.system(size: 4))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.purple)
 
                             Text(factor)
                                 .font(.caption2)
@@ -473,82 +456,20 @@ struct WeatherCardView: View {
 
     // MARK: - Helper Methods
 
-    private func weatherIcon(for condition: WeatherCondition) -> String {
-        switch condition {
-        case .clear:
-            return "sun.max.fill"
-        case .cloudy:
-            return "cloud.fill"
-        case .partlyCloudy:
-            return "cloud.sun.fill"
-        case .rain:
-            return "cloud.rain.fill"
-        case .snow:
-            return "cloud.snow.fill"
-        case .thunderstorms:
-            return "cloud.bolt.fill"
-        case .foggy:
-            return "cloud.fog.fill"
-        case .haze:
-            return "sun.haze.fill"
-        case .smoky:
-            return "smoke.fill"
-        case .breezy:
-            return "wind"
-        case .windy:
-            return "wind"
-        case .frigid:
-            return "thermometer.snowflake"
-        case .hot:
-            return "thermometer.sun.fill"
-        case .sunShowers:
-            return "cloud.sun.rain.fill"
-        case .blowingDust:
-            return "cloud.dust.fill"
-        case .blowingSnow:
-            return "cloud.snow.fill"
-        case .freezingDrizzle:
-            return "cloud.drizzle.fill"
-        case .freezingRain:
-            return "cloud.rain.fill"
-        case .heavyRain:
-            return "cloud.heavyrain.fill"
-        case .flurries:
-            return "cloud.snow.fill"
-        case .heavySnow:
-            return "cloud.snow.fill"
-        case .sleet:
-            return "cloud.sleet.fill"
-        case .sunFlurries:
-            return "cloud.snow.fill"
-        case .tropicalStorm:
-            return "cloud.bolt.rain.fill"
-        case .hurricane:
-            return "hurricane"
-        case .wintryMix:
-            return "cloud.sleet.fill"
-        case .blizzard:
-            return "cloud.snow.fill"
-        case .drizzle:
-            return "cloud.drizzle.fill"
-        case .hail:
-            return "cloud.hail.fill"
-        case .isolatedThunderstorms:
-            return "cloud.bolt.fill"
-        case .mostlyClear:
-            return "sun.min.fill"
-        case .mostlyCloudy:
-            return "cloud.fill"
-        case .scatteredThunderstorms:
-            return "cloud.bolt.fill"
-        case .strongStorms:
-            return "cloud.bolt.rain.fill"
-        @unknown default:
-            return "cloud.fill"
+    private func sleepIcon(for qualityScore: Double) -> String {
+        switch qualityScore {
+        case 0.8...1.0:
+            return "moon.stars.fill"
+        case 0.6..<0.8:
+            return "moon.fill"
+        case 0.4..<0.6:
+            return "moon.circle.fill"
+        default:
+            return "moon.zzz.fill"
         }
     }
 
-    private func colorForPriority(_ priority: WeatherPriority) -> Color {
+    private func colorForPriority(_ priority: SleepPriority) -> Color {
         switch priority {
         case .low:
             return .green
@@ -556,6 +477,17 @@ struct WeatherCardView: View {
             return .orange
         case .high:
             return .red
+        }
+    }
+
+    private func formatSleepDuration(_ hours: Double) -> String {
+        let hoursInt = Int(hours)
+        let minutes = Int((hours - Double(hoursInt)) * 60)
+        
+        if hoursInt > 0 {
+            return "\(hoursInt)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
         }
     }
 
@@ -568,92 +500,73 @@ struct WeatherCardView: View {
         }
     }
     
-    // MARK: - Weather Data Refresh
+    // MARK: - Sleep Data Refresh
     
-    private func refreshWeatherData() {
-        isRefreshingWeather = true
-        errorMessage = nil
+    private func refreshSleepData() {
+        isRefreshingSleep = true
         
         Task {
-            do {
-                // Fetch fresh weather data using the new service pattern
-                let recommendation = try await weatherService.fetchWeatherData()
-
-                isGeneratingAIComment = true
-
-                let aiComment = try await aiClient.analyzeWeatherForHydration(
-                    weatherData: recommendation
-                )
-
-                isGeneratingAIComment = false
-
-                // Get location name if available
-                var locationName: String?
-
-                if let location = weatherService.locationManager.location {
-                    locationName = await weatherService.getLocationName(for: location)
-                }
-
-                // Create new cache entry with fresh data
-                let cache = WeatherAnalysisCache.fromWeatherRecommendation(
-                    recommendation,
-                    aiComment: aiComment,
-                    locationName: locationName
-                )
-                cache.date = selectedDate.rounded()
+            // Fetch fresh sleep data
+            if let recommendation = await sleepService.fetchSleepData(for: selectedDate) {
+                // Generate AI comment
+                let aiComment = generateMockAIComment(for: recommendation)
                 
-                // Remove old cache for this date and clean up old data
-                await cleanOldWeatherData()
+                // Create new cache entry with fresh data
+                let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: aiComment)
+                cache.date = selectedDate
+                
+                // Remove old cache for this date
+                removeOldCacheForDate(selectedDate)
                 
                 // Insert new cache
                 modelContext.insert(cache)
-
-                try? modelContext.save()
-            } catch let weatherError as WeatherError {
-                errorMessage = weatherError.localizedDescription
-            } catch let error {
-                errorMessage = "Failed to fetch weather data: \(error.localizedDescription)"
+                
+                do {
+                    try modelContext.save()
+                } catch {
+                    print("Failed to save refreshed sleep data: \(error)")
+                }
             }
-            isRefreshingWeather = false
-            currentAIComment = ""
+            
+            await MainActor.run {
+                isRefreshingSleep = false
+                // Clear current AI comment to trigger regeneration
+                currentAIComment = ""
+            }
         }
     }
     
-    private func cleanOldWeatherData() async {
-        let currentRoundedDate = Date().rounded()
+    private func removeOldCacheForDate(_ date: Date) {
+        let startOfDay = Calendar.current.startOfDay(for: date)
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
         
-        // Fetch all weather analyses and filter manually since we can't use rounded() in predicate
-        let descriptor = FetchDescriptor<WeatherAnalysisCache>()
+        let descriptor = FetchDescriptor<SleepAnalysisCache>(
+            predicate: #Predicate { analysis in
+                analysis.date >= startOfDay && analysis.date < endOfDay
+            }
+        )
         
         do {
-            let allCaches = try modelContext.fetch(descriptor)
-            let oldCaches = allCaches.filter { analysis in
-                !Calendar.current.isDate(analysis.date, inSameDayAs: currentRoundedDate)
-            }
-            
+            let oldCaches = try modelContext.fetch(descriptor)
             for cache in oldCaches {
                 modelContext.delete(cache)
             }
         } catch {
-            await MainActor.run {
-                errorMessage = "Failed to clean old weather data"
-            }
+            print("Failed to remove old cache: \(error)")
         }
     }
     
     // MARK: - AI Comment Generation
     
     private func generateAIComment() {
-        guard let recommendation = weatherRecommendation else { return }
+        guard let recommendation = sleepRecommendation else { return }
         
         isGeneratingAIComment = true
         
         Task {
             do {
-                let aiComment = try await aiClient.analyzeWeatherForHydration(
-                    weatherData: recommendation
-                )
-
+                let aiComment = try await aiClient.analyzeSleepForHydration(sleepData: recommendation, waterData: lastWeekWaterData)
+                
                 await MainActor.run {
                     currentAIComment = aiComment
                     isGeneratingAIComment = false
@@ -663,8 +576,9 @@ struct WeatherCardView: View {
                 }
             } catch {
                 await MainActor.run {
+                    // Fallback to mock comment if AI fails
+                    currentAIComment = generateMockAIComment(for: recommendation)
                     isGeneratingAIComment = false
-                    errorMessage = "Failed to generate AI insight"
                 }
             }
         }
@@ -682,13 +596,43 @@ struct WeatherCardView: View {
             }
         }
     }
+    
+    // MARK: - Mock AI Comment Generation
+    
+    private func generateMockAIComment(for recommendation: SleepRecommendation) -> String {
+        let duration = recommendation.sleepDurationHours
+        let quality = recommendation.sleepQualityScore
+        let deepSleep = recommendation.deepSleepMinutes
+        let remSleep = recommendation.remSleepMinutes
+        let additionalWater = recommendation.recommendation.additionalWaterMl
+        
+        // Generate contextual AI comments based on sleep data and scientific research
+        if duration < 5.5 {
+            return "⚠️ Severe sleep deprivation detected! With only \(formatSleepDuration(duration)) of sleep, your body's antidiuretic hormone (vasopressin) production is significantly reduced, increasing dehydration risk by up to 59%. Prioritize both sleep and hydration recovery today."
+        } else if duration < 6.5 {
+            return "😴 Sleep deficit alert! \(formatSleepDuration(duration)) falls below the recommended 7-9 hours. Research shows this increases dehydration odds by 16-59%. Your body needs extra hydration to compensate for reduced vasopressin release during inadequate sleep."
+        } else if duration >= 7.0 && duration <= 9.0 && quality >= 0.8 {
+            return "✨ Excellent sleep quality! Your \(formatSleepDuration(duration)) of restorative sleep with \(Int(quality * 100))% quality score supports optimal hydration regulation. Your body's natural fluid balance mechanisms are functioning well."
+        } else if quality < 0.5 {
+            return "🌙 Poor sleep quality detected! With a \(Int(quality * 100))% quality score, elevated cortisol levels are affecting your kidney function and fluid retention. Focus on sleep hygiene and increase morning hydration to support recovery."
+        } else if deepSleep < 60 {
+            return "🧠 Insufficient deep sleep! Only \(deepSleep) minutes of deep sleep means reduced physical restoration. Deep sleep is crucial for metabolic recovery - consider earlier bedtime and limit evening screen time to improve sleep architecture."
+        } else if remSleep < 90 {
+            return "💭 Low REM sleep detected! \(remSleep) minutes of REM sleep affects cognitive function and stress regulation. REM sleep increases metabolic activity by 20-30%, requiring extra hydration. Consider stress management techniques."
+        } else if additionalWater >= 300 {
+            return "💧 High hydration needs today! Your sleep pattern suggests significant overnight water loss (\(additionalWater)ml additional needed). The combination of sleep duration, quality, and metabolic demands requires focused hydration attention."
+        } else if additionalWater >= 150 {
+            return "🌅 Moderate hydration boost recommended! Based on your sleep analysis, your body needs \(additionalWater)ml extra water today. Sleep patterns affect fluid balance through hormonal regulation and metabolic processes."
+        } else if additionalWater > 0 {
+            return "✅ Slight hydration adjustment! Your sleep data suggests a small increase (\(additionalWater)ml) in daily water intake. Even minor sleep variations can impact your body's fluid regulation systems."
+        } else {
+            return "🌟 Optimal sleep-hydration balance! Your sleep quality and duration support excellent fluid regulation. Keep maintaining these healthy sleep patterns for continued hydration optimization."
+        }
+    }
 }
 
 #Preview {
-    WeatherCardView()
-        .modelContainer(for: WeatherAnalysisCache.self, inMemory: true)
-        .environmentObject(WeatherService())
-        .environmentObject(AIDrinkAnalysisClient())
+    SleepCardView(selectedDate: Date(), isLoading: false)
+        .modelContainer(for: [SleepAnalysisCache.self, WaterPortion.self], inMemory: true)
         .padding()
 }
-

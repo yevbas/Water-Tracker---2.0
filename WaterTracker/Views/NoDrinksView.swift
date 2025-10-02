@@ -20,9 +20,9 @@ struct NoDrinksView: View {
 //            )
 //            .font(.title.weight(.medium))
         VStack {
-            LottieView(animation: .named("h2o-rocket"))
-                .looping()
-                .frame(height: 200)
+//            LottieView(animation: .named("h2o-rocket"))
+//                .looping()
+//                .frame(height: 200)
             Text("No drinks found")
                 .font(.system(.title, design: .rounded, weight: .bold))
         }

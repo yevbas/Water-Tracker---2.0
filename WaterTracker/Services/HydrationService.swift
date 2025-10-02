@@ -23,7 +23,7 @@ final class HydrationService {
     func addPortion(amount: Double, unit: WaterUnit, drink: Drink = .water, date: Date = Date()) {
         guard let container else { return }
         let context = ModelContext(container)
-        let portion = WaterPortion(amount: amount, unit: unit, drink: drink, createDate: date)
+        let portion = WaterPortion(amount: amount, unit: unit, drink: drink, createDate: date, dayDate: date.rounded())
         context.insert(portion)
         try? context.save()
     }

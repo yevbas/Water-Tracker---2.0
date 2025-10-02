@@ -45,5 +45,5 @@ struct WaterVGridItemView: View {
 //        DashboardView()
 //            .modelContainer(for: WaterPortion.self, inMemory: true)
 //    }
-    WaterVGridItemView(waterPortion: .init(amount: 200, createDate: Date()))
+    WaterVGridItemView(waterPortion: .init(amount: 200, createDate: Date(), dayDate: Date().rounded()))
 }

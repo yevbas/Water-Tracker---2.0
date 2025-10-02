@@ -10,7 +10,7 @@ import UIKit
 import RevenueCatUI
 
 struct DrinkAnalysisView: View {
-    @StateObject private var analysisClient = AIDrinkAnalysisClient.shared
+    @EnvironmentObject private var analysisClient: AIDrinkAnalysisClient
     @State private var selectedImage: UIImage?
     @State private var showingImagePicker = false
     @State private var showingCamera = false

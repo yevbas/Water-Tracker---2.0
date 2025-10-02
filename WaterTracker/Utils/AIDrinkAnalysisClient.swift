@@ -16,11 +16,8 @@ struct DrinkAnalysisResult {
 }
 
 final class AIDrinkAnalysisClient: ObservableObject {
-    static let shared = AIDrinkAnalysisClient()
-    
     @Published var isAnalyzing = false
-    
-    private init() {}
+
     
     func analyzeWeatherForHydration(weatherData: WeatherRecommendation) async throws -> String {
         await MainActor.run {
@@ -76,6 +73,78 @@ final class AIDrinkAnalysisClient: ObservableObject {
         
         guard let content = result.choices.first?.message.content else {
             throw DrinkAnalysisError.analysisError("Failed to generate AI analysis")
+        }
+        
+        return content
+    }
+    
+    func analyzeSleepForHydration(sleepData: SleepRecommendation, waterData: [WaterPortion]) async throws -> String {
+        await MainActor.run {
+            isAnalyzing = true
+        }
+        
+        defer {
+            Task { @MainActor in
+                isAnalyzing = false
+            }
+        }
+        
+        let apiKey = RemoteConfigService.shared.string(for: .openAIApiKey)
+        let openAI = OpenAI(apiToken: apiKey)
+        
+        let systemLanguage = Locale.current.language.languageCode?.identifier ?? "en"
+        
+        let systemPrompt = """
+        You are a sleep and hydration expert AI assistant. Analyze sleep data and water intake patterns to provide personalized, evidence-based hydration recommendations.
+        
+        Guidelines:
+        - Be conversational and encouraging
+        - Reference scientific research on sleep-hydration connections
+        - Use emojis appropriately
+        - Keep responses concise (2-3 sentences)
+        - Focus on practical, actionable advice
+        - Consider sleep duration, quality, stages, and timing
+        - IMPORTANT: Respond ONLY in \(systemLanguage) language
+        - Use natural, native-level language for \(systemLanguage)
+        - Reference specific sleep metrics when relevant
+        """
+        
+        // Calculate water intake for context
+        let totalWaterMl = waterData.reduce(0) { total, portion in
+            total + Int(portion.amount * portion.unit.conversionFactor)
+        }
+        let avgDailyWater = totalWaterMl / max(1, Set(waterData.map { Calendar.current.startOfDay(for: $0.createDate) }).count)
+        
+        let sleepContext = """
+        Sleep Analysis Data:
+        - Sleep Duration: \(String(format: "%.1f", sleepData.sleepDurationHours)) hours
+        - Sleep Quality Score: \(Int(sleepData.sleepQualityScore * 100))%
+        - Deep Sleep: \(sleepData.deepSleepMinutes) minutes
+        - REM Sleep: \(sleepData.remSleepMinutes) minutes
+        - Bed Time: \(sleepData.bedTime?.formatted(date: .omitted, time: .shortened) ?? "Unknown")
+        - Wake Time: \(sleepData.wakeTime?.formatted(date: .omitted, time: .shortened) ?? "Unknown")
+        - Additional Water Recommended: \(sleepData.recommendation.additionalWaterMl)ml
+        - Sleep Factors: \(sleepData.recommendation.factors.joined(separator: ", "))
+        
+        Recent Water Intake Context:
+        - Average daily water intake (last week): \(avgDailyWater)ml
+        - Total water intake (last week): \(totalWaterMl)ml
+        """
+        
+        let messages: [ChatQuery.ChatCompletionMessageParam] = [
+            .system(.init(content: .textContent(systemPrompt))),
+            .user(.init(content: .string(sleepContext)))
+        ]
+
+        let query = ChatQuery(
+            messages: messages,
+            model: .gpt4_o_mini
+        )
+        
+        let result = try await openAI.chats(query: query)
+        
+        guard let content = result.choices.first?.message.content else {
+            throw DrinkAnalysisError.analysisError("Failed to generate sleep-hydration analysis")
         }
         
         return content

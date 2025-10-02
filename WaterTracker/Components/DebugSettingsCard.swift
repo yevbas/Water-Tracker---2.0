@@ -232,7 +232,8 @@ struct DebugSettingsCard: View {
                         amount: randomAmount,
                         unit: measurementUnits,
                         drink: randomDrink,
-                        createDate: drinkTime
+                        createDate: drinkTime,
+                        dayDate: drinkTime.rounded()
                     )
 
                     modelContext.insert(portion)

@@ -132,3 +132,7 @@ final class FullScreenAdService: NSObject, FullScreenContentDelegate {
     }
 
 }
+
+enum GeneralError: Error {
+    case somethingWrong
+}

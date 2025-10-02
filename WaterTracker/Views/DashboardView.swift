@@ -12,39 +12,15 @@ import SwiftData
 
 struct DashboardView: View {
     @Environment(\.modelContext) var modelContext
-    @EnvironmentObject private var weatherService: WeatherService
-
-    @Query(sort: [.init(\WaterPortion.createDate, order: .reverse)], animation: .linear)
-    var allWaterPortions: [WaterPortion]
-    
-    @Query private var allWeatherAnalyses: [WeatherAnalysisCache]
+    @EnvironmentObject private var sleepService: SleepService
+    @EnvironmentObject var revenueCatMonitor: RevenueCatMonitor
 
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
 
-    var waterPortionsByDate: [WaterPortion] {
-        guard let selectedDate else { return [] }
-        return allWaterPortions.filter {
-            let calendar = Calendar.current
-            let startDate = calendar.startOfDay(for: selectedDate)
-            let endDate = calendar.date(byAdding: .day, value: 1, to: startDate)
-            return $0.createDate >= startDate && $0.createDate < endDate!
-        }
-    }
-    
-    private var cachedAnalysis: WeatherAnalysisCache? {
-        guard let selectedDate else { return nil }
-        let startOfDay = Calendar.current.startOfDay(for: selectedDate)
-        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
-        
-        return allWeatherAnalyses.first { analysis in
-            analysis.date >= startOfDay && analysis.date < endOfDay
-        }
-    }
-
-    @EnvironmentObject var revenueCatMonitor: RevenueCatMonitor
-
+    @State var waterPortions: [WaterPortion] = []
     @State var selectedDate: Date? = Date().rounded()
+
     @State var editingWaterPortion: WaterPortion?
     @State var isPresentedSchedule = false
     @State var isPresentedDrinkSelector = false
@@ -99,7 +75,6 @@ struct DashboardView: View {
             headerBackgroundView
             ScrollView {
                 contentBackgroundView
-                //                    .background(.cyan)
                     .background(GeometryReader { scrollProxy in
                         Color.clear.onAppear {
                             maxScrollHeight = scrollProxy.size.height
@@ -114,7 +89,6 @@ struct DashboardView: View {
                     .onPreferenceChange(ViewOffsetKey.self) {
                         scrollOffset = $0
                     }
-                Spacer(minLength: 200)
             }
             .coordinateSpace(name: "scroll")
             .offset(y: contentYOffset)
@@ -128,13 +102,11 @@ struct DashboardView: View {
         })
         .animation(.linear, value: contentYOffset)
         .animation(.smooth, value: selectedDate)
+        .animation(.smooth, value: waterPortions)
         .overlay(alignment: .bottomTrailing) {
             addDrinkButton
                 .padding(.trailing, 8)
         }
-//        .onAppear {
-//            seedTestData()
-//        }
         .navigationTitle("Current's progress")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -171,17 +143,10 @@ struct DashboardView: View {
                 isPresentedDrinkAnalysis = true
             }
         }
-        .onAppear {
-            Task {
-                await weatherService.fetchWeatherData()
-                
-                #if DEBUG
-                // In debug mode, automatically create mock weather cache for today
-                if cachedAnalysis == nil {
-                    weatherService.createMockWeatherCache(for: selectedDate ?? Date(), modelContext: modelContext)
-                }
-                #endif
-            }
+        .onChange(of: selectedDate, initial: true) { _, newDate in
+            fetchWaterPortions(
+                by: newDate ?? Date().rounded()
+            )
         }
     }
 
@@ -193,10 +158,10 @@ struct DashboardView: View {
                 .overlay {
                     VStack {
                         if scrollOffset < scrollUpThreshold {
-                            if !revenueCatMonitor.userHasFullAccess {
-                                buildAdBannerView(.mainScreen)
-                                    .padding(.horizontal)
-                            }
+                            //                            if !revenueCatMonitor.userHasFullAccess {
+                            //                                buildAdBannerView(.mainScreen)
+                            //                                    .padding(.horizontal)
+                            //                            }
                             datePicker
                         }
                         HStack {
@@ -251,14 +216,14 @@ struct DashboardView: View {
     @ViewBuilder
     var contentBackgroundView: some View {
         LazyVStack(spacing: 16, pinnedViews: []) {
-            if waterPortionsByDate.isEmpty {
+            if waterPortions.isEmpty {
                 NoDrinksView()
             } else {
                 LazyVGrid(
                     columns: [.init()],
                     spacing: 12
                 ) {
-                    ForEach(waterPortionsByDate) { waterPortion in
+                    ForEach(waterPortions) { waterPortion in
                         WaterVGridItemView(waterPortion: waterPortion)
                             .onTapGesture {
                                 editingWaterPortion = waterPortion
@@ -276,15 +241,20 @@ struct DashboardView: View {
                                 }
                             }
                     }
-                    .animation(.smooth, value: allWaterPortions)
+                    .animation(.smooth, value: waterPortions)
                 }
             }
-            
-            // Weather Card - Shows if cached data exists or if loading
-            WeatherCardView(
-                selectedDate: selectedDate!,
-                isLoading: weatherService.isLoading
-            )
+
+            if selectedDate?.rounded() == Date().rounded() {
+                // Weather Card - Shows if cached data exists or if loading
+                WeatherCardView()
+
+                // Sleep Card - Shows sleep analysis and hydration recommendations
+                SleepCardView(
+                    selectedDate: selectedDate!,
+                    isLoading: sleepService.isLoading
+                )
+            }
 
             Spacer(minLength: 500)
         }
@@ -317,7 +287,7 @@ struct DashboardView: View {
     }
 
     private func totalConsumedMl(for date: Date?) -> Double {
-        let items = waterPortionsByDate
+        let items = waterPortions
         var sumMl: Double = 0
         for p in items {
             switch p.unit {
@@ -360,7 +330,7 @@ struct DashboardView: View {
             }) {
                 Label("Manual Input", systemImage: "hand.tap")
             }
-            
+
             Button(action: {
                 isPresentedImagePicker = true
             }) {
@@ -378,17 +348,36 @@ struct DashboardView: View {
             amount: amount,
             unit: .millilitres,
             drink: drink,
-            createDate: Date()
+            createDate: Date(),
+            dayDate: Date().rounded()
         )
         modelContext.insert(waterPortion)
         try? modelContext.save()
+
+        // fetch updated data
+        fetchWaterPortions(by: selectedDate ?? Date().rounded())
     }
 
     func remove(_ waterPortion: WaterPortion) {
         modelContext.delete(waterPortion)
         try? modelContext.save()
+
+        // fetch updated data
+        fetchWaterPortions(by: selectedDate ?? Date().rounded())
     }
-    
+
+    func fetchWaterPortions(by selectedDate: Date) {
+        let dayDate = selectedDate.rounded()
+        let fetchDescriptor = FetchDescriptor<WaterPortion>(
+            predicate: #Predicate { $0.dayDate == dayDate },
+            sortBy: [.init(\WaterPortion.createDate, order: .reverse)]
+        )
+        do {
+            waterPortions = try modelContext.fetch(fetchDescriptor)
+        } catch {
+            // catch errors
+        }
+    }
 
 }
 
@@ -403,7 +392,7 @@ struct ViewOffsetKey: PreferenceKey {
 #Preview {
     NavigationStack {
         DashboardView()
-            .modelContainer(for: WaterPortion.self, inMemory: true)
+            .modelContainer(for: [WaterPortion.self, WeatherAnalysisCache.self, SleepAnalysisCache.self], inMemory: true)
             .environmentObject(RevenueCatMonitor(state: .preview(true)))
     }
 }

@@ -26,22 +26,21 @@ struct WeatherTestView: View {
                     .multilineTextAlignment(.center)
                 
                 // Weather Card
-                WeatherCardView(
-                    selectedDate: selectedDate,
-                    isLoading: false
-                )
+                WeatherCardView()
                 
                 // Test Controls
                 VStack(spacing: 16) {
-                    Button("Generate Test Scenarios") {
-                        weatherService.createTestWeatherScenarios(modelContext: modelContext)
+                    Button("Test Weather Fetch") {
+                        Task {
+                            do {
+                                let recommendation = try await weatherService.fetchWeatherData()
+                                print("Weather data fetched successfully: \(recommendation)")
+                            } catch {
+                                print("Weather fetch failed: \(error)")
+                            }
+                        }
                     }
                     .buttonStyle(.borderedProminent)
-                    
-                    Button("Create Today's Mock Data") {
-                        weatherService.createMockWeatherCache(for: Date(), modelContext: modelContext)
-                    }
-                    .buttonStyle(.bordered)
                     
                     Button("Clear All Weather Data") {
                         clearWeatherData()
