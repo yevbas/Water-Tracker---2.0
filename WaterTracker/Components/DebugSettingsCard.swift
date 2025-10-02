@@ -26,6 +26,8 @@ struct DebugSettingsCard: View {
     @State private var showingDebugAlert = false
     @State private var debugAlertMessage = ""
     @State private var showingClearDataConfirmation = false
+    
+    @AppStorage("UseMockSleepData") private var useMockSleepData: Bool = false
 
     private var measurementUnits: WaterUnit {
         WaterUnit.fromString(measurementUnitsString)
@@ -74,6 +76,39 @@ struct DebugSettingsCard: View {
                     action: {
                         generateTodaySleepData()
                     }
+                )
+                
+                // Mock Sleep Data Toggle
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "moon.zzz.fill")
+                                .font(.title3)
+                                .foregroundStyle(.orange)
+                            
+                            Text("Use Mock Sleep Data")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        
+                        Text("Enable when no real sleep data available")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $useMockSleepData)
+                        .labelsHidden()
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(.quaternary, lineWidth: 0.5)
+                        )
                 )
 
                 SettingsButton(

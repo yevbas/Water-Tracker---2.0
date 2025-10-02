@@ -29,7 +29,7 @@ class SleepService: ObservableObject {
         errorMessage = nil
         
         // Request authorization if needed
-        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepChanges)!
+        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
 
         // Note: HealthKit's read authorization status is intentionally opaque for privacy.
         // We should always request authorization if not determined, then attempt to read data.
@@ -50,6 +50,18 @@ class SleepService: ObservableObject {
         // Don't block on sharingDenied status - HealthKit may still allow reading
         // due to privacy protections. Try to fetch data anyway.
         print("📱 Authorization status: \(status.rawValue)")
+        
+        // Additional debugging for authorization status
+        switch status {
+        case .notDetermined:
+            print("🔍 Sleep authorization not determined - requesting permission")
+        case .sharingDenied:
+            print("⚠️ Sleep authorization denied - but will still attempt to read data")
+        case .sharingAuthorized:
+            print("✅ Sleep authorization granted")
+        @unknown default:
+            print("❓ Unknown authorization status: \(status.rawValue)")
+        }
         
         // Fetch sleep data for the previous night (ending on the given date)
         let calendar = Calendar.current
@@ -80,9 +92,32 @@ class SleepService: ObservableObject {
                     
                     guard let sleepSamples = samples as? [HKCategorySample], !sleepSamples.isEmpty else {
                         print("⚠️ No sleep samples found for date range")
-                        self?.errorMessage = "No sleep data found for this date. Make sure your Apple Watch or iPhone is tracking sleep in the Health app."
-                        self?.isLoading = false
-                        continuation.resume(returning: nil)
+                        print("🔍 Debug: Searched from \(startDate) to \(endDate)")
+                        print("🔍 Debug: Query predicate: \(predicate)")
+                        
+                        // Try to find the latest available sleep data
+                        print("🔍 Searching for latest available sleep data...")
+                        self?.searchForLatestSleepData { latestRecommendation in
+                            if let latest = latestRecommendation {
+                                print("✅ Found latest sleep data")
+                                continuation.resume(returning: latest)
+                            } else {
+                                // Check if we should use mock data for testing
+                                #if DEBUG
+                                if UserDefaults.standard.bool(forKey: "UseMockSleepData") {
+                                    print("🧪 Using mock sleep data for testing")
+                                    let mockRecommendation = self?.createMockSleepRecommendation()
+                                    self?.isLoading = false
+                                    continuation.resume(returning: mockRecommendation)
+                                    return
+                                }
+                                #endif
+                                
+                                self?.errorMessage = "No sleep data found. Make sure your Apple Watch or iPhone is tracking sleep in the Health app."
+                                self?.isLoading = false
+                                continuation.resume(returning: nil)
+                            }
+                        }
                         return
                     }
                     
@@ -98,10 +133,95 @@ class SleepService: ObservableObject {
         }
     }
     
+    // MARK: - Search for Latest Sleep Data
+    
+    private func searchForLatestSleepData(completion: @escaping (SleepRecommendation?) -> Void) {
+        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+        
+        // Search for sleep data in the last 30 days
+        let calendar = Calendar.current
+        let endDate = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -30, to: endDate) else {
+            completion(nil)
+            return
+        }
+        
+        print("🔍 Searching for latest sleep data from \(startDate) to \(endDate)")
+        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(
+            sampleType: sleepType,
+            predicate: predicate,
+            limit: 100, // Get recent samples
+            sortDescriptors: [sortDescriptor]
+        ) { [weak self] _, samples, error in
+            Task { @MainActor in
+                if let error = error {
+                    print("❌ Error searching for latest sleep data: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                
+                guard let sleepSamples = samples as? [HKCategorySample], !sleepSamples.isEmpty else {
+                    print("⚠️ No sleep samples found in last 30 days")
+                    completion(nil)
+                    return
+                }
+                
+                print("✅ Found \(sleepSamples.count) sleep samples in last 30 days")
+                
+                // Group samples by date and find the most recent complete sleep session
+                let groupedSamples = self?.groupSamplesByDate(sleepSamples) ?? [:]
+                
+                // Get the most recent date with sleep data
+                let sortedDates = groupedSamples.keys.sorted(by: >)
+                
+                for date in sortedDates {
+                    if let samplesForDate = groupedSamples[date], !samplesForDate.isEmpty {
+                        print("📅 Using latest sleep data from \(date)")
+                        let recommendation = self?.analyzeSleepData(samplesForDate, actualDate: date)
+                        self?.isLoading = false
+                        completion(recommendation)
+                        return
+                    }
+                }
+                
+                print("⚠️ No valid sleep sessions found in recent data")
+                self?.isLoading = false
+                completion(nil)
+            }
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    private func groupSamplesByDate(_ samples: [HKCategorySample]) -> [Date: [HKCategorySample]] {
+        let calendar = Calendar.current
+        var groupedSamples: [Date: [HKCategorySample]] = [:]
+        
+        for sample in samples {
+            // Use the end date to determine which "night" this sleep belongs to
+            let sleepDate = calendar.startOfDay(for: sample.endDate)
+            
+            if groupedSamples[sleepDate] == nil {
+                groupedSamples[sleepDate] = []
+            }
+            groupedSamples[sleepDate]?.append(sample)
+        }
+        
+        return groupedSamples
+    }
+    
     // MARK: - Analyze Sleep Data
     
-    private func analyzeSleepData(_ samples: [HKCategorySample]) -> SleepRecommendation {
+    private func analyzeSleepData(_ samples: [HKCategorySample], actualDate: Date? = nil) -> SleepRecommendation {
         print("📊 Analyzing \(samples.count) sleep samples with evidence-based calculations")
+        
+        if let date = actualDate {
+            print("📅 Analyzing sleep data from \(date.formatted(date: .abbreviated, time: .omitted))")
+        }
         
         // Filter for actual sleep periods (in bed asleep)
         let asleepSamples = samples.filter { sample in
@@ -169,7 +289,8 @@ class SleepService: ObservableObject {
                     factors: ["No sleep data available for analysis"],
                     confidence: 0,
                     priority: .low
-                )
+                ),
+                actualSleepDate: actualDate
             )
         }
         
@@ -202,7 +323,8 @@ class SleepService: ObservableObject {
             wakeTime: wakeTime,
             deepSleepMinutes: deepSleepMinutes,
             remSleepMinutes: remSleepMinutes,
-            recommendation: recommendation
+            recommendation: recommendation,
+            actualSleepDate: actualDate
         )
     }
     
@@ -462,7 +584,8 @@ class SleepService: ObservableObject {
             wakeTime: wakeTime,
             deepSleepMinutes: scenario.deep,
             remSleepMinutes: scenario.rem,
-            recommendation: recommendation
+            recommendation: recommendation,
+            actualSleepDate: nil // Mock data doesn't have a specific date
         )
     }
     
@@ -529,6 +652,7 @@ struct SleepRecommendation {
     let deepSleepMinutes: Int
     let remSleepMinutes: Int
     let recommendation: SleepRecommendationData
+    let actualSleepDate: Date? // The actual date this sleep data is from (when using latest available data)
 }
 
 /// Contains detailed hydration recommendations based on sleep analysis

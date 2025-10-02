@@ -71,7 +71,8 @@ final class SleepAnalysisCache {
             wakeTime: wakeTime,
             deepSleepMinutes: deepSleepMinutes,
             remSleepMinutes: remSleepMinutes,
-            recommendation: recommendation
+            recommendation: recommendation,
+            actualSleepDate: nil // Cache doesn't store this, will be nil for cached data
         )
     }
     
