@@ -18,7 +18,7 @@ struct SleepCardView: View {
     @EnvironmentObject private var sleepService: SleepService
 
     @Query private var allSleepAnalyses: [SleepAnalysisCache]
-    @Query private var allWaterPortions: [WaterPortion]
+    @State private var allWaterPortions: [WaterPortion] = []
 
     @State private var isExpanded = false
     @State private var isGeneratingAIComment = false
@@ -65,13 +65,7 @@ struct SleepCardView: View {
     
     // Get water data for the last week to compare with sleep
     private var lastWeekWaterData: [WaterPortion] {
-        let calendar = Calendar.current
-        let weekAgo = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-        
-        return allWaterPortions.filter { portion in
-            portion.createDate >= weekAgo && portion.createDate <= endOfDay
-        }
+        return fetchLastWeekWaterPortions()
     }
     
     // Calculate hydration metrics based on research
@@ -199,6 +193,12 @@ struct SleepCardView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(.purple.opacity(0.2), lineWidth: 1)
         )
+        .onAppear {
+            fetchWaterPortions()
+        }
+        .onChange(of: selectedDate) { _, _ in
+            fetchWaterPortions()
+        }
     }
 
     // MARK: - Sleep Icon
@@ -1119,15 +1119,15 @@ struct SleepCardView: View {
         
         Task {
             // Clean up old sleep data first, keeping only current date
-            SleepAnalysisCache.cleanupOldData(modelContext: modelContext, keepingCurrentDate: selectedDate)
-            
+            SleepAnalysisCache.cleanupOldData(
+                modelContext: modelContext,
+                keepingCurrentDate: selectedDate
+            )
+
             // Fetch fresh sleep data
             if let recommendation = await sleepService.fetchSleepData(for: selectedDate) {
-                // Generate AI comment
-                let aiComment = generateMockAIComment(for: recommendation)
-                
-                // Create new cache entry with fresh data
-                let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: aiComment)
+                // Create new cache entry with fresh data (no AI comment initially)
+                let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: "")
                 cache.date = selectedDate.rounded()
                 
                 // Insert new cache
@@ -1144,6 +1144,8 @@ struct SleepCardView: View {
                 isRefreshingSleep = false
                 // Clear current AI comment to trigger regeneration
                 currentAIComment = ""
+                // Refresh water portions data
+                fetchWaterPortions()
             }
         }
     }
@@ -1173,8 +1175,8 @@ struct SleepCardView: View {
                 }
             } catch {
                 await MainActor.run {
-                    // Fallback to enhanced mock comment if AI fails
-                    currentAIComment = generateEnhancedMockAIComment(for: recommendation)
+                    // If AI generation fails, leave comment empty
+                    currentAIComment = ""
                     isGeneratingAIComment = false
                 }
             }
@@ -1194,78 +1196,48 @@ struct SleepCardView: View {
         }
     }
     
-    // MARK: - Enhanced AI Comment Generation
+    // MARK: - Water Portion Fetching
     
-    private func generateEnhancedMockAIComment(for recommendation: SleepRecommendation) -> String {
-        let duration = recommendation.sleepDurationHours
-        let quality = recommendation.sleepQualityScore
-        let metrics = hydrationMetrics
-        let completeness = dataCompleteness
+    private func fetchWaterPortions() {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: selectedDate)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? selectedDate
         
-        // Include data completeness context
-        var comment = ""
+        let fetchDescriptor = FetchDescriptor<WaterPortion>(
+            predicate: #Predicate { portion in
+                portion.createDate >= startOfDay && portion.createDate < endOfDay
+            },
+            sortBy: [.init(\WaterPortion.createDate, order: .forward)]
+        )
         
-        // Add confidence context based on data completeness
-        switch completeness {
-        case .minimal:
-            comment += "📊 Early analysis (\\(historicalSleepData.count) nights): "
-        case .moderate:
-            comment += "📈 Building patterns (\\(historicalSleepData.count) nights): "
-        case .good:
-            comment += "✅ Reliable analysis (\\(historicalSleepData.count) nights): "
-        case .robust:
-            comment += "🎯 Comprehensive analysis (\\(historicalSleepData.count)+ nights): "
-        }
-        
-        // Prioritize hydration timing insights
-        if metrics.eveningIntakePercentage >= 0.30 {
-            comment += "Your evening hydration (\\(Int(metrics.eveningIntakePercentage * 100))%) significantly increases nocturia risk. Research shows this can fragment sleep by 2-3 awakenings per night."
-        } else if metrics.dailyHydrationScore < 0.60 {
-            comment += "Low daily hydration (\\(Int(metrics.dailyHydrationScore * 100))% of target) may have shortened your sleep by 10-20 minutes. Dehydration reduces vasopressin production."
-        } else if duration < 6.5 && metrics.dailyHydrationScore >= 0.80 {
-            comment += "Despite good hydration, your \\(formatSleepDuration(duration)) sleep increases dehydration risk by 16-59%. Focus on sleep duration recovery alongside hydration."
-        } else if metrics.eveningIntakePercentage <= 0.15 && quality >= 0.75 {
-            comment += "Excellent hydration timing! Your steady daytime intake and minimal evening fluids support optimal sleep architecture and melatonin production."
-        } else {
-            // Fallback to original sleep-focused comments
-            return generateMockAIComment(for: recommendation)
-        }
-        
-        return comment
-    }
-    
-    // MARK: - Original Mock AI Comment Generation
-    
-    private func generateMockAIComment(for recommendation: SleepRecommendation) -> String {
-        let duration = recommendation.sleepDurationHours
-        let quality = recommendation.sleepQualityScore
-        let deepSleep = recommendation.deepSleepMinutes
-        let remSleep = recommendation.remSleepMinutes
-        let additionalWater = recommendation.recommendation.additionalWaterMl
-        
-        // Generate contextual AI comments based on sleep data and scientific research
-        if duration < 5.5 {
-            return "⚠️ Severe sleep deprivation detected! With only \(formatSleepDuration(duration)) of sleep, your body's antidiuretic hormone (vasopressin) production is significantly reduced, increasing dehydration risk by up to 59%. Prioritize both sleep and hydration recovery today."
-        } else if duration < 6.5 {
-            return "😴 Sleep deficit alert! \(formatSleepDuration(duration)) falls below the recommended 7-9 hours. Research shows this increases dehydration odds by 16-59%. Your body needs extra hydration to compensate for reduced vasopressin release during inadequate sleep."
-        } else if duration >= 7.0 && duration <= 9.0 && quality >= 0.8 {
-            return "✨ Excellent sleep quality! Your \(formatSleepDuration(duration)) of restorative sleep with \(Int(quality * 100))% quality score supports optimal hydration regulation. Your body's natural fluid balance mechanisms are functioning well."
-        } else if quality < 0.5 {
-            return "🌙 Poor sleep quality detected! With a \(Int(quality * 100))% quality score, elevated cortisol levels are affecting your kidney function and fluid retention. Focus on sleep hygiene and increase morning hydration to support recovery."
-        } else if deepSleep < 60 {
-            return "🧠 Insufficient deep sleep! Only \(deepSleep) minutes of deep sleep means reduced physical restoration. Deep sleep is crucial for metabolic recovery - consider earlier bedtime and limit evening screen time to improve sleep architecture."
-        } else if remSleep < 90 {
-            return "💭 Low REM sleep detected! \(remSleep) minutes of REM sleep affects cognitive function and stress regulation. REM sleep increases metabolic activity by 20-30%, requiring extra hydration. Consider stress management techniques."
-        } else if additionalWater >= 300 {
-            return "💧 High hydration needs today! Your sleep pattern suggests significant overnight water loss (\(additionalWater)ml additional needed). The combination of sleep duration, quality, and metabolic demands requires focused hydration attention."
-        } else if additionalWater >= 150 {
-            return "🌅 Moderate hydration boost recommended! Based on your sleep analysis, your body needs \(additionalWater)ml extra water today. Sleep patterns affect fluid balance through hormonal regulation and metabolic processes."
-        } else if additionalWater > 0 {
-            return "✅ Slight hydration adjustment! Your sleep data suggests a small increase (\(additionalWater)ml) in daily water intake. Even minor sleep variations can impact your body's fluid regulation systems."
-        } else {
-            return "🌟 Optimal sleep-hydration balance! Your sleep quality and duration support excellent fluid regulation. Keep maintaining these healthy sleep patterns for continued hydration optimization."
+        do {
+            allWaterPortions = try modelContext.fetch(fetchDescriptor)
+        } catch {
+            print("Failed to fetch water portions: \(error)")
+            allWaterPortions = []
         }
     }
+    
+    private func fetchLastWeekWaterPortions() -> [WaterPortion] {
+        let calendar = Calendar.current
+        let weekAgo = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+        
+        let fetchDescriptor = FetchDescriptor<WaterPortion>(
+            predicate: #Predicate { portion in
+                portion.createDate >= weekAgo && portion.createDate <= endOfDay
+            },
+            sortBy: [.init(\WaterPortion.createDate, order: .forward)]
+        )
+        
+        do {
+            return try modelContext.fetch(fetchDescriptor)
+        } catch {
+            print("Failed to fetch last week water portions: \(error)")
+            return []
+        }
+    }
+    
 }
 
 // MARK: - Supporting Data Structures
