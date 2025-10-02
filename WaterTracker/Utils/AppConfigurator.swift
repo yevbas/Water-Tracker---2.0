@@ -17,7 +17,7 @@ import AppTrackingTransparency
 
 @MainActor
 enum AppConfigurator {
-    static func configureAll(container: ModelContainer) async {
+    static func configureAll(container: ModelContainer, healthKitService: HealthKitService? = nil) async {
         // Firebase
         await configureFirebaseAndRemoteConfig()
 
@@ -31,7 +31,7 @@ enum AppConfigurator {
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
         // Hydration service
-        HydrationService.shared.configure(container: container)
+        HydrationService.shared.configure(container: container, healthKitService: healthKitService)
 
         await requestTrackingAuthorization()
 

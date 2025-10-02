@@ -14,6 +14,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject private var sleepService: SleepService
     @EnvironmentObject var revenueCatMonitor: RevenueCatMonitor
+    @EnvironmentObject private var healthKitService: HealthKitService
 
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
@@ -368,6 +369,17 @@ struct DashboardView: View {
         )
         modelContext.insert(waterPortion)
         try? modelContext.save()
+
+        // Save to HealthKit if it's water
+        if drink == .water {
+            Task {
+                await healthKitService.saveWaterIntake(
+                    amount: amount,
+                    unit: WaterUnit.millilitres,
+                    date: Date()
+                )
+            }
+        }
 
         // fetch updated data
         fetchWaterPortions(by: selectedDate ?? Date().rounded())

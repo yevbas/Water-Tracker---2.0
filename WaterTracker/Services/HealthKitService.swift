@@ -10,7 +10,13 @@ class HealthKitService: ObservableObject {
         HKObjectType.quantityType(forIdentifier: .bodyMass)!,
         HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!,
         HKObjectType.characteristicType(forIdentifier: .biologicalSex)!,
-        HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+        HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
+        HKObjectType.quantityType(forIdentifier: .dietaryWater)!
+    ]
+    
+    // HealthKit types we want to write to
+    let healthKitWriteTypes: Set<HKSampleType> = [
+        HKObjectType.quantityType(forIdentifier: .dietaryWater)!
     ]
 
     init() {}
@@ -26,7 +32,7 @@ class HealthKitService: ObservableObject {
         print("🔐 Requesting HealthKit permissions...")
         
         do {
-            try await healthStore.requestAuthorization(toShare: [], read: healthKitTypes)
+            try await healthStore.requestAuthorization(toShare: healthKitWriteTypes, read: healthKitTypes)
             print("✅ HealthKit permissions granted")
             return true
         } catch {
@@ -241,6 +247,45 @@ class HealthKitService: ObservableObject {
         }
         
         return totalHours / Double(inBedSamples.count)
+    }
+    
+    // MARK: - Water Intake Saving
+    
+    func saveWaterIntake(amount: Double, unit: WaterUnit, date: Date = Date()) async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
+            return false
+        }
+        
+        guard let waterType = HKQuantityType.quantityType(forIdentifier: .dietaryWater) else {
+            print("❌ Water type not available")
+            return false
+        }
+        
+        // Convert amount to milliliters for HealthKit
+        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
+        let quantity = HKQuantity(unit: HKUnit.literUnit(with: .milli), doubleValue: amountInMl)
+
+        let sample = HKQuantitySample(
+            type: waterType,
+            quantity: quantity,
+            start: date,
+            end: date
+        )
+        
+        print("💧 Saving \(amountInMl) ml of water to HealthKit...")
+        
+        return await withCheckedContinuation { continuation in
+            healthStore.save(sample) { success, error in
+                if let error = error {
+                    print("❌ Failed to save water intake to HealthKit: \(error)")
+                    continuation.resume(returning: false)
+                } else {
+                    print("✅ Water intake saved to HealthKit successfully")
+                    continuation.resume(returning: true)
+                }
+            }
+        }
     }
 }
 

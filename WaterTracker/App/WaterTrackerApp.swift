@@ -60,7 +60,7 @@ struct WaterTrackerApp: App {
                             .environmentObject(healthKitService)
                     }
                 } else {
-                    ConfigureView(container: sharedModelContainer) {
+                    ConfigureView(container: sharedModelContainer, healthKitService: healthKitService) {
                         isConfigured = true
                     }
                     .onAppear {

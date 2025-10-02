@@ -10,6 +10,7 @@ import SwiftData
 
 struct ConfigureView: View {
     let container: ModelContainer
+    let healthKitService: HealthKitService?
     let onFinished: () -> Void
 
     @State private var isRunning = true
@@ -26,7 +27,7 @@ struct ConfigureView: View {
         }
         .task {
             if isRunning {
-                await AppConfigurator.configureAll(container: container)
+                await AppConfigurator.configureAll(container: container, healthKitService: healthKitService)
                 isRunning = false
                 onFinished()
             }
@@ -37,7 +38,7 @@ struct ConfigureView: View {
 #Preview("ConfigureView") {
     let schema = Schema([WaterPortion.self])
     let container = try! ModelContainer(for: schema, configurations: [.init(schema: schema, isStoredInMemoryOnly: true)])
-    return ConfigureView(container: container) {}
+    return ConfigureView(container: container, healthKitService: nil) {}
 }
 
 
