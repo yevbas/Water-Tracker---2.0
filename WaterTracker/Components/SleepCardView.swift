@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import RevenueCatUI
 
 struct SleepCardView: View {
     let selectedDate: Date
@@ -16,6 +17,7 @@ struct SleepCardView: View {
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @EnvironmentObject private var aiClient: AIDrinkAnalysisClient
     @EnvironmentObject private var sleepService: SleepService
+    @EnvironmentObject private var revenueCatMonitor: RevenueCatMonitor
 
     @Query private var allSleepAnalyses: [SleepAnalysisCache]
     @State private var allWaterPortions: [WaterPortion] = []
@@ -24,6 +26,7 @@ struct SleepCardView: View {
     @State private var isGeneratingAIComment = false
     @State private var isRefreshingSleep = false
     @State private var currentAIComment = ""
+    @State private var isPresentedPaywall = false
 
     private var cachedAnalysis: SleepAnalysisCache? {
         let selectedRoundedDate = selectedDate.rounded()
@@ -102,6 +105,12 @@ struct SleepCardView: View {
         VStack(spacing: 0) {
             // Header - Always Visible
             Button(action: {
+                // Only allow expansion if user has full access
+                guard revenueCatMonitor.userHasFullAccess else {
+                    isPresentedPaywall = true
+                    return
+                }
+
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     isExpanded.toggle()
                 }
@@ -144,7 +153,7 @@ struct SleepCardView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.red)
                         } else {
-                            Text("Tap to analyze sleep")
+                            Text(revenueCatMonitor.userHasFullAccess ? "Tap to analyze sleep" : "Premium feature")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -152,21 +161,28 @@ struct SleepCardView: View {
 
                     Spacer()
 
-                    // Refresh Button
-                    Button(action: {
-                        refreshSleepData()
-                    }) {
-                        if isRefreshingSleep {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.subheadline)
-                                .foregroundStyle(.purple)
+                    // Premium Lock Icon or Refresh Button
+                    if !revenueCatMonitor.userHasFullAccess {
+                        Image(systemName: "lock.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.purple.opacity(0.6))
+                    } else {
+                        // Refresh Button
+                        Button(action: {
+                            refreshSleepData()
+                        }) {
+                            if isRefreshingSleep {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.purple)
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .disabled(isRefreshingSleep)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isRefreshingSleep)
 
                     // Expand/Collapse Icon
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -181,8 +197,13 @@ struct SleepCardView: View {
 
             // Expanded Content
             if isExpanded {
-                expandedContentView
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                if revenueCatMonitor.userHasFullAccess {
+                    expandedContentView
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                } else {
+                    premiumLockedContentView
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
         }
         .background(
@@ -198,6 +219,56 @@ struct SleepCardView: View {
         }
         .onChange(of: selectedDate) { _, _ in
             fetchWaterPortions()
+        }
+        .sheet(isPresented: $isPresentedPaywall) {
+            PaywallView()
+        }
+    }
+
+    // MARK: - Premium Locked Content
+
+    private var premiumLockedContentView: some View {
+        VStack(spacing: 16) {
+            Divider()
+                .padding(.horizontal)
+
+            VStack(spacing: 16) {
+                Image(systemName: "lock.fill")
+                    .font(.title2)
+                    .foregroundStyle(.purple.opacity(0.6))
+
+                Text("Premium Feature")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+
+                Text("Unlock comprehensive sleep analysis with AI-powered hydration recommendations based on your sleep patterns and quality.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button(action: {
+                    // TODO: Handle premium upgrade
+                    print("Upgrade to Premium tapped")
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "crown.fill")
+                            .font(.subheadline)
+                        Text("Unlock Premium")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.purple.gradient)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
         }
     }
 
@@ -1324,5 +1395,8 @@ enum DataCompleteness {
 #Preview {
     SleepCardView(selectedDate: Date(), isLoading: false)
         .modelContainer(for: [SleepAnalysisCache.self, WaterPortion.self], inMemory: true)
+        .environmentObject(RevenueCatMonitor(state: .preview(false)))
+        .environmentObject(AIDrinkAnalysisClient())
+        .environmentObject(SleepService())
         .padding()
 }

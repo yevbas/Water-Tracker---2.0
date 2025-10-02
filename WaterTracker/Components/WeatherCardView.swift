@@ -8,6 +8,7 @@
 import SwiftUI
 import WeatherKit
 import SwiftData
+import RevenueCatUI
 
 struct WeatherCardView: View {
     // Current date rounded for saving
@@ -19,6 +20,7 @@ struct WeatherCardView: View {
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @EnvironmentObject private var aiClient: AIDrinkAnalysisClient
     @EnvironmentObject private var weatherService: WeatherService
+    @EnvironmentObject private var revenueCatMonitor: RevenueCatMonitor
 
     @Query private var allWeatherAnalyses: [WeatherAnalysisCache]
 
@@ -27,6 +29,8 @@ struct WeatherCardView: View {
     @State private var isRefreshingWeather = false
     @State private var currentAIComment = ""
     @State private var errorMessage: String?
+
+    @State private var isPresentedPaywall = false
 
     private var cachedAnalysis: WeatherAnalysisCache? {
         // Use rounded date for identification
@@ -61,6 +65,12 @@ struct WeatherCardView: View {
         VStack(spacing: 0) {
             // Header - Always Visible
             Button(action: {
+                // Only allow expansion if user has full access
+                guard revenueCatMonitor.userHasFullAccess else {
+                    isPresentedPaywall = true
+                    return
+                }
+
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     isExpanded.toggle()
                 }
@@ -97,7 +107,7 @@ struct WeatherCardView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else {
-                            Text("Tap to analyze weather")
+                            Text(revenueCatMonitor.userHasFullAccess ? "Tap to analyze weather" : "Premium feature")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -105,21 +115,28 @@ struct WeatherCardView: View {
 
                     Spacer()
 
-                    // Refresh Button
-                    Button(action: {
-                        refreshWeatherData()
-                    }) {
-                        if isRefreshingWeather {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.subheadline)
-                                .foregroundStyle(.blue)
+                    // Premium Lock Icon or Refresh Button
+                    if !revenueCatMonitor.userHasFullAccess {
+                        Image(systemName: "lock.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.blue.opacity(0.6))
+                    } else {
+                        // Refresh Button
+                        Button(action: {
+                            refreshWeatherData()
+                        }) {
+                            if isRefreshingWeather {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.blue)
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .disabled(isRefreshingWeather)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isRefreshingWeather)
 
                     // Expand/Collapse Icon
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -134,8 +151,13 @@ struct WeatherCardView: View {
 
             // Expanded Content
             if isExpanded {
-                expandedContentView
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                if revenueCatMonitor.userHasFullAccess {
+                    expandedContentView
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                } else {
+                    premiumLockedContentView
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
         }
         .background(
@@ -146,6 +168,56 @@ struct WeatherCardView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(.blue.opacity(0.2), lineWidth: 1)
         )
+        .sheet(isPresented: $isPresentedPaywall) {
+            PaywallView()
+        }
+    }
+
+    // MARK: - Premium Locked Content
+
+    private var premiumLockedContentView: some View {
+        VStack(spacing: 16) {
+            Divider()
+                .padding(.horizontal)
+
+            VStack(spacing: 16) {
+                Image(systemName: "lock.fill")
+                    .font(.title2)
+                    .foregroundStyle(.blue.opacity(0.6))
+
+                Text("Premium Feature")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+
+                Text("Unlock detailed weather analysis with AI-powered hydration recommendations based on current conditions.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button(action: {
+                    // TODO: Handle premium upgrade
+                    print("Upgrade to Premium tapped")
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "crown.fill")
+                            .font(.subheadline)
+                        Text("Unlock Premium")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.blue.gradient)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
     }
 
     // MARK: - Weather Icon
@@ -689,6 +761,7 @@ struct WeatherCardView: View {
         .modelContainer(for: WeatherAnalysisCache.self, inMemory: true)
         .environmentObject(WeatherService())
         .environmentObject(AIDrinkAnalysisClient())
+        .environmentObject(RevenueCatMonitor(state: .preview(false)))
         .padding()
 }
 

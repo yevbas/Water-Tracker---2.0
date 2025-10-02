@@ -13,6 +13,7 @@ struct CustomDatePicker: View {
     @State private var viewHeight: CGFloat?
     @State private var isPrepending: Bool = false
     @State private var showingDatePicker = false
+    @State private var hasInitialized = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -64,12 +65,29 @@ struct CustomDatePicker: View {
                 .onAppear {
                     initiateDates()
                     
-                    // Set today as selected and scroll to it
-                    if let today = dates.last {
-                        selectedDate = today
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                scroll.scrollTo(today, anchor: .center)
+                    // Only set today as selected and scroll to it on first initialization
+                    if !hasInitialized {
+                        hasInitialized = true
+                        if selectedDate == nil, let today = dates.last {
+                            selectedDate = today
+                        }
+                        
+                        // Scroll to the currently selected date (or today if none selected)
+                        let dateToScrollTo = selectedDate ?? dates.last
+                        if let targetDate = dateToScrollTo {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    scroll.scrollTo(targetDate, anchor: .center)
+                                }
+                            }
+                        }
+                    } else {
+                        // On subsequent appearances, just scroll to the currently selected date
+                        if let currentDate = selectedDate {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    scroll.scrollTo(currentDate, anchor: .center)
+                                }
                             }
                         }
                     }

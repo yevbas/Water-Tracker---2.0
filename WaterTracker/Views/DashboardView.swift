@@ -251,6 +251,7 @@ struct DashboardView: View {
                 // Weather Card - Shows if cached data exists or if loading and toggle is enabled
                 if showWeatherCard {
                     WeatherCardView()
+                        .environmentObject(revenueCatMonitor)
                 }
 
                 // Sleep Card - Shows sleep analysis and hydration recommendations if toggle is enabled
@@ -259,10 +260,12 @@ struct DashboardView: View {
                         selectedDate: selectedDate!,
                         isLoading: sleepService.isLoading
                     )
+                    .environmentObject(revenueCatMonitor)
                 }
                 
                 // Statistics Card - Shows quick stats and navigation to detailed statistics
                 StatisticsCard(waterPortions: waterPortions)
+                    .environmentObject(revenueCatMonitor)
             }
 
             Spacer(minLength: 500)

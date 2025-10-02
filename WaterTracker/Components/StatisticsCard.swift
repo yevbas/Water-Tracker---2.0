@@ -7,14 +7,24 @@
 
 import SwiftUI
 import Charts
+import RevenueCatUI
 
 struct StatisticsCard: View {
     let waterPortions: [WaterPortion]
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
-    
+    @EnvironmentObject private var revenueCatMonitor: RevenueCatMonitor
+    @State var isPresentedPaywall = false
+    @State var isPresentedStatisticsView = false
+
     var body: some View {
-        NavigationLink(destination: StatisticsView()) {
+        Button(action: {
+            if revenueCatMonitor.userHasFullAccess {
+                isPresentedStatisticsView = true
+            } else {
+                isPresentedPaywall = true
+            }
+        }) {
             VStack(alignment: .leading, spacing: 16) {
                 // Header
                 HStack {
@@ -24,72 +34,133 @@ struct StatisticsCard: View {
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
                         
-                        Text("View detailed analytics")
+                        Text(revenueCatMonitor.userHasFullAccess ? "View detailed analytics" : "Premium feature")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                     
                     Spacer()
                     
-                    Image(systemName: "chart.bar.fill")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                }
-                
-                // Quick Stats
-                HStack(spacing: 20) {
-                    QuickStatView(
-                        title: "7-Day Avg",
-                        value: formatAmount(weeklyAverage),
-                        icon: "drop.fill",
-                        color: .blue
-                    )
-                    
-                    QuickStatView(
-                        title: "Avg Size",
-                        value: formatAmount(averageDrinkSize),
-                        icon: "cup.and.saucer.fill",
-                        color: .green
-                    )
-                    
-                    QuickStatView(
-                        title: "Today's Goal",
-                        value: "\(Int(todayGoalProgress))%",
-                        icon: "target",
-                        color: todayGoalProgress >= 100 ? .green : .orange
-                    )
-                }
-                
-                // Mini Chart
-                if !last7DaysData.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Last 7 Days")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Chart(last7DaysData) { data in
-                            BarMark(
-                                x: .value("Day", data.dayOfWeek),
-                                y: .value("Amount", data.amount)
-                            )
-                            .foregroundStyle(.blue.gradient)
-                            .cornerRadius(2)
-                        }
-                        .frame(height: 60)
-                        .chartXAxis(.hidden)
-                        .chartYAxis(.hidden)
+                    if revenueCatMonitor.userHasFullAccess {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    } else {
+                        Image(systemName: "lock.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue.opacity(0.6))
                     }
                 }
                 
-                // View More Button
-                HStack {
-                    Spacer()
-                    Text("View Detailed Statistics")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
-                    Image(systemName: "arrow.right")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
+                if revenueCatMonitor.userHasFullAccess {
+                    // Quick Stats
+                    HStack(spacing: 20) {
+                        QuickStatView(
+                            title: "7-Day Avg",
+                            value: formatAmount(weeklyAverage),
+                            icon: "drop.fill",
+                            color: .blue
+                        )
+                        
+                        QuickStatView(
+                            title: "Avg Size",
+                            value: formatAmount(averageDrinkSize),
+                            icon: "cup.and.saucer.fill",
+                            color: .green
+                        )
+                        
+                        QuickStatView(
+                            title: "Today's Goal",
+                            value: "\(Int(todayGoalProgress))%",
+                            icon: "target",
+                            color: todayGoalProgress >= 100 ? .green : .orange
+                        )
+                    }
+
+                    // Mini Chart
+                    if !last7DaysData.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Last 7 Days")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Chart(last7DaysData) { data in
+                                BarMark(
+                                    x: .value("Day", data.dayOfWeek),
+                                    y: .value("Amount", data.amount)
+                                )
+                                .foregroundStyle(.blue.gradient)
+                                .cornerRadius(2)
+                            }
+                            .frame(height: 60)
+                            .chartXAxis(.hidden)
+                            .chartYAxis(.hidden)
+                        }
+                    }
+
+                    // View More Button
+                    HStack {
+                        Spacer()
+                        Text("View Detailed Statistics")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                        Image(systemName: "arrow.right")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
+                } else {
+                    // Premium locked content
+                    VStack(spacing: 16) {
+                        Text("Unlock detailed analytics including:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                Text("Weekly and monthly trends")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "drop.circle")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                Text("Drink type analysis")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "target")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                Text("Goal achievement patterns")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // Unlock Button
+                        HStack(spacing: 8) {
+                            Image(systemName: "crown.fill")
+                                .font(.subheadline)
+                            Text("Unlock Premium")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(.blue.gradient)
+                        )
+                    }
                 }
             }
             .padding()
@@ -97,7 +168,13 @@ struct StatisticsCard: View {
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
+        .navigationDestination(isPresented: $isPresentedStatisticsView) {
+            StatisticsView()
+        }
+        .sheet(isPresented: $isPresentedPaywall) {
+            PaywallView()
+        }
     }
     
     // MARK: - Computed Properties
@@ -234,6 +311,7 @@ struct DayData: Identifiable {
     NavigationStack {
         ScrollView {
             StatisticsCard(waterPortions: [])
+                .environmentObject(RevenueCatMonitor(state: .preview(false)))
                 .padding()
         }
     }
