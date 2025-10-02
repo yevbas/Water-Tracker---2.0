@@ -35,6 +35,10 @@ struct DrinkSelector: View {
 
     var body: some View {
         VStack {
+            if !rc.userHasFullAccess {
+                buildAdBannerView(.createScreen)
+                    .padding()
+            }
             Spacer()
 //            if #available(iOS 26.0, *) {
 //                amountInput

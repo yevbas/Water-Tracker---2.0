@@ -12,11 +12,13 @@ struct AdConfiguration: Decodable {
     let banners: Banners
 
     struct FullScreen: Decodable {
-        let createScreen: String
+        let analizeDrink: String
     }
 
     struct Banners: Decodable {
         let mainScreen: String
         let editScreen: String
+        let createScreen: String
+        let addReminder: String
     }
 }

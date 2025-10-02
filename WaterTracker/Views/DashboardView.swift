@@ -19,6 +19,7 @@ struct DashboardView: View {
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @AppStorage("show_weather_card") private var showWeatherCard: Bool = true
     @AppStorage("show_sleep_card") private var showSleepCard: Bool = true
+    @AppStorage("show_statistics_card") private var showStatisticsCard: Bool = true
 
     @State var waterPortions: [WaterPortion] = []
     @State var selectedDate: Date? = Date().rounded()
@@ -160,10 +161,10 @@ struct DashboardView: View {
                 .overlay {
                     VStack {
                         if scrollOffset < scrollUpThreshold {
-                            //                            if !revenueCatMonitor.userHasFullAccess {
-                            //                                buildAdBannerView(.mainScreen)
-                            //                                    .padding(.horizontal)
-                            //                            }
+                            if !revenueCatMonitor.userHasFullAccess {
+                                buildAdBannerView(.mainScreen)
+                                    .padding(.horizontal)
+                            }
                             datePicker
                         }
                         HStack {
@@ -263,9 +264,11 @@ struct DashboardView: View {
                     .environmentObject(revenueCatMonitor)
                 }
                 
-                // Statistics Card - Shows quick stats and navigation to detailed statistics
-                StatisticsCard(waterPortions: waterPortions)
-                    .environmentObject(revenueCatMonitor)
+                // Statistics Card - Shows quick stats and navigation to detailed statistics if toggle is enabled
+                if showStatisticsCard {
+                    StatisticsCard(waterPortions: waterPortions)
+                        .environmentObject(revenueCatMonitor)
+                }
             }
 
             Spacer(minLength: 500)

@@ -20,7 +20,7 @@ struct EditWaterPortionView: View {
             VStack(spacing: 16) {
                 if !revenueCatMonitor.userHasFullAccess {
                     buildAdBannerView(.editScreen)
-                        .padding(.horizontal)
+                        .padding(.top)
                 }
                 DatePicker(
                     selection: .init(

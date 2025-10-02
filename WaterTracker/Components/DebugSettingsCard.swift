@@ -16,6 +16,7 @@ struct DebugSettingsCard: View {
     @Query private var weatherAnalysisCache: [WeatherAnalysisCache]
 
     @EnvironmentObject private var healthKitService: HealthKitService
+    @EnvironmentObject private var rcMonitor: RevenueCatMonitor
 
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
@@ -38,6 +39,15 @@ struct DebugSettingsCard: View {
             debugCardHeader
 
             VStack(spacing: 12) {
+                Toggle(
+                    "Simulates subscribed user",
+                    isOn: .init(get: {
+                        rcMonitor.simulatesSubscription
+                    }, set: { newValue in
+                        rcMonitor.simulatesSubscription = newValue
+                    })
+                )
+
                 SettingsButton(
                     title: "Simulate Crash",
                     subtitle: "Test crash reporting",

@@ -43,6 +43,8 @@ struct AdBannerView: UIViewRepresentable {
     enum Banner {
         case mainScreen
         case editScreen
+        case createScreen
+        case addReminder
 
         var adUnitID: String? {
 #if DEBUG
@@ -55,6 +57,8 @@ struct AdBannerView: UIViewRepresentable {
             return switch self {
             case .mainScreen: config.banners.mainScreen
             case .editScreen: config.banners.editScreen
+            case .createScreen: config.banners.createScreen
+            case .addReminder: config.banners.addReminder
             }
 #endif
         }

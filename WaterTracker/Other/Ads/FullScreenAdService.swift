@@ -27,7 +27,7 @@ final class FullScreenAdService: NSObject, FullScreenContentDelegate {
                 throw GeneralError.somethingWrong
             }
             interstitialAd = try await InterstitialAd.load(
-                with: config.fullscreen.createScreen,
+                with: config.fullscreen.analizeDrink,
                 request: Request()
             )
 #endif

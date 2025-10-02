@@ -17,10 +17,14 @@ protocol RevenueCatMonitorProtocol {
 final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
     @Published private(set) var customerInfo: CustomerInfo?
 
+    #if DEBUG
+    @Published var simulatesSubscription = false
+    #endif
+
     var userHasFullAccess: Bool {
 #if DEBUG
         switch state {
-        case .default: return true
+        case .default: return simulatesSubscription
         case .preview(let isFullAccessAvailable): return isFullAccessAvailable
         }
 #else

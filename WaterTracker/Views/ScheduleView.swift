@@ -60,6 +60,10 @@ struct ScheduleView: View {
     private var content: some View {
         VStack(spacing: 20) {
             headerCard
+            if !rc.userHasFullAccess {
+                buildAdBannerView(.addReminder)
+                    .padding(.horizontal)
+            }
             if loading {
                 ProgressView()
             }
@@ -67,16 +71,16 @@ struct ScheduleView: View {
                 emptyState
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 14) {
+                    LazyVStack(spacing: 12) {
                         ForEach(reminders) { reminder in
                             reminderRow(reminder)
                         }
-//                        .onDeleteDisabled(true)
                     }
                     .padding(.horizontal)
                     .padding(.top, 4)
                 }
             }
+            Spacer()
             addButton
                 .padding(.horizontal)
         }
@@ -85,21 +89,35 @@ struct ScheduleView: View {
     private var requestView: some View {
         VStack(spacing: 24) {
             headerCard
-            Image(systemName: "bell.badge.fill")
-                .font(.system(size: 54))
-                .foregroundStyle(.blue)
-            Text(String(localized: "Stay on track with friendly reminders"))
-                .multilineTextAlignment(.center)
-                .font(.title3.weight(.semibold))
+            
+            VStack(spacing: 20) {
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(.blue)
+                
+                VStack(spacing: 8) {
+                    Text(String(localized: "Stay on track with friendly reminders"))
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal)
+                }
+                
+                PrimaryButton(
+                    title: String(localized: "Enable Notifications"),
+                    systemImage: "bell.fill",
+                    colors: [.blue, .cyan]
+                ) {
+                    Task { let _ = await notifications.requestAuthorization() }
+                }
                 .padding(.horizontal)
-            PrimaryButton(
-                title: String(localized: "Enable Notifications"),
-                systemImage: "bell.fill",
-                colors: [.blue, .cyan]
-            ) {
-                Task { let _ = await notifications.requestAuthorization() }
             }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             .padding(.horizontal)
+            
             Spacer()
         }
     }
@@ -107,80 +125,111 @@ struct ScheduleView: View {
     private var deniedView: some View {
         VStack(spacing: 24) {
             headerCard
-            Image(systemName: "bell.slash.fill")
-                .font(.system(size: 54))
-                .foregroundStyle(.red)
-            Text(String(localized: "Notifications are turned off"))
-                .font(.title3.weight(.semibold))
-            Text(String(localized: "Turn on notifications in Settings to receive water reminders."))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-            PrimaryButton(
-                title: String(localized: "Open Settings"),
-                systemImage: "gear",
-                colors: [.blue, .cyan]
-            ) {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
+            
+            VStack(spacing: 20) {
+                Image(systemName: "bell.slash.fill")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(.red)
+                
+                VStack(spacing: 8) {
+                    Text(String(localized: "Notifications are turned off"))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    
+                    Text(String(localized: "Turn on notifications in Settings to receive water reminders."))
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
                 }
+                
+                PrimaryButton(
+                    title: String(localized: "Open Settings"),
+                    systemImage: "gear",
+                    colors: [.blue, .cyan]
+                ) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .padding(.horizontal)
             }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             .padding(.horizontal)
+            
             Spacer()
         }
     }
 
     private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "drop.fill")
-                    .foregroundStyle(.white)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                // Bell icon like Apple Health
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.blue)
+                
                 Text(String(localized: "Hydration Schedule"))
-                    .foregroundStyle(.white)
-                    .font(.headline)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                
                 Spacer()
             }
+            
             Text(String(localized: "Add times to get a nudge to drink water throughout your day."))
-                .foregroundStyle(.white.opacity(0.9))
-                .font(.subheadline)
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(18)
-        .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal)
         .padding(.top)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Text(String(localized: "No reminders yet"))
-                .font(.headline)
-            Text(String(localized: "Tap Add Reminder to choose your first time."))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 16) {
+            VStack(spacing: 12) {
+                Text(String(localized: "No reminders yet"))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(String(localized: "Tap Add Reminder to choose your first time."))
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
-        .padding(.top, 16)
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.horizontal)
     }
 
     private func reminderRow(_ reminder: Reminder) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.blue.opacity(0.12))
-                    .frame(width: 48, height: 48)
-                Image(systemName: "bell.fill")
-                    .foregroundStyle(.blue)
-            }
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 12) {
+            // Bell icon without background circle, like Apple Health
+            Image(systemName: "bell.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.blue)
+            
+            VStack(alignment: .leading, spacing: 2) {
                 Text(reminder.timeString)
-                    .font(.title3.weight(.semibold))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
                 Text(String(localized: "Daily"))
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                    .font(.subheadline)
             }
+            
             Spacer()
+            
             Menu {
                 Button(role: .destructive) {
                     deleteReminder(reminder)
@@ -189,16 +238,14 @@ struct ScheduleView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 18))
+                    .foregroundStyle(.gray)
             }
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.blue.opacity(0.15))
-        )
+        .padding(16)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
 
     private var addButton: some View {
@@ -219,6 +266,7 @@ struct ScheduleView: View {
                     .labelsHidden()
                     .environment(\ .locale, Locale(identifier: Locale.current.identifier))
                     .padding(.top)
+                
                 PrimaryButton(
                     title: String(localized: "Save"),
                     systemImage: "checkmark.circle.fill",
@@ -228,6 +276,7 @@ struct ScheduleView: View {
                     Task { await addReminder() }
                 }
                 .padding(.top)
+                
                 Spacer()
             }
             .padding()
@@ -303,21 +352,6 @@ struct ScheduleView: View {
         }
     }
 
-    private func primaryButtonLabel(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: systemImage)
-            Text(title)
-                .fontWeight(.semibold)
-        }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(
-            LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .blue.opacity(0.25), radius: 10, x: 0, y: 6)
-    }
 }
 
 extension ScheduleView {

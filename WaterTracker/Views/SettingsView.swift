@@ -8,15 +8,19 @@
 import SwiftUI
 import UIKit
 import SwiftData
+import RevenueCatUI
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var portions: [WaterPortion]
+    @EnvironmentObject private var revenueCatMonitor: RevenueCatMonitor
     @State private var isConvertingUnits: Bool = false
+    @State private var isPresentedPaywall = false
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
     @AppStorage("show_weather_card") private var showWeatherCard: Bool = true
     @AppStorage("show_sleep_card") private var showSleepCard: Bool = true
+    @AppStorage("show_statistics_card") private var showStatisticsCard: Bool = true
 
     private var measurementUnits: WaterUnit {
         get { WaterUnit.fromString(measurementUnitsString) }
@@ -37,6 +41,9 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                if !revenueCatMonitor.userHasFullAccess {
+                    unlockFullAccessCard
+                }
                 hydrationSettingsCard
                 dashboardSettingsCard
                 HealthKitCard()
@@ -68,9 +75,147 @@ struct SettingsView: View {
                 .transition(.opacity)
             }
         }
+        .sheet(isPresented: $isPresentedPaywall) {
+            PaywallView()
+        }
     }
 
     // MARK: - UI Components
+
+    private var unlockFullAccessCard: some View {
+        VStack(spacing: 16) {
+            unlockFullAccessHeader
+            
+            VStack(spacing: 16) {
+                unlockFeaturesList
+                
+                Divider()
+                    .background(.purple.opacity(0.2))
+                
+                unlockActionButton
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(color: .purple.opacity(0.15), radius: 15, x: 0, y: 8)
+        )
+    }
+    
+    private var unlockFullAccessHeader: some View {
+        HStack {
+            Image(systemName: "crown.fill")
+                .foregroundStyle(.white)
+                .font(.title2)
+                .frame(width: 40, height: 40)
+                .background(
+                    LinearGradient(
+                        colors: [.purple, .pink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(Circle())
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Unlock Full Access")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                Text("Get premium features")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            Image(systemName: "sparkles")
+                .foregroundStyle(.purple)
+                .font(.title3)
+                .symbolEffect(.pulse)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+    
+    private var unlockFeaturesList: some View {
+        VStack(spacing: 12) {
+            UnlockFeatureRow(
+                icon: "xmark.circle.fill",
+                title: "Remove Ads",
+                description: "Enjoy an ad-free experience with full access"
+            )
+            
+            UnlockFeatureRow(
+                icon: "cloud.sun.fill",
+                title: "Weather Insights",
+                description: "Get hydration recommendations based on weather conditions"
+            )
+            
+            UnlockFeatureRow(
+                icon: "moon.fill",
+                title: "Sleep Analysis",
+                description: "Track how hydration affects your sleep quality"
+            )
+            
+            UnlockFeatureRow(
+                icon: "chart.bar.fill",
+                title: "Advanced Statistics",
+                description: "View detailed analytics and weekly trends"
+            )
+            
+            UnlockFeatureRow(
+                icon: "drop.triangle.fill",
+                title: "All Drink Types",
+                description: "Track coffee, tea, juice, and other beverages"
+            )
+        }
+    }
+    
+    private var unlockActionButton: some View {
+        Button(action: {
+            isPresentedPaywall = true
+        }) {
+            HStack(spacing: 12) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Text("Unlock Full Access")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [.purple, .pink],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
 
     private var hydrationSettingsCard: some View {
         VStack(spacing: 12) {
@@ -218,6 +363,11 @@ struct SettingsView: View {
                     .background(.green.opacity(0.2))
                 
                 sleepCardToggleSection
+                
+                Divider()
+                    .background(.green.opacity(0.2))
+                
+                statisticsCardToggleSection
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
@@ -303,6 +453,30 @@ struct SettingsView: View {
             }
             
             Text("Shows sleep analysis and hydration insights")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var statisticsCardToggleSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundStyle(.green)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 20, height: 20)
+                    Text("Statistics Card")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Toggle("", isOn: $showStatisticsCard)
+                    .toggleStyle(SwitchToggleStyle(tint: .green))
+            }
+            
+            Text("Shows weekly trends and detailed analytics")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -570,6 +744,45 @@ struct SettingsButton: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct UnlockFeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(.purple)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 24, height: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(.purple.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(.purple.opacity(0.1), lineWidth: 0.5)
+                )
+        )
     }
 }
 
