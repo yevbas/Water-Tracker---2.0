@@ -106,8 +106,6 @@ struct HealthKitDataConfirmationView: View {
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 32)
-
             }
         }
         .safeAreaInset(edge: .bottom, content: {

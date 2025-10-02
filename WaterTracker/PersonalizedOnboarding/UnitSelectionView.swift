@@ -59,7 +59,6 @@ struct UnitSelectionView: View {
             .padding(.horizontal, 24)
             .shimmer()
         }
-        .padding(.top, 32)
     }
 }
 

@@ -47,6 +47,7 @@ struct SettingsView: View {
                 hydrationSettingsCard
                 dashboardSettingsCard
                 HealthKitCard()
+                TutorialSettingsCard()
                 generalSettingsCard
                 aboutCard
                 #if DEBUG
