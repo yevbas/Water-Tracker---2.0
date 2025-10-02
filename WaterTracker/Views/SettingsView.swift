@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var isConvertingUnits: Bool = false
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml" // "ml" or "fl_oz"
+    @AppStorage("show_weather_card") private var showWeatherCard: Bool = true
+    @AppStorage("show_sleep_card") private var showSleepCard: Bool = true
 
     private var measurementUnits: WaterUnit {
         get { WaterUnit.fromString(measurementUnitsString) }
@@ -36,6 +38,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 hydrationSettingsCard
+                dashboardSettingsCard
                 HealthKitCard()
                 generalSettingsCard
                 aboutCard
@@ -204,7 +207,106 @@ struct SettingsView: View {
         }
     }
 
+    private var dashboardSettingsCard: some View {
+        VStack(spacing: 12) {
+            dashboardCardHeader
 
+            VStack(spacing: 20) {
+                weatherCardToggleSection
+                
+                Divider()
+                    .background(.green.opacity(0.2))
+                
+                sleepCardToggleSection
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .green.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
+    }
+
+    private var dashboardCardHeader: some View {
+        HStack {
+            Image(systemName: "square.grid.2x2.fill")
+                .foregroundStyle(.white)
+                .font(.title2)
+                .frame(width: 40, height: 40)
+                .background(
+                    LinearGradient(
+                        colors: [.green, .mint],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Dashboard Components")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                Text("Control card visibility")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+
+    private var weatherCardToggleSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: "cloud.sun.fill")
+                        .foregroundStyle(.green)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 20, height: 20)
+                    Text("Weather Card")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Toggle("", isOn: $showWeatherCard)
+                    .toggleStyle(SwitchToggleStyle(tint: .green))
+            }
+            
+            Text("Shows weather conditions and hydration recommendations")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var sleepCardToggleSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: "moon.fill")
+                        .foregroundStyle(.green)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 20, height: 20)
+                    Text("Sleep Card")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Toggle("", isOn: $showSleepCard)
+                    .toggleStyle(SwitchToggleStyle(tint: .green))
+            }
+            
+            Text("Shows sleep analysis and hydration insights")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private var generalSettingsCard: some View {
         VStack(spacing: 16) {

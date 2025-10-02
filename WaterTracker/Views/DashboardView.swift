@@ -17,6 +17,8 @@ struct DashboardView: View {
 
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
+    @AppStorage("show_weather_card") private var showWeatherCard: Bool = true
+    @AppStorage("show_sleep_card") private var showSleepCard: Bool = true
 
     @State var waterPortions: [WaterPortion] = []
     @State var selectedDate: Date? = Date().rounded()
@@ -246,14 +248,18 @@ struct DashboardView: View {
             }
 
             if selectedDate?.rounded() == Date().rounded() {
-                // Weather Card - Shows if cached data exists or if loading
-                WeatherCardView()
+                // Weather Card - Shows if cached data exists or if loading and toggle is enabled
+                if showWeatherCard {
+                    WeatherCardView()
+                }
 
-                // Sleep Card - Shows sleep analysis and hydration recommendations
-                SleepCardView(
-                    selectedDate: selectedDate!,
-                    isLoading: sleepService.isLoading
-                )
+                // Sleep Card - Shows sleep analysis and hydration recommendations if toggle is enabled
+                if showSleepCard {
+                    SleepCardView(
+                        selectedDate: selectedDate!,
+                        isLoading: sleepService.isLoading
+                    )
+                }
             }
 
             Spacer(minLength: 500)
