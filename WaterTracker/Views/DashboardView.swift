@@ -260,6 +260,9 @@ struct DashboardView: View {
                         isLoading: sleepService.isLoading
                     )
                 }
+                
+                // Statistics Card - Shows quick stats and navigation to detailed statistics
+                StatisticsCard(waterPortions: waterPortions)
             }
 
             Spacer(minLength: 500)
