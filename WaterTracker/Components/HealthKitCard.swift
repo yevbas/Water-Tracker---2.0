@@ -17,6 +17,34 @@ struct HealthKitCard: View {
     @State private var showingDisableTutorial = false
     @State private var isRefreshing = false
     
+    // Computed properties for connection state
+    private var availableDataCount: Int {
+        guard let data = healthData else { return 0 }
+        var count = 0
+        if data.height != nil { count += 1 }
+        if data.weight != nil { count += 1 }
+        if data.age != nil { count += 1 }
+        if data.gender != nil { count += 1 }
+        if data.averageSleepHours != nil { count += 1 }
+        return count
+    }
+    
+    private var connectionStatusText: String {
+        if !healthDataAvailable {
+            return "Connect HealthKit services"
+        }
+        let total = 5 // height, weight, age, gender, sleep
+        if availableDataCount == total {
+            return "All HealthKit services connected"
+        } else {
+            return "\(availableDataCount) of \(total) HealthKit services connected"
+        }
+    }
+    
+    private var isPartiallyConnected: Bool {
+        healthDataAvailable && availableDataCount < 5
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header - Clean and minimal
@@ -32,9 +60,9 @@ struct HealthKitCard: View {
                             .scaleEffect(0.8)
                             .tint(.red)
                     } else if healthDataAvailable {
-                        Image(systemName: "heart.fill")
+                        Image(systemName: isPartiallyConnected ? "heart.text.square" : "heart.fill")
                             .font(.title3)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(isPartiallyConnected ? .orange : .red)
                     } else {
                         Image(systemName: "heart.slash")
                             .font(.title3)
@@ -48,7 +76,7 @@ struct HealthKitCard: View {
                         .font(.headline)
                         .fontWeight(.semibold)
                     
-                    Text(healthDataAvailable ? "All HealthKit services connected" : "Connect HealthKit services")
+                    Text(connectionStatusText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -57,9 +85,15 @@ struct HealthKitCard: View {
                 
                 // Status indicator
                 if healthDataAvailable {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.title3)
+                    if isPartiallyConnected {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.title3)
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.title3)
+                    }
                 } else if !isLoading {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundStyle(.orange)
@@ -122,12 +156,12 @@ struct HealthKitCard: View {
             
             // Success indicator
             HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                Image(systemName: isPartiallyConnected ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(isPartiallyConnected ? .orange : .green)
                     .font(.caption)
-                Text("All HealthKit services connected")
+                Text(connectionStatusText)
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(isPartiallyConnected ? .orange : .green)
                     .fontWeight(.medium)
                 Spacer()
             }
@@ -201,6 +235,21 @@ struct HealthKitCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .disabled(isRefreshing)
+                
+                if isPartiallyConnected {
+                    Button {
+                        showingEnableTutorial = true
+                    } label: {
+                        Text("Connect More Services")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(.orange)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
                 
                 Button {
                     showingDisableTutorial = true
@@ -281,9 +330,9 @@ struct HealthKitCard: View {
             .padding(.horizontal)
             
             Button {
-                showingEnableTutorial = true
+                requestHealthKitPermissions()
             } label: {
-                Text("Connect HealthKit Services")
+                Text("Enable HealthKit")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(.white)
@@ -300,33 +349,25 @@ struct HealthKitCard: View {
     // MARK: - Helper Methods
     
     private func fetchHealthData() {
+        print("🔍 Starting fetchHealthData...")
         isLoading = true
         Task {
-            // First check if we have permissions
-            let hasPermissions = healthKitService.checkHealthKitPermissions()
-            
-            if !hasPermissions {
-                // Request permissions if we don't have them
-                let granted = await healthKitService.requestHealthKitPermissions()
-                if !granted {
-                    await MainActor.run {
-                        self.healthData = nil
-                        self.healthDataAvailable = false
-                        self.isLoading = false
-                    }
-                    return
-                }
-            }
-            
+            // Directly fetch health data - if we have no permissions, HealthKit will return empty data
+            print("🔍 Attempting to fetch health data...")
             do {
                 let data = await healthKitService.fetchAllHealthData()
+                print("📊 Health data fetched: height=\(data.height != nil), weight=\(data.weight != nil), age=\(data.age != nil), gender=\(data.gender != nil), sleep=\(data.averageSleepHours != nil)")
+                
                 await MainActor.run {
                     self.healthData = data
                     // Consider health data available if we have ANY data (not all)
-                    self.healthDataAvailable = data.height != nil || data.weight != nil || data.age != nil || data.gender != nil || data.averageSleepHours != nil
+                    let hasAnyData = data.height != nil || data.weight != nil || data.age != nil || data.gender != nil || data.averageSleepHours != nil
+                    print("📊 Has any data (permissions granted): \(hasAnyData)")
+                    self.healthDataAvailable = hasAnyData
                     self.isLoading = false
                 }
             } catch {
+                print("❌ Error fetching health data: \(error)")
                 await MainActor.run {
                     self.healthData = nil
                     self.healthDataAvailable = false
@@ -363,6 +404,23 @@ struct HealthKitCard: View {
                     self.healthDataAvailable = false
                     self.isRefreshing = false
                 }
+            }
+        }
+    }
+    
+    private func requestHealthKitPermissions() {
+        Task {
+            print("🔐 Requesting HealthKit permissions...")
+            let granted = await healthKitService.requestHealthKitPermissions()
+            print("🔐 Permissions granted: \(granted)")
+            if granted {
+                print("✅ Permissions granted, fetching health data...")
+                // Refresh the health data after permissions are granted
+                await MainActor.run {
+                    fetchHealthData()
+                }
+            } else {
+                print("❌ Permissions denied")
             }
         }
     }

@@ -1,15 +1,6 @@
 import Foundation
 import HealthKit
 
-// MARK: - Helper Struct for Data Collection
-struct HealthKitData {
-    var height: Double?
-    var weight: Double?
-    var age: Int?
-    var gender: HKBiologicalSex?
-    var averageSleepHours: Double?
-}
-
 class HealthKitService: ObservableObject {
     let healthStore = HKHealthStore()
     
@@ -44,20 +35,23 @@ class HealthKitService: ObservableObject {
         }
     }
     
-    func checkHealthKitPermissions() -> Bool {
+    func checkHealthKitPermissions() async -> Bool {
         guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
             return false
         }
         
-        // Check if we have permission for at least one data type
-        for healthType in healthKitTypes {
-            let status = healthStore.authorizationStatus(for: healthType)
-            if status == .sharingAuthorized {
-                return true
-            }
-        }
+        print("🔍 Checking HealthKit permissions by attempting to fetch data...")
         
-        return false
+        // Try to fetch actual data to determine if we have permissions
+        // HealthKit will return empty results if permission was denied
+        let data = await fetchAllHealthData()
+        
+        // Check if we can fetch any data at all
+        let hasAnyData = data.height != nil || data.weight != nil || data.age != nil || data.gender != nil || data.averageSleepHours != nil
+        
+        print("🔍 Permission check result - has any data: \(hasAnyData)")
+        return hasAnyData
     }
     
     // MARK: - Unified HealthKit Data Fetching
@@ -73,14 +67,17 @@ class HealthKitService: ObservableObject {
         
         let (fetchedHeight, fetchedWeight, fetchedAge, fetchedGender, fetchedSleepHours) = await (height, weight, age, gender, sleepHours)
         
-        print("✅ All HealthKit data fetched - height: \(fetchedHeight != nil), weight: \(fetchedWeight != nil), age: \(fetchedAge != nil), gender: \(fetchedGender != nil), sleep: \(fetchedSleepHours != nil)")
+        // Validate sleep data - treat 0.0 or very low values as no meaningful data
+        let validSleepHours = (fetchedSleepHours != nil && fetchedSleepHours! > 0.5) ? fetchedSleepHours : nil
+        
+        print("✅ All HealthKit data fetched - height: \(fetchedHeight != nil), weight: \(fetchedWeight != nil), age: \(fetchedAge != nil), gender: \(fetchedGender != nil), sleep: \(validSleepHours != nil)")
         
         return HealthKitData(
             height: fetchedHeight,
             weight: fetchedWeight,
             age: fetchedAge,
             gender: fetchedGender,
-            averageSleepHours: fetchedSleepHours
+            averageSleepHours: validSleepHours
         )
     }
     
@@ -278,4 +275,13 @@ extension HKBiologicalSex {
             return .notSet
         }
     }
+}
+
+// MARK: - Helper Struct for Data Collection
+struct HealthKitData {
+    var height: Double?
+    var weight: Double?
+    var age: Int?
+    var gender: HKBiologicalSex?
+    var averageSleepHours: Double?
 }

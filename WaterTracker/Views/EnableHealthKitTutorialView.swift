@@ -14,149 +14,147 @@ struct EnableHealthKitTutorialView: View {
     @State private var isRequestingPermission = false
     @State private var showingAlert = false
     @State private var alertMessage = ""
-    
+
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 32) {
-                    // Header
-                    VStack(spacing: 20) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 80))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.red, .pink],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+        ScrollView {
+            VStack(spacing: 32) {
+                // Header
+                VStack(spacing: 20) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 80))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.red, .pink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-                            .shadow(color: .red.opacity(0.3), radius: 20, x: 0, y: 10)
-                        
-                        VStack(spacing: 12) {
-                            Text("Enable Health Sync")
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.primary)
-                            
-                            Text("Connect with HealthKit to get personalized hydration recommendations")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(.top, 40)
-                    
-                    // Benefits section
-                    VStack(spacing: 24) {
-                        Text("What you'll get:")
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                        )
+                        .shadow(color: .red.opacity(0.3), radius: 20, x: 0, y: 10)
+
+                    VStack(spacing: 12) {
+                        Text("Enable Health Sync")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
                             .foregroundStyle(.primary)
-                        
-                        VStack(spacing: 16) {
-                            BenefitRowView(
-                                icon: "person.fill",
-                                title: "Personalized Goals",
-                                description: "Hydration targets based on your body weight and activity level"
-                            )
-                            
-                            BenefitRowView(
-                                icon: "moon.fill",
-                                title: "Sleep Integration",
-                                description: "Adjustments based on your sleep patterns and recovery needs"
-                            )
-                            
-                            BenefitRowView(
-                                icon: "chart.line.uptrend.xyaxis",
-                                title: "Health Insights",
-                                description: "Track how hydration affects your overall health metrics"
-                            )
-                            
-                            BenefitRowView(
-                                icon: "bell.fill",
-                                title: "Smart Reminders",
-                                description: "Intelligent notifications based on your daily routine"
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    
-                    // Privacy section
-                    VStack(spacing: 16) {
-                        HStack {
-                            Image(systemName: "lock.shield.fill")
-                                .font(.title2)
-                                .foregroundStyle(.green)
-                            Text("Your Privacy is Protected")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        Text("We only read the health data we need for hydration recommendations. Your data stays on your device and is never shared with third parties.")
-                            .font(.subheadline)
+
+                        Text("Connect with HealthKit to get personalized hydration recommendations")
+                            .font(.title3)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.green.opacity(0.1))
-                    )
-                    .padding(.horizontal, 24)
-                    
-                    // Action buttons
-                    VStack(spacing: 16) {
-                        Button {
-                            requestHealthKitPermission()
-                        } label: {
-                            HStack {
-                                if isRequestingPermission {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "heart.text.square")
-                                        .font(.system(size: 18, weight: .semibold))
-                                }
-                                Text(isRequestingPermission ? "Requesting Access..." : "Enable Health Sync")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                LinearGradient(
-                                    colors: [.red, .pink],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                        }
-                        .disabled(isRequestingPermission)
-                        
-                        Button {
-                            dismiss()
-                        } label: {
-                            Text("Maybe Later")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 40)
                 }
-            }
-            .navigationTitle("Health Sync")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") {
-                        dismiss()
+                .padding(.top, 40)
+
+                // Benefits section
+                VStack(spacing: 24) {
+                    Text("What you'll get:")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+
+                    VStack(spacing: 16) {
+                        BenefitRowView(
+                            icon: "person.fill",
+                            title: "Personalized Goals",
+                            description: "Hydration targets based on your body weight and activity level"
+                        )
+
+                        BenefitRowView(
+                            icon: "moon.fill",
+                            title: "Sleep Integration",
+                            description: "Adjustments based on your sleep patterns and recovery needs"
+                        )
+
+                        BenefitRowView(
+                            icon: "chart.line.uptrend.xyaxis",
+                            title: "Health Insights",
+                            description: "Track how hydration affects your overall health metrics"
+                        )
+
+                        BenefitRowView(
+                            icon: "bell.fill",
+                            title: "Smart Reminders",
+                            description: "Intelligent notifications based on your daily routine"
+                        )
                     }
+                }
+                .padding(.horizontal, 24)
+
+                // Privacy section
+                VStack(spacing: 16) {
+                    HStack {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.title2)
+                            .foregroundStyle(.green)
+                        Text("Your Privacy is Protected")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+
+                    Text("We only read the health data we need for hydration recommendations. Your data stays on your device and is never shared with third parties.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.green.opacity(0.1))
+                )
+                .padding(.horizontal, 24)
+
+                // Action buttons
+                VStack(spacing: 16) {
+                    Button {
+                        requestHealthKitPermission()
+                    } label: {
+                        HStack {
+                            if isRequestingPermission {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "heart.text.square")
+                                    .font(.system(size: 18, weight: .semibold))
+                            }
+                            Text(isRequestingPermission ? "Requesting Access..." : "Enable Health Sync")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            LinearGradient(
+                                colors: [.red, .pink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                    .disabled(isRequestingPermission)
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Maybe Later")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            }
+        }
+        .navigationTitle("Health Sync")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Close") {
+                    dismiss()
                 }
             }
         }
@@ -173,16 +171,16 @@ struct EnableHealthKitTutorialView: View {
             Text(alertMessage)
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func requestHealthKitPermission() {
         isRequestingPermission = true
     }
-    
+
     private func handlePermissionResult(_ result: Result<Bool, Error>) {
         isRequestingPermission = false
-        
+
         switch result {
         case .success:
             alertMessage = "HealthKit access granted! Your health data can now be used for personalized hydration recommendations."
@@ -204,7 +202,7 @@ struct BenefitRowView: View {
     let icon: String
     let title: String
     let description: String
-    
+
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: icon)
@@ -215,18 +213,18 @@ struct BenefitRowView: View {
                     Circle()
                         .fill(.blue.opacity(0.1))
                 )
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                
+
                 Text(description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
             }
-            
+
             Spacer()
         }
         .padding(.horizontal, 20)
