@@ -16,7 +16,9 @@ class HealthKitService: ObservableObject {
     
     // HealthKit types we want to write to
     let healthKitWriteTypes: Set<HKSampleType> = [
-        HKObjectType.quantityType(forIdentifier: .dietaryWater)!
+        HKObjectType.quantityType(forIdentifier: .dietaryWater)!,
+        HKObjectType.quantityType(forIdentifier: .dietaryCaffeine)!,
+        HKObjectType.quantityType(forIdentifier: .numberOfAlcoholicBeverages)!
     ]
 
     init() {}
@@ -286,6 +288,223 @@ class HealthKitService: ObservableObject {
                 }
             }
         }
+    }
+    
+    func saveCaffeineIntake(amount: Double, unit: WaterUnit, date: Date = Date()) async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
+            return false
+        }
+        
+        guard let caffeineType = HKQuantityType.quantityType(forIdentifier: .dietaryCaffeine) else {
+            print("❌ Caffeine type not available")
+            return false
+        }
+        
+        // Convert amount to milliliters for HealthKit, then estimate caffeine content
+        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
+        
+        // Estimate caffeine content: ~95mg per 240ml (8 fl oz) of coffee
+        let caffeinePerMl = 95.0 / 240.0 // mg per ml
+        let caffeineAmount = amountInMl * caffeinePerMl
+        
+        let quantity = HKQuantity(unit: HKUnit.gramUnit(with: .milli), doubleValue: caffeineAmount)
+        
+        let sample = HKQuantitySample(
+            type: caffeineType,
+            quantity: quantity,
+            start: date,
+            end: date
+        )
+        
+        print("☕️ Saving \(caffeineAmount) mg of caffeine to HealthKit...")
+        
+        return await withCheckedContinuation { continuation in
+            healthStore.save(sample) { success, error in
+                if let error = error {
+                    print("❌ Failed to save caffeine intake to HealthKit: \(error)")
+                    continuation.resume(returning: false)
+                } else {
+                    print("✅ Caffeine intake saved to HealthKit successfully")
+                    continuation.resume(returning: true)
+                }
+            }
+        }
+    }
+    
+    func saveAlcoholIntake(amount: Double, unit: WaterUnit, alcoholType: Drink, date: Date = Date()) async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
+            return false
+        }
+        
+        guard let alcoholQuantityType = HKQuantityType.quantityType(forIdentifier: .numberOfAlcoholicBeverages) else {
+            print("❌ Alcohol type not available")
+            return false
+        }
+        
+        // Convert amount to milliliters
+        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
+        
+        // Calculate standard drinks based on alcohol type and volume
+        let standardDrinks = calculateStandardDrinks(volumeMl: amountInMl, alcoholType: alcoholType)
+        
+        let quantity = HKQuantity(unit: HKUnit.count(), doubleValue: standardDrinks)
+        
+        let sample = HKQuantitySample(
+            type: alcoholQuantityType,
+            quantity: quantity,
+            start: date,
+            end: date
+        )
+        
+        print("🍷 Saving \(standardDrinks) standard drinks to HealthKit...")
+        
+        return await withCheckedContinuation { continuation in
+            healthStore.save(sample) { success, error in
+                if let error = error {
+                    print("❌ Failed to save alcohol intake to HealthKit: \(error)")
+                    continuation.resume(returning: false)
+                } else {
+                    print("✅ Alcohol intake saved to HealthKit successfully")
+                    continuation.resume(returning: true)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Private Helper Methods
+    
+    private func calculateStandardDrinks(volumeMl: Double, alcoholType: Drink) -> Double {
+        // Standard drink definitions (14g of pure alcohol)
+        let alcoholByVolume: Double
+        let standardDrinkMl: Double
+        
+        switch alcoholType {
+        case .wine, .champagne:
+            alcoholByVolume = 0.12 // 12% ABV
+            standardDrinkMl = 148.0 // 5 fl oz
+        case .beer:
+            alcoholByVolume = 0.05 // 5% ABV
+            standardDrinkMl = 355.0 // 12 fl oz
+        case .strongAlcohol:
+            alcoholByVolume = 0.40 // 40% ABV
+            standardDrinkMl = 44.0 // 1.5 fl oz
+        default:
+            // Default to wine strength for other alcohol
+            alcoholByVolume = 0.12
+            standardDrinkMl = 148.0
+        }
+        
+        // Calculate standard drinks: (volume * ABV) / (standard drink volume * standard ABV)
+        let standardABV = 0.12 // Using wine as baseline
+        return (volumeMl * alcoholByVolume) / (standardDrinkMl * standardABV)
+    }
+    
+    // MARK: - Bulk Data Synchronization
+    
+    func syncAllHistoricalData(from portions: [WaterPortion]) async -> (success: Int, failed: Int, total: Int) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
+            return (0, 0, 0)
+        }
+        
+        print("🔄 Starting bulk sync of \(portions.count) water portions...")
+        
+        var successCount = 0
+        var failedCount = 0
+        let total = portions.count
+        
+        // Group portions by date for better performance
+        let groupedPortions = Dictionary(grouping: portions) { portion in
+            Calendar.current.startOfDay(for: portion.createDate)
+        }
+        
+        for (date, dayPortions) in groupedPortions {
+            print("📅 Syncing \(dayPortions.count) portions for \(date)")
+            
+            for portion in dayPortions {
+                do {
+                    var syncTasks: [Task<Bool, Never>] = []
+                    
+                    // Sync water intake for hydrating drinks
+                    if portion.drink.hydrationCategory == .fullyHydrating || 
+                       portion.drink.hydrationCategory == .mildDiuretic || 
+                       portion.drink.hydrationCategory == .partiallyHydrating {
+                        
+                        let waterTask = Task {
+                            await saveWaterIntake(
+                                amount: portion.amount * portion.drink.hydrationFactor,
+                                unit: portion.unit,
+                                date: portion.createDate
+                            )
+                        }
+                        syncTasks.append(waterTask)
+                    }
+                    
+                    // Sync caffeine intake for caffeinated drinks
+                    if portion.drink.containsCaffeine {
+                        let caffeineTask = Task {
+                            await saveCaffeineIntake(
+                                amount: portion.amount,
+                                unit: portion.unit,
+                                date: portion.createDate
+                            )
+                        }
+                        syncTasks.append(caffeineTask)
+                    }
+                    
+                    // Sync alcohol intake for alcoholic drinks
+                    if portion.drink.containsAlcohol {
+                        let alcoholTask = Task {
+                            await saveAlcoholIntake(
+                                amount: portion.amount,
+                                unit: portion.unit,
+                                alcoholType: portion.drink,
+                                date: portion.createDate
+                            )
+                        }
+                        syncTasks.append(alcoholTask)
+                    }
+                    
+                    // Wait for all sync tasks for this portion to complete
+                    let results = await withTaskGroup(of: Bool.self) { group in
+                        for task in syncTasks {
+                            group.addTask {
+                                await task.value
+                            }
+                        }
+                        
+                        var allSucceeded = true
+                        for await result in group {
+                            if !result {
+                                allSucceeded = false
+                            }
+                        }
+                        return allSucceeded
+                    }
+                    
+                    if results {
+                        successCount += 1
+                    } else {
+                        failedCount += 1
+                    }
+                    
+                    // Small delay between individual portions to avoid overwhelming HealthKit
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
+                    
+                } catch {
+                    print("❌ Error syncing portion: \(error)")
+                    failedCount += 1
+                }
+            }
+            
+            // Small delay between days to avoid overwhelming HealthKit
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        }
+        
+        print("✅ Bulk sync completed: \(successCount) success, \(failedCount) failed, \(total) total")
+        return (successCount, failedCount, total)
     }
 }
 

@@ -15,25 +15,36 @@ struct DrinkTypeSelector: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 16) {
-                ForEach(Drink.allCases, id: \.self) { drink in
-//                    if #available(iOS 26.0, *) {
-//                        buildDrinkButton(drink)
-//                            .glassEffect(self.drink == drink ? .clear : .identity)
-//                    } else {
-                        buildDrinkButton(drink)
-                            .background {
-                                if self.drink == drink {
-                                    Circle()
-                                        .fill(.ultraThinMaterial)
-                                }
+            HStack(spacing: 20) {
+                // Group drinks by hydration category
+                ForEach(HydrationCategory.allCases, id: \.self) { category in
+                    VStack(spacing: 8) {
+                        Text(category.displayName)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            ForEach(drinksForCategory(category), id: \.self) { drink in
+                                buildDrinkButton(drink)
+                                    .background {
+                                        if self.drink == drink {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(.ultraThinMaterial)
+                                        }
+                                    }
                             }
-//                    }
+                        }
+                    }
                 }
             }
+            .padding(.horizontal)
         }
         .scrollIndicators(.hidden)
         .animation(.smooth, value: drink)
+    }
+    
+    private func drinksForCategory(_ category: HydrationCategory) -> [Drink] {
+        return Drink.allCases.filter { $0.hydrationCategory == category }
     }
 
     func buildDrinkButton(_ drink: Drink) -> some View {
@@ -44,10 +55,17 @@ struct DrinkTypeSelector: View {
                 isShowingPaywall = true
             }
         }) {
-            Text(drink.emoji)
-                .font(.system(size: 44))
+            VStack(spacing: 4) {
+                Text(drink.emoji)
+                    .font(.system(size: 44))
+                Text(drink.title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
         }
-        .frame(width: 64, height: 64)
+        .frame(width: 80, height: 80)
         .sheet(isPresented: $isShowingPaywall) {
             PaywallView()
         }

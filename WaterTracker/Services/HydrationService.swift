@@ -29,14 +29,36 @@ final class HydrationService {
         context.insert(portion)
         try? context.save()
         
-        // Save to HealthKit if it's water and HealthKit service is available
-        if drink == .water, let healthKitService = healthKitService {
+        // Save to HealthKit if HealthKit service is available
+        if let healthKitService = healthKitService {
             Task {
-                await healthKitService.saveWaterIntake(
-                    amount: amount,
-                    unit: unit,
-                    date: date
-                )
+                // Save water intake for hydrating drinks
+                if drink.hydrationCategory == .fullyHydrating || drink.hydrationCategory == .mildDiuretic || drink.hydrationCategory == .partiallyHydrating {
+                    await healthKitService.saveWaterIntake(
+                        amount: amount * drink.hydrationFactor,
+                        unit: unit,
+                        date: date
+                    )
+                }
+                
+                // Save caffeine intake for caffeinated drinks
+                if drink.containsCaffeine {
+                    await healthKitService.saveCaffeineIntake(
+                        amount: amount,
+                        unit: unit,
+                        date: date
+                    )
+                }
+                
+                // Save alcohol intake for alcoholic drinks
+                if drink.containsAlcohol {
+                    await healthKitService.saveAlcoholIntake(
+                        amount: amount,
+                        unit: unit,
+                        alcoholType: drink,
+                        date: date
+                    )
+                }
             }
         }
     }

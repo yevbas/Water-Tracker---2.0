@@ -105,8 +105,6 @@ struct DashboardView: View {
             }
         })
         .animation(.linear, value: contentYOffset)
-        .animation(.smooth, value: selectedDate)
-        .animation(.smooth, value: waterPortions)
         .overlay(alignment: .bottomTrailing) {
             addDrinkButton
                 .padding(.trailing, 8)
@@ -245,7 +243,6 @@ struct DashboardView: View {
                                 }
                             }
                     }
-                    .animation(.smooth, value: waterPortions)
                 }
             }
 
@@ -254,21 +251,23 @@ struct DashboardView: View {
                 if showWeatherCard {
                     WeatherCardView()
                         .environmentObject(revenueCatMonitor)
+                        .id("weather-card")
                 }
 
                 // Sleep Card - Shows sleep analysis and hydration recommendations if toggle is enabled
                 if showSleepCard {
                     SleepCardView(
-                        selectedDate: selectedDate!,
                         isLoading: sleepService.isLoading
                     )
                     .environmentObject(revenueCatMonitor)
+                    .id("sleep-card")
                 }
                 
                 // Statistics Card - Shows quick stats and navigation to detailed statistics if toggle is enabled
                 if showStatisticsCard {
-                    StatisticsCard(waterPortions: waterPortions)
+                    StatisticsCard()
                         .environmentObject(revenueCatMonitor)
+                        .id("statistics-card")
                 }
             }
 
@@ -306,6 +305,22 @@ struct DashboardView: View {
         let items = waterPortions
         var sumMl: Double = 0
         for p in items {
+            let amountInMl = switch p.unit {
+            case .millilitres:
+                p.amount
+            case .ounces:
+                p.amount * 29.5735
+            }
+            // Apply hydration factor to get net hydration
+            sumMl += amountInMl * p.drink.hydrationFactor
+        }
+        return sumMl
+    }
+    
+    private func totalRawConsumedMl(for date: Date?) -> Double {
+        let items = waterPortions
+        var sumMl: Double = 0
+        for p in items {
             switch p.unit {
             case .millilitres:
                 sumMl += p.amount
@@ -315,18 +330,50 @@ struct DashboardView: View {
         }
         return sumMl
     }
+    
+    private func totalDehydrationMl(for date: Date?) -> Double {
+        let items = waterPortions
+        var dehydrationMl: Double = 0
+        for p in items {
+            let amountInMl = switch p.unit {
+            case .millilitres:
+                p.amount
+            case .ounces:
+                p.amount * 29.5735
+            }
+            // Only count negative hydration factors (dehydrating drinks)
+            if p.drink.hydrationFactor < 0 {
+                dehydrationMl += amountInMl * abs(p.drink.hydrationFactor)
+            }
+        }
+        return dehydrationMl
+    }
 
     private var percentageDisplay: String {
         "\(Int(progressPercent.rounded()))%"
     }
 
     private var consumedDisplay: String {
-        let consumedMl = totalConsumedMl(for: selectedDate)
+        let netHydrationMl = totalConsumedMl(for: selectedDate)
+        let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
+        let dehydrationMl = totalDehydrationMl(for: selectedDate)
+        
         if measurementUnits == "fl_oz" {
-            let oz = consumedMl / 29.5735
-            return "\(Int(oz.rounded())) fl oz consumed"
+            let netOz = netHydrationMl / 29.5735
+            let rawOz = rawConsumedMl / 29.5735
+            let dehydrationOz = dehydrationMl / 29.5735
+            
+            if dehydrationOz > 0 {
+                return "\(Int(netOz.rounded())) fl oz net (\(Int(rawOz.rounded())) consumed, -\(Int(dehydrationOz.rounded())) dehydrated)"
+            } else {
+                return "\(Int(netOz.rounded())) fl oz net hydration"
+            }
         } else {
-            return "\(Int(consumedMl.rounded())) ml consumed"
+            if dehydrationMl > 0 {
+                return "\(Int(netHydrationMl.rounded())) ml net (\(Int(rawConsumedMl.rounded())) consumed, -\(Int(dehydrationMl.rounded())) dehydrated)"
+            } else {
+                return "\(Int(netHydrationMl.rounded())) ml net hydration"
+            }
         }
     }
 
@@ -370,12 +417,32 @@ struct DashboardView: View {
         modelContext.insert(waterPortion)
         try? modelContext.save()
 
-        // Save to HealthKit if it's water
-        if drink == .water {
-            Task {
+        // Save to HealthKit based on drink type
+        Task {
+            // Save water intake for hydrating drinks
+            if drink.hydrationCategory == .fullyHydrating || drink.hydrationCategory == .mildDiuretic || drink.hydrationCategory == .partiallyHydrating {
                 await healthKitService.saveWaterIntake(
+                    amount: amount * drink.hydrationFactor,
+                    unit: WaterUnit.millilitres,
+                    date: Date()
+                )
+            }
+            
+            // Save caffeine intake for caffeinated drinks
+            if drink.containsCaffeine {
+                await healthKitService.saveCaffeineIntake(
                     amount: amount,
                     unit: WaterUnit.millilitres,
+                    date: Date()
+                )
+            }
+            
+            // Save alcohol intake for alcoholic drinks
+            if drink.containsAlcohol {
+                await healthKitService.saveAlcoholIntake(
+                    amount: amount,
+                    unit: WaterUnit.millilitres,
+                    alcoholType: drink,
                     date: Date()
                 )
             }

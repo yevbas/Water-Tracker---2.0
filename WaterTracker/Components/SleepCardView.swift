@@ -10,7 +10,7 @@ import SwiftData
 import RevenueCatUI
 
 struct SleepCardView: View {
-    let selectedDate: Date
+    let selectedDate: Date = Date().rounded()
     let isLoading: Bool
 
     @Environment(\.modelContext) var modelContext
@@ -1436,7 +1436,7 @@ enum DataCompleteness {
 }
 
 #Preview {
-    SleepCardView(selectedDate: Date(), isLoading: false)
+    SleepCardView(isLoading: false)
         .modelContainer(for: [SleepAnalysisCache.self, WaterPortion.self], inMemory: true)
         .environmentObject(RevenueCatMonitor(state: .preview(false)))
         .environmentObject(AIDrinkAnalysisClient())

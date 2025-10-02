@@ -251,19 +251,56 @@ struct DebugSettingsCard: View {
             while currentDate <= endDate {
                 // Random number of drinks per day (3-8)
                 let drinksPerDay = Int.random(in: 3...8)
-
+                
+                // Generate unique times for each drink in the day
+                var drinkTimes: [Date] = []
+                let timeRange = 6...23 // 6 AM to 11 PM
+                
+                // Create a set of unique hour-minute combinations
+                var usedTimes: Set<String> = []
+                
                 for _ in 0..<drinksPerDay {
-                    // Random time during the day (6 AM to 11 PM)
-                    let randomHour = Int.random(in: 6...23)
-                    let randomMinute = Int.random(in: 0...59)
+                    var attempts = 0
+                    var drinkTime: Date?
+                    
+                    // Try to find a unique time (max 50 attempts to avoid infinite loop)
+                    while drinkTime == nil && attempts < 50 {
+                        let randomHour = Int.random(in: timeRange)
+                        let randomMinute = Int.random(in: 0...59)
+                        let timeKey = "\(randomHour):\(randomMinute)"
+                        
+                        if !usedTimes.contains(timeKey) {
+                            usedTimes.insert(timeKey)
+                            drinkTime = calendar.date(
+                                bySettingHour: randomHour,
+                                minute: randomMinute,
+                                second: Int.random(in: 0...59), // Add random seconds for more uniqueness
+                                of: currentDate
+                            )
+                        }
+                        attempts += 1
+                    }
+                    
+                    // Fallback: if we couldn't find a unique time, use current time with random seconds
+                    if drinkTime == nil {
+                        drinkTime = calendar.date(
+                            bySettingHour: Int.random(in: timeRange),
+                            minute: Int.random(in: 0...59),
+                            second: Int.random(in: 0...59),
+                            of: currentDate
+                        )
+                    }
+                    
+                    if let validTime = drinkTime {
+                        drinkTimes.append(validTime)
+                    }
+                }
+                
+                // Sort times chronologically for more realistic data
+                drinkTimes.sort()
 
-                    guard let drinkTime = calendar.date(
-                        bySettingHour: randomHour,
-                        minute: randomMinute,
-                        second: 0,
-                        of: currentDate
-                    ) else { continue }
-
+                // Create drinks with the unique times
+                for drinkTime in drinkTimes {
                     // Random amount based on current goal (between 10% and 40% of daily goal)
                     let minAmount = Double(waterGoalMl) * 0.10
                     let maxAmount = Double(waterGoalMl) * 0.40

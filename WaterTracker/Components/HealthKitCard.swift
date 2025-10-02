@@ -7,9 +7,11 @@
 
 import SwiftUI
 import HealthKit
+import SwiftData
 
 struct HealthKitCard: View {
     @EnvironmentObject private var healthKitService: HealthKitService
+    @Environment(\.modelContext) private var modelContext
     @State private var isLoading = true
     @State private var healthDataAvailable = false
     @State private var healthData: HealthKitData?
@@ -19,6 +21,10 @@ struct HealthKitCard: View {
     @State private var isCalculatingWaterIntake = false
     @State private var showingCalculationResult = false
     @State private var calculatedWaterGoal: Int?
+    @State private var isSyncing = false
+    @State private var syncProgress: Double = 0.0
+    @State private var showingSyncResult = false
+    @State private var syncResult: (success: Int, failed: Int, total: Int)?
     
     // Computed properties for connection state
     private var availableDataCount: Int {
@@ -61,31 +67,30 @@ struct HealthKitCard: View {
                 ZStack {
                     Circle()
                         .fill(.red.opacity(0.1))
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                     
                     if isLoading {
                         ProgressView()
-                            .scaleEffect(0.8)
+                            .scaleEffect(0.7)
                             .tint(.red)
                     } else if healthDataAvailable {
                         Image(systemName: isPartiallyConnected ? "heart.text.square" : "heart.fill")
-                            .font(.title3)
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(isPartiallyConnected ? .orange : .red)
                     } else {
                         Image(systemName: "heart.slash")
-                            .font(.title3)
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(.orange)
                     }
                 }
 
                 // Title and Status
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Health & Data")
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 17, weight: .semibold))
                     
                     Text(connectionStatusText)
-                        .font(.subheadline)
+                        .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                 }
 
@@ -96,19 +101,20 @@ struct HealthKitCard: View {
                     if isPartiallyConnected {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
-                            .font(.title3)
+                            .font(.system(size: 16))
                     } else {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
-                            .font(.title3)
+                            .font(.system(size: 16))
                     }
                 } else if !isLoading {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundStyle(.orange)
-                        .font(.title3)
+                        .font(.system(size: 16))
                 }
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
 
             // Content based on state
             if isLoading {
@@ -148,6 +154,17 @@ struct HealthKitCard: View {
                 Text("Based on your health data, your recommended daily water intake is \(waterGoal) ml. Would you like to update your current goal?")
             }
         }
+        .alert("Sync Complete", isPresented: $showingSyncResult) {
+            Button("OK") { }
+        } message: {
+            if let result = syncResult {
+                if result.failed == 0 {
+                    Text("Successfully synced all \(result.success) drink entries to the Health app! 🎉")
+                } else {
+                    Text("Synced \(result.success) of \(result.total) entries successfully. \(result.failed) entries failed to sync.")
+                }
+            }
+        }
     }
     
     // MARK: - Loading View
@@ -163,35 +180,35 @@ struct HealthKitCard: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .padding(.horizontal)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 16)
     }
     
     // MARK: - Health Data Available View
     
     private var healthDataAvailableView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             
             // Success indicator
             HStack {
                 Image(systemName: isPartiallyConnected ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                     .foregroundStyle(isPartiallyConnected ? .orange : .green)
-                    .font(.caption)
+                    .font(.system(size: 12))
                 Text(connectionStatusText)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundStyle(isPartiallyConnected ? .orange : .green)
                     .fontWeight(.medium)
                 Spacer()
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             
             // Data summary - Compact grid
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 12) {
+            ], spacing: 8) {
                 if let height = healthData?.height {
                     DataItemView(
                         icon: "ruler",
@@ -228,10 +245,10 @@ struct HealthKitCard: View {
                     )
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             
             // Action buttons - Simplified
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Button {
                     refreshHealthData()
                 } label: {
@@ -250,9 +267,9 @@ struct HealthKitCard: View {
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     .background(.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .disabled(isRefreshing)
                 
@@ -276,12 +293,44 @@ struct HealthKitCard: View {
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                         .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .disabled(isCalculatingWaterIntake || isRefreshing)
                 }
+                
+                // Sync all data button
+                Button {
+                    syncAllDataToHealthKit()
+                } label: {
+                    HStack(spacing: 8) {
+                        if isSyncing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "arrow.up.circle")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        VStack(spacing: 2) {
+                            Text(isSyncing ? "Syncing to Health..." : "Sync All Data to Health")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            if isSyncing && syncProgress > 0 {
+                                Text("\(Int(syncProgress * 100))% complete")
+                                    .font(.caption2)
+                                    .opacity(0.8)
+                            }
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(.purple)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .disabled(isSyncing || isRefreshing || isCalculatingWaterIntake)
                 
                 if isPartiallyConnected {
                     Button {
@@ -292,9 +341,9 @@ struct HealthKitCard: View {
                             .fontWeight(.medium)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 8)
                             .background(.orange)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                 }
                 
@@ -306,19 +355,19 @@ struct HealthKitCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal)
-            .padding(.bottom)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
     }
     
     // MARK: - Health Data Unavailable View
     
     private var healthDataUnavailableView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Image(systemName: "heart.slash")
                     .font(.title2)
                     .foregroundStyle(.orange)
@@ -334,7 +383,7 @@ struct HealthKitCard: View {
                 
                 // Show which specific services are missing
                 if let data = healthData {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 6) {
                         Text("Missing services:")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -343,7 +392,7 @@ struct HealthKitCard: View {
                         LazyVGrid(columns: [
                             GridItem(.flexible()),
                             GridItem(.flexible())
-                        ], spacing: 6) {
+                        ], spacing: 4) {
                             MissingServiceView(
                                 title: "Height",
                                 isMissing: data.height == nil,
@@ -371,10 +420,10 @@ struct HealthKitCard: View {
                             )
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             
             Button {
                 requestHealthKitPermissions()
@@ -384,12 +433,12 @@ struct HealthKitCard: View {
                     .fontWeight(.medium)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     .background(.red)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .padding(.horizontal)
-            .padding(.bottom)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
     }
     
@@ -534,6 +583,72 @@ struct HealthKitCard: View {
             }
         }
     }
+    
+    private func syncAllDataToHealthKit() {
+        isSyncing = true
+        syncProgress = 0.0
+        
+        Task {
+            do {
+                // Fetch all water portions from the model context with a more robust approach
+                let fetchDescriptor = FetchDescriptor<WaterPortion>(
+                    sortBy: [SortDescriptor(\.createDate, order: .forward)]
+                )
+                
+                // Perform the fetch on the main actor to avoid threading issues
+                let allPortions = try await MainActor.run {
+                    try modelContext.fetch(fetchDescriptor)
+                }
+                
+                guard !allPortions.isEmpty else {
+                    await MainActor.run {
+                        self.isSyncing = false
+                        print("❌ No data to sync")
+                    }
+                    return
+                }
+                
+                print("🔄 Starting sync of \(allPortions.count) portions to HealthKit...")
+                
+                // Create a simple array of data to avoid SwiftData reference issues
+                let portionData = allPortions.map { portion in
+                    (
+                        amount: portion.amount,
+                        unit: portion.unit,
+                        drink: portion.drink,
+                        createDate: portion.createDate
+                    )
+                }
+                
+                // Convert back to WaterPortion objects for the sync
+                let portionsForSync = portionData.map { data in
+                    WaterPortion(
+                        amount: data.amount,
+                        unit: data.unit,
+                        drink: data.drink,
+                        createDate: data.createDate,
+                        dayDate: data.createDate.rounded()
+                    )
+                }
+                
+                let result = await healthKitService.syncAllHistoricalData(from: portionsForSync)
+                
+                await MainActor.run {
+                    self.syncResult = result
+                    self.isSyncing = false
+                    self.syncProgress = 1.0
+                    self.showingSyncResult = true
+                    
+                    print("✅ Sync completed: \(result.success) success, \(result.failed) failed")
+                }
+            } catch {
+                await MainActor.run {
+                    self.isSyncing = false
+                    print("❌ Failed to fetch water portions: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Data Item View
@@ -545,25 +660,24 @@ struct DataItemView: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(.system(size: 16))
                 .foregroundStyle(color)
             
-            VStack(spacing: 2) {
+            VStack(spacing: 1) {
                 Text(title)
-                    .font(.caption2)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 
                 Text(value)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 12, weight: .semibold))
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(color.opacity(0.05))
         )
     }

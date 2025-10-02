@@ -8,14 +8,16 @@
 import SwiftUI
 import Charts
 import RevenueCatUI
+import SwiftData
 
 struct StatisticsCard: View {
-    let waterPortions: [WaterPortion]
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("measurement_units") private var measurementUnits: String = "ml"
     @AppStorage("water_goal_ml") private var waterGoalMl: Int = 2500
     @EnvironmentObject private var revenueCatMonitor: RevenueCatMonitor
     @State var isPresentedPaywall = false
     @State var isPresentedStatisticsView = false
+    @State private var waterPortions: [WaterPortion] = []
 
     var body: some View {
         Button(action: {
@@ -47,6 +49,9 @@ struct StatisticsCard: View {
                 }
                 
                 if revenueCatMonitor.userHasFullAccess {
+                    // Hydration breakdown
+                    hydrationBreakdownSection
+                    
                     // Main content like Apple Health
                     VStack(alignment: .leading, spacing: 16) {
                         // Summary text
@@ -78,7 +83,7 @@ struct StatisticsCard: View {
                                     Spacer()
                                 }
                                 
-                                Chart(last7DaysData) { data in
+                                Chart(last7DaysData, id: \.dayOfWeek) { data in
                                     BarMark(
                                         x: .value("Day", data.dayOfWeek),
                                         y: .value("Amount", data.amount)
@@ -164,6 +169,12 @@ struct StatisticsCard: View {
         }
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()
+        }
+        .onAppear {
+            fetchWaterPortions()
+        }
+        .onChange(of: modelContext) { _, _ in
+            fetchWaterPortions()
         }
     }
     
@@ -251,12 +262,139 @@ struct StatisticsCard: View {
         }
     }
     
+    private var hydrationBreakdownSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Hydration Breakdown")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            
+            HStack(spacing: 12) {
+                // Net hydration
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Net Hydration")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(formatAmount(netHydrationAmount))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.blue)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                .id("net-hydration")
+                
+                if dehydrationAmount > 0 {
+                    // Dehydration
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Dehydrated")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("-\(formatAmount(dehydrationAmount))")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.red)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                    .id("dehydration")
+                }
+            }
+            
+            // Category breakdown
+            if !categoryBreakdown.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("By Category")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    ForEach(categoryBreakdown, id: \.category) { item in
+                        HStack {
+                            Circle()
+                                .fill(item.color)
+                                .frame(width: 8, height: 8)
+                            Text(item.category.displayName)
+                                .font(.caption)
+                            Spacer()
+                            Text(formatAmount(item.amount))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .id("category-\(item.category.rawValue)")
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+    }
+    
+    private var netHydrationAmount: Double {
+        waterPortions.reduce(0) { sum, portion in
+            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
+            return sum + (amountInMl * portion.drink.hydrationFactor)
+        }
+    }
+    
+    private var dehydrationAmount: Double {
+        waterPortions.reduce(0) { sum, portion in
+            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
+            if portion.drink.hydrationFactor < 0 {
+                return sum + (amountInMl * abs(portion.drink.hydrationFactor))
+            }
+            return sum
+        }
+    }
+    
+    private var categoryBreakdown: [(category: HydrationCategory, amount: Double, color: Color)] {
+        let breakdown = Dictionary(grouping: waterPortions) { $0.drink.hydrationCategory }
+        
+        return breakdown.compactMap { category, portions in
+            let totalAmount = portions.reduce(0) { sum, portion in
+                sum + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            
+            let color: Color = switch category {
+            case .fullyHydrating: .blue
+            case .mildDiuretic: .teal
+            case .partiallyHydrating: .orange
+            case .dehydrating: .red
+            }
+            
+            return (category: category, amount: totalAmount, color: color)
+        }.sorted { $0.amount > $1.amount }
+    }
+    
     private func formatAmount(_ amount: Double) -> String {
         if measurementUnits == "fl_oz" {
             let oz = amount / 29.5735
             return "\(Int(oz.rounded()))"
         } else {
             return "\(Int(amount.rounded()))"
+        }
+    }
+    
+    // MARK: - Data Fetching
+    
+    private func fetchWaterPortions() {
+        let calendar = Calendar.current
+        let endDate = Date()
+        let startDate = calendar.date(byAdding: .day, value: -30, to: endDate) ?? endDate // Fetch last 30 days for comprehensive stats
+        
+        let fetchDescriptor = FetchDescriptor<WaterPortion>(
+            predicate: #Predicate<WaterPortion> { portion in
+                portion.dayDate >= startDate && portion.dayDate <= endDate
+            },
+            sortBy: [SortDescriptor(\.createDate, order: .reverse)]
+        )
+        
+        do {
+            waterPortions = try modelContext.fetch(fetchDescriptor)
+        } catch {
+            print("Error fetching water portions for statistics: \(error)")
+            waterPortions = []
         }
     }
 }
@@ -301,8 +439,9 @@ struct DayData: Identifiable {
 #Preview {
     NavigationStack {
         ScrollView {
-            StatisticsCard(waterPortions: [])
+            StatisticsCard()
                 .environmentObject(RevenueCatMonitor(state: .preview(false)))
+                .modelContainer(for: [WaterPortion.self], inMemory: true)
                 .padding()
         }
     }
