@@ -121,80 +121,131 @@ struct SleepCardView: View {
                 }
             }) {
                 HStack(spacing: 12) {
-                    // Sleep Icon
-                    sleepIconView
+                    // Sleep Icon - no background circle, just colored icon like Apple Health
+                    if isLoading || isRefreshingSleep {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if let recommendation = sleepRecommendation {
+                        Image(systemName: sleepIcon(for: recommendation.sleepQualityScore))
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.cyan)
+                    } else if sleepService.errorMessage != nil {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.red)
+                    } else {
+                        Image(systemName: revenueCatMonitor.userHasFullAccess ? "bed.double.fill" : "lock.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(revenueCatMonitor.userHasFullAccess ? .cyan : .gray)
+                    }
 
                     // Sleep Info
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Sleep Analysis")
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text("Sleep")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            
+                            if let actualDate = sleepRecommendation?.actualSleepDate,
+                               !Calendar.current.isDate(actualDate, inSameDayAs: selectedDate) {
+                                Text("Yesterday")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         
                         if isLoading || isRefreshingSleep {
                             Text(isRefreshingSleep ? "Refreshing..." : "Analyzing...")
-                                .font(.subheadline)
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         } else if let recommendation = sleepRecommendation {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(formatSleepDuration(recommendation.sleepDurationHours))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                
-                                // Show date if using latest available data
-                                if let actualDate = recommendation.actualSleepDate,
-                                   !Calendar.current.isDate(actualDate, inSameDayAs: selectedDate) {
-                                    Text("from \(actualDate.formatted(date: .abbreviated, time: .omitted))")
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
-                                }
-                            }
+                            Text("Time Asleep")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
                         } else if sleepService.errorMessage != nil {
-                            Text("Sleep data unavailable")
-                                .font(.subheadline)
-                                .foregroundStyle(.red)
+                            Text("No Data")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
                         } else {
-                            Text(revenueCatMonitor.userHasFullAccess ? "Tap to analyze sleep" : "Premium feature")
-                                .font(.subheadline)
+                            Text(revenueCatMonitor.userHasFullAccess ? "No Data" : "Premium feature")
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
                     }
 
                     Spacer()
 
-                    // Premium Lock Icon or Refresh Button
-                    if !revenueCatMonitor.userHasFullAccess {
-                        Image(systemName: "lock.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.purple.opacity(0.6))
-                    } else {
-                        // Refresh Button
-                        Button(action: {
-                            refreshSleepData()
-                        }) {
-                            if isRefreshingSleep {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.purple)
+                    // Action buttons
+                    HStack(spacing: 8) {
+                        // Premium Lock Icon or Refresh Button
+                        if !revenueCatMonitor.userHasFullAccess {
+                            // No extra lock icon needed, already shown in main icon
+                        } else {
+                            // Refresh Button
+                            Button(action: {
+                                refreshSleepData()
+                            }) {
+                                if isRefreshingSleep {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.gray)
+                                }
                             }
+                            .buttonStyle(.plain)
+                            .disabled(isRefreshingSleep)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(isRefreshingSleep)
-                    }
 
-                    // Expand/Collapse Icon
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 0 : 0))
+                        // Expand/Collapse Icon
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.gray)
+                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    }
                 }
-                .padding()
+                .padding(16)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
+            // Sleep duration display (always visible when we have data, like Apple Health)
+            if let recommendation = sleepRecommendation, revenueCatMonitor.userHasFullAccess {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .bottom) {
+                        let hours = Int(recommendation.sleepDurationHours)
+                        let minutes = Int((recommendation.sleepDurationHours - Double(hours)) * 60)
+                        
+                        HStack(alignment: .bottom, spacing: 2) {
+                            Text("\(hours)")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Text("hr")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.primary)
+                                .padding(.bottom, 4)
+                            Text("\(minutes)")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Text("min")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.primary)
+                                .padding(.bottom, 4)
+                        }
+                        
+                        Spacer()
+                        
+                        // Simple progress bar like Apple Health
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(.cyan)
+                            .frame(width: 60, height: 4)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, isExpanded ? 0 : 16)
+            }
+            
             // Expanded Content
             if isExpanded {
                 if revenueCatMonitor.userHasFullAccess {
@@ -206,14 +257,9 @@ struct SleepCardView: View {
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(.purple.opacity(0.2), lineWidth: 1)
-        )
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .onAppear {
             fetchWaterPortions()
         }
@@ -228,47 +274,47 @@ struct SleepCardView: View {
     // MARK: - Premium Locked Content
 
     private var premiumLockedContentView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
 
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
                 Image(systemName: "lock.fill")
-                    .font(.title2)
+                    .font(.system(size: 24, weight: .medium))
                     .foregroundStyle(.purple.opacity(0.6))
 
-                Text("Premium Feature")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                VStack(spacing: 8) {
+                    Text("Premium Feature")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
 
-                Text("Unlock comprehensive sleep analysis with AI-powered hydration recommendations based on your sleep patterns and quality.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    Text("Unlock comprehensive sleep analysis with AI-powered hydration recommendations based on your sleep patterns and quality.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
                 Button(action: {
-                    // TODO: Handle premium upgrade
-                    print("Upgrade to Premium tapped")
+                    isPresentedPaywall = true
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image(systemName: "crown.fill")
-                            .font(.subheadline)
+                            .font(.system(size: 13, weight: .medium))
                         Text("Unlock Premium")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 15, weight: .medium))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                     .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.purple.gradient)
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.purple)
                     )
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal)
-            .padding(.bottom)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
     }
 
@@ -278,22 +324,22 @@ struct SleepCardView: View {
         ZStack {
             Circle()
                 .fill(.purple.opacity(0.1))
-                .frame(width: 44, height: 44)
+                .frame(width: 40, height: 40)
 
             if isLoading || isRefreshingSleep {
                 ProgressView()
-                    .scaleEffect(0.8)
+                    .scaleEffect(0.7)
             } else if let recommendation = sleepRecommendation {
                 Image(systemName: sleepIcon(for: recommendation.sleepQualityScore))
-                    .font(.title3)
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.purple)
             } else if sleepService.errorMessage != nil {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title3)
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.red)
             } else {
                 Image(systemName: "moon.fill")
-                    .font(.title3)
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.purple)
             }
         }
@@ -303,26 +349,26 @@ struct SleepCardView: View {
 
     @ViewBuilder
     private var expandedContentView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
 
             if isLoading {
                 loadingView
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             } else if let recommendation = sleepRecommendation {
                 sleepDetailsView(recommendation)
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             } else if sleepService.errorMessage != nil {
                 noDataView
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             } else {
                 noDataView
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             }
         }
     }
@@ -606,25 +652,22 @@ struct SleepCardView: View {
     }
 
     private func sleepStatItem(icon: String, label: String, value: String) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.purple)
 
             Text(label)
-                .font(.caption2)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.caption)
-                .fontWeight(.semibold)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.purple.opacity(0.05))
-        )
+        .padding(.vertical, 12)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func recommendationCard(_ recommendation: SleepRecommendation) -> some View {

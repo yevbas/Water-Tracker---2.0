@@ -25,148 +25,138 @@ struct StatisticsCard: View {
                 isPresentedPaywall = true
             }
         }) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
                 // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Statistics")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                        
-                        Text(revenueCatMonitor.userHasFullAccess ? "View detailed analytics" : "Premium feature")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+                HStack(spacing: 12) {
+                    // Icon - no background circle, just colored icon
+                    Image(systemName: revenueCatMonitor.userHasFullAccess ? "chart.bar.fill" : "lock.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(revenueCatMonitor.userHasFullAccess ? .orange : .gray)
+                    
+                    // Title
+                    Text("Statistics")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
                     
                     Spacer()
                     
-                    if revenueCatMonitor.userHasFullAccess {
-                        Image(systemName: "chart.bar.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                    } else {
-                        Image(systemName: "lock.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue.opacity(0.6))
-                    }
+                    // Chevron
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.gray)
                 }
                 
                 if revenueCatMonitor.userHasFullAccess {
-                    // Quick Stats
-                    HStack(spacing: 20) {
-                        QuickStatView(
-                            title: "7-Day Avg",
-                            value: formatAmount(weeklyAverage),
-                            icon: "drop.fill",
-                            color: .blue
-                        )
+                    // Main content like Apple Health
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Summary text
+                        Text("Over the last 7 days, you averaged \(formatAmount(weeklyAverage)) water intake a day.")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
                         
-                        QuickStatView(
-                            title: "Avg Size",
-                            value: formatAmount(averageDrinkSize),
-                            icon: "cup.and.saucer.fill",
-                            color: .green
-                        )
-                        
-                        QuickStatView(
-                            title: "Today's Goal",
-                            value: "\(Int(todayGoalProgress))%",
-                            icon: "target",
-                            color: todayGoalProgress >= 100 ? .green : .orange
-                        )
-                    }
-
-                    // Mini Chart
-                    if !last7DaysData.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Last 7 Days")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Chart(last7DaysData) { data in
-                                BarMark(
-                                    x: .value("Day", data.dayOfWeek),
-                                    y: .value("Amount", data.amount)
-                                )
-                                .foregroundStyle(.blue.gradient)
-                                .cornerRadius(2)
+                        // Mini Chart
+                        if !last7DaysData.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Average Water Intake")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                
+                                HStack(alignment: .bottom) {
+                                    Text("\(formatAmount(weeklyAverage))")
+                                        .font(.system(size: 24, weight: .semibold))
+                                        .foregroundStyle(.primary)
+                                    
+                                    Text(measurementUnits == "fl_oz" ? "fl oz" : "ml")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.bottom, 2)
+                                    
+                                    Spacer()
+                                }
+                                
+                                Chart(last7DaysData) { data in
+                                    BarMark(
+                                        x: .value("Day", data.dayOfWeek),
+                                        y: .value("Amount", data.amount)
+                                    )
+                                    .foregroundStyle(.orange)
+                                    .cornerRadius(2)
+                                }
+                                .frame(height: 60)
+                                .chartXAxis(.visible)
+                                .chartYAxis(.hidden)
+                                .chartXAxis {
+                                    AxisMarks(values: .automatic) { _ in
+                                        AxisValueLabel()
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
-                            .frame(height: 60)
-                            .chartXAxis(.hidden)
-                            .chartYAxis(.hidden)
                         }
-                    }
-
-                    // View More Button
-                    HStack {
-                        Spacer()
-                        Text("View Detailed Statistics")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                        Image(systemName: "arrow.right")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
                     }
                 } else {
                     // Premium locked content
                     VStack(spacing: 16) {
-                        Text("Unlock detailed analytics including:")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 10) {
                                 Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.blue)
                                 Text("Weekly and monthly trends")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
                             }
                             
-                            HStack(spacing: 8) {
+                            HStack(spacing: 10) {
                                 Image(systemName: "drop.circle")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.green)
                                 Text("Drink type analysis")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
                             }
                             
-                            HStack(spacing: 8) {
+                            HStack(spacing: 10) {
                                 Image(systemName: "target")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.orange)
                                 Text("Goal achievement patterns")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         
                         // Unlock Button
-                        HStack(spacing: 8) {
-                            Image(systemName: "crown.fill")
-                                .font(.subheadline)
-                            Text("Unlock Premium")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                        Button(action: {
+                            isPresentedPaywall = true
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 13, weight: .medium))
+                                Text("Unlock Premium")
+                                    .font(.system(size: 15, weight: .medium))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.blue)
+                            )
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(.blue.gradient)
-                        )
+                        .buttonStyle(.plain)
                     }
                 }
             }
-            .padding()
+            .padding(16)
             .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .cornerRadius(10)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(.plain)
         .navigationDestination(isPresented: $isPresentedStatisticsView) {
@@ -280,22 +270,23 @@ struct QuickStatView: View {
     let color: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundColor(color)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(color)
                 Text(title)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
             
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

@@ -81,70 +81,78 @@ struct WeatherCardView: View {
                 }
             }) {
                 HStack(spacing: 12) {
-                    // Weather Icon
-                    weatherIconView
+                    // Weather Icon - no background circle, just colored icon like Apple Health
+                    if isLoading || isRefreshingWeather {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if let recommendation = weatherRecommendation {
+                        Image(systemName: weatherIcon(for: recommendation.condition))
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.blue)
+                    } else {
+                        Image(systemName: revenueCatMonitor.userHasFullAccess ? "cloud.sun.fill" : "lock.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(revenueCatMonitor.userHasFullAccess ? .blue : .gray)
+                    }
 
                     // Weather Info
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Weather Analysis")
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Weather")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.primary)
                         
-                        // Location name
-                        if let locationName = cachedAnalysis?.locationName {
-                            Text(locationName)
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                                .fontWeight(.medium)
-                        }
-
                         if isLoading || isRefreshingWeather {
                             Text(isRefreshingWeather ? "Refreshing..." : "Analyzing...")
-                                .font(.subheadline)
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         } else if let recommendation = weatherRecommendation {
                             Text("\(Int(recommendation.currentTemperature))°C • \(recommendation.condition.description)")
-                                .font(.subheadline)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                        } else if errorMessage != nil {
+                            Text("No Data")
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         } else {
-                            Text(revenueCatMonitor.userHasFullAccess ? "Tap to analyze weather" : "Premium feature")
-                                .font(.subheadline)
+                            Text(revenueCatMonitor.userHasFullAccess ? "No Data" : "Premium feature")
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
                     }
 
                     Spacer()
 
-                    // Premium Lock Icon or Refresh Button
-                    if !revenueCatMonitor.userHasFullAccess {
-                        Image(systemName: "lock.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.blue.opacity(0.6))
-                    } else {
-                        // Refresh Button
-                        Button(action: {
-                            refreshWeatherData()
-                        }) {
-                            if isRefreshingWeather {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.blue)
+                    // Action buttons
+                    HStack(spacing: 8) {
+                        // Premium Lock Icon or Refresh Button
+                        if !revenueCatMonitor.userHasFullAccess {
+                            // No extra lock icon needed, already shown in main icon
+                        } else {
+                            // Refresh Button
+                            Button(action: {
+                                refreshWeatherData()
+                            }) {
+                                if isRefreshingWeather {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.gray)
+                                }
                             }
+                            .buttonStyle(.plain)
+                            .disabled(isRefreshingWeather)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(isRefreshingWeather)
-                    }
 
-                    // Expand/Collapse Icon
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 0 : 0))
+                        // Expand/Collapse Icon
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.gray)
+                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    }
                 }
-                .padding()
+                .padding(16)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -160,14 +168,9 @@ struct WeatherCardView: View {
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(.blue.opacity(0.2), lineWidth: 1)
-        )
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()
         }
@@ -176,98 +179,76 @@ struct WeatherCardView: View {
     // MARK: - Premium Locked Content
 
     private var premiumLockedContentView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
 
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
                 Image(systemName: "lock.fill")
-                    .font(.title2)
+                    .font(.system(size: 24, weight: .medium))
                     .foregroundStyle(.blue.opacity(0.6))
 
-                Text("Premium Feature")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                VStack(spacing: 8) {
+                    Text("Premium Feature")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
 
-                Text("Unlock detailed weather analysis with AI-powered hydration recommendations based on current conditions.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    Text("Unlock detailed weather analysis with AI-powered hydration recommendations based on current conditions.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
                 Button(action: {
-                    // TODO: Handle premium upgrade
-                    print("Upgrade to Premium tapped")
+                    isPresentedPaywall = true
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image(systemName: "crown.fill")
-                            .font(.subheadline)
+                            .font(.system(size: 13, weight: .medium))
                         Text("Unlock Premium")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 15, weight: .medium))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                     .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.blue.gradient)
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.blue)
                     )
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal)
-            .padding(.bottom)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
     }
 
-    // MARK: - Weather Icon
-
-    private var weatherIconView: some View {
-        ZStack {
-            Circle()
-                .fill(.blue.opacity(0.1))
-                .frame(width: 44, height: 44)
-
-            if isLoading || isRefreshingWeather {
-                ProgressView()
-                    .scaleEffect(0.8)
-            } else if let recommendation = weatherRecommendation {
-                Image(systemName: weatherIcon(for: recommendation.condition))
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-            } else {
-                Image(systemName: "cloud.sun.fill")
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-            }
-        }
-    }
 
     // MARK: - Expanded Content
 
     @ViewBuilder
     private var expandedContentView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
 
             if isLoading {
                 loadingView
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             } else if let recommendation = weatherRecommendation {
                 weatherDetailsView(recommendation)
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             } else {
                 if let errorMessage = errorMessage {
                     errorView(errorMessage)
-                        .padding(.horizontal)
-                        .padding(.bottom)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 } else {
                     noDataView
-                        .padding(.horizontal)
-                        .padding(.bottom)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 }
             }
         }
@@ -457,25 +438,22 @@ struct WeatherCardView: View {
     }
 
     private func weatherStatItem(icon: String, label: String, value: String) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.blue)
 
             Text(label)
-                .font(.caption2)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.caption)
-                .fontWeight(.semibold)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.blue.opacity(0.05))
-        )
+        .padding(.vertical, 12)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func recommendationCard(_ recommendation: WeatherRecommendation) -> some View {
