@@ -149,6 +149,7 @@ struct HealthKitPermissionView: View {
         )
         .healthDataAccessRequest(
             store: healthKitService.healthStore,
+            shareTypes: healthKitService.healthKitWriteTypes,
             readTypes: healthKitService.healthKitTypes,
             trigger: isRequestingHealthKitPermission
         ) { result in

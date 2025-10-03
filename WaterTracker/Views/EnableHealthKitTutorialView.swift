@@ -160,6 +160,7 @@ struct EnableHealthKitTutorialView: View {
         }
         .healthDataAccessRequest(
             store: healthKitService.healthStore,
+            shareTypes: healthKitService.healthKitWriteTypes,
             readTypes: healthKitService.healthKitTypes,
             trigger: isRequestingPermission
         ) { result in
