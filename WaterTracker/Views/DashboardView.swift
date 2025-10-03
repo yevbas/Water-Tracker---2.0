@@ -163,15 +163,15 @@ struct DashboardView: View {
     var headerBackgroundView: some View {
         VStack {
             Rectangle()
-                .fill(.white)
+                .fill(.background)
                 .frame(height: headerHeight)
                 .overlay {
                     VStack {
                         if scrollOffset < scrollUpThreshold {
-//                            if !revenueCatMonitor.userHasFullAccess {
-//                                buildAdBannerView(.mainScreen)
-//                                    .padding(.horizontal)
-//                            }
+                            if !revenueCatMonitor.userHasFullAccess {
+                                buildAdBannerView(.mainScreen)
+                                    .padding(.horizontal)
+                            }
                             datePicker
                         }
                         HStack {
