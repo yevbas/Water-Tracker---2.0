@@ -190,21 +190,6 @@ struct DashboardView: View {
                                 .padding(.horizontal, scrollOffset < scrollUpThreshold ? 16 : 0)
                                 .padding(.top, 4)
                                 .padding(.bottom, 12)
-                                //                            if scrollOffset < scrollUpThreshold {
-                                //                                Chart(waterPortions) {
-                                //                                    SectorMark(
-                                //                                        angle: .value("Portion Size", $0.amount),
-                                //                                        innerRadius: .ratio(0.925),
-                                //                                        angularInset: 2.5
-                                //                                    )
-                                //                                    .cornerRadius(8)
-                                //                                    .foregroundStyle(by: .value("Drink", $0.drink.rawValue))
-                                //                                }
-                                //                                .chartLegend(.hidden)
-                                //                                .animation(.easeInOut, value: scrollOffset)
-                                //                                .padding(40)
-                                //                                .transition(.blurReplace.combined(with: .move(edge: .leading)))
-                                //                            }
                             }
                             if scrollOffset >= scrollUpThreshold {
                                 circleInformationView
@@ -285,60 +270,61 @@ struct DashboardView: View {
     }
 
     var circleInformationView: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: scrollOffset >= scrollUpThreshold ? 3 : 6) {
             Text(percentageDisplay)
-                .font(.system(size: scrollOffset < scrollUpThreshold ? 44 : 22, weight: .bold, design: .rounded))
+                .font(.system(size: scrollOffset < scrollUpThreshold ? 44 : 16, weight: .bold, design: .rounded))
                 .contentTransition(.numericText())
             
             // Improved hydration display with better visual hierarchy
-            VStack(spacing: 2) {
+            VStack(spacing: scrollOffset >= scrollUpThreshold ? 1 : 2) {
                 Text(netHydrationDisplay)
-                    .font(.subheadline.weight(.semibold))
+                    .font(scrollOffset >= scrollUpThreshold ? .caption2.weight(.semibold) : .subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                 
                 if totalDehydrationMl(for: selectedDate) > 0 {
-                    HStack(spacing: 4) {
+                    HStack(spacing: scrollOffset >= scrollUpThreshold ? 3 : 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.caption2)
                             .foregroundStyle(.orange)
                         Text(dehydrationDisplay)
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(.orange)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, scrollOffset >= scrollUpThreshold ? 6 : 8)
+                    .padding(.vertical, scrollOffset >= scrollUpThreshold ? 1 : 2)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: scrollOffset >= scrollUpThreshold ? 4 : 6)
                             .fill(.orange.opacity(0.1))
                     )
                 }
                 
                 if totalCaffeineMg(for: selectedDate) > 0 {
-                    HStack(spacing: 4) {
+                    HStack(spacing: scrollOffset >= scrollUpThreshold ? 3 : 4) {
                         Image(systemName: "bolt.fill")
                             .font(.caption2)
                             .foregroundStyle(.brown)
                         Text("\(Int(totalCaffeineMg(for: selectedDate).rounded())) mg caffeine")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(.brown)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, scrollOffset >= scrollUpThreshold ? 6 : 8)
+                    .padding(.vertical, scrollOffset >= scrollUpThreshold ? 1 : 2)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: scrollOffset >= scrollUpThreshold ? 4 : 6)
                             .fill(.brown.opacity(0.1))
                     )
                 }
             }
             
             Text(goalDisplay)
-                .font(.caption)
+                .font(scrollOffset >= scrollUpThreshold ? .caption2 : .caption)
                 .foregroundStyle(.tertiary)
         }
         .frame(
             maxWidth: .infinity,
             alignment: scrollOffset >= scrollUpThreshold ? .leading : .center
         )
+        .offset(x: scrollOffset >= scrollUpThreshold ? -16 : 0)
     }
 
     private var progressPercent: Double {
