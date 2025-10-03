@@ -19,6 +19,11 @@ struct StatisticsView: View {
     @State private var selectedTimeRange: TimeRange = .week
     @State private var selectedStatistic: StatisticType = .dailyAverage
     
+    // Cached computed data to avoid recalculation
+    @State private var cachedStatistics: DetailedStatisticsData?
+    @State private var lastFetchDate: Date?
+    @State private var lastTimeRange: TimeRange = .week
+    
     enum TimeRange: String, CaseIterable {
         case week = "7 Days"
         case month = "30 Days"
@@ -64,11 +69,16 @@ struct StatisticsView: View {
         .navigationTitle("Statistics")
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
-            fetchWaterPortions()
+            if cachedStatistics == nil || lastFetchDate == nil {
+                fetchWaterPortions()
+            }
         }
-        .onChange(of: selectedTimeRange) { _, _ in
-            fetchWaterPortions()
+        .onChange(of: selectedTimeRange) { _, newRange in
+            if newRange != lastTimeRange {
+                fetchWaterPortions()
+            }
         }
+        .toolbar(.hidden, for: .tabBar)
     }
     
     private var timeRangePicker: some View {
@@ -295,209 +305,63 @@ struct StatisticsView: View {
     // MARK: - Data Calculations
     
     private var filteredPortions: [WaterPortion] {
-        let endDate = Date()
-        let startDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate) ?? endDate
-        
-        return waterPortions.filter { portion in
-            portion.dayDate >= startDate && portion.dayDate <= endDate
-        }
+        cachedStatistics?.filteredPortions ?? []
     }
     
     private var averageDailyIntake: Double {
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
-        let dailyTotals = groupedByDay.mapValues { portions in
-            portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-        }
-        
-        guard !dailyTotals.isEmpty else { return 0 }
-        return dailyTotals.values.reduce(0, +) / Double(dailyTotals.count)
+        cachedStatistics?.averageDailyIntake ?? 0
     }
     
     private var averageDrinkSize: Double {
-        guard !filteredPortions.isEmpty else { return 0 }
-        let totalAmount = filteredPortions.reduce(0) { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
-        }
-        return totalAmount / Double(filteredPortions.count)
+        cachedStatistics?.averageDrinkSize ?? 0
     }
     
     private var totalDrinks: Int {
-        filteredPortions.count
+        cachedStatistics?.totalDrinks ?? 0
     }
     
     private var goalAchievementRate: Double {
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
-        let dailyTotals = groupedByDay.mapValues { portions in
-            portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-        }
-        
-        guard !dailyTotals.isEmpty else { return 0 }
-        let daysReachedGoal = dailyTotals.values.filter { $0 >= Double(waterGoalMl) }.count
-        return (Double(daysReachedGoal) / Double(dailyTotals.count)) * 100
+        cachedStatistics?.goalAchievementRate ?? 0
     }
     
     private var totalIntakeInRange: Double {
-        filteredPortions.reduce(0) { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
-        }
+        cachedStatistics?.totalIntakeInRange ?? 0
     }
     
     private var dailyIntakeData: [DailyIntakeData] {
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
-        return groupedByDay.map { date, portions in
-            let totalAmount = portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-            return DailyIntakeData(date: date, amount: totalAmount)
-        }.sorted { $0.date < $1.date }
+        cachedStatistics?.dailyIntakeData ?? []
     }
     
     private var drinkTypeData: [DrinkTypeData] {
-        let groupedByDrink = Dictionary(grouping: filteredPortions) { $0.drink }
-        return groupedByDrink.map { drink, portions in
-            let totalAmount = portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-            return DrinkTypeData(drink: drink, amount: totalAmount)
-        }.sorted { $0.amount > $1.amount }
+        cachedStatistics?.drinkTypeData ?? []
     }
     
     private var weeklyTrendData: [WeeklyTrendData] {
-        let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate) ?? endDate
-        
-        var weeklyData: [WeeklyTrendData] = []
-        var currentDate = startDate
-        var weekNumber = 1
-        
-        while currentDate <= endDate {
-            let weekEnd = min(calendar.date(byAdding: .day, value: 6, to: currentDate) ?? currentDate, endDate)
-            
-            let weekPortions = filteredPortions.filter { portion in
-                portion.dayDate >= currentDate && portion.dayDate <= weekEnd
-            }
-            
-            let groupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
-            let dailyTotals = groupedByDay.mapValues { portions in
-                portions.reduce(0) { total, portion in
-                    total + convertToMl(amount: portion.amount, unit: portion.unit)
-                }
-            }
-            
-            let averageIntake = dailyTotals.isEmpty ? 0 : dailyTotals.values.reduce(0, +) / Double(dailyTotals.count)
-            
-            weeklyData.append(WeeklyTrendData(week: weekNumber, averageIntake: averageIntake))
-            
-            currentDate = calendar.date(byAdding: .day, value: 7, to: currentDate) ?? currentDate
-            weekNumber += 1
-        }
-        
-        return weeklyData
+        cachedStatistics?.weeklyTrendData ?? []
     }
     
     private var goalProgressData: [GoalProgressData] {
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
-        return groupedByDay.map { date, portions in
-            let totalAmount = portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-            let progressPercentage = (totalAmount / Double(waterGoalMl)) * 100
-            return GoalProgressData(date: date, progressPercentage: min(progressPercentage, 150)) // Cap at 150% for better visualization
-        }.sorted { $0.date < $1.date }
+        cachedStatistics?.goalProgressData ?? []
     }
     
     private var mostActiveDayString: String {
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
-        let dailyTotals = groupedByDay.mapValues { portions in
-            portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-        }
-        
-        guard let maxDay = dailyTotals.max(by: { $0.value < $1.value }) else {
-            return "No data"
-        }
-        
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return "\(formatter.string(from: maxDay.key)) (\(formatAmount(maxDay.value)))"
+        cachedStatistics?.mostActiveDayString ?? "No data"
     }
     
     private var leastActiveDayString: String {
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
-        let dailyTotals = groupedByDay.mapValues { portions in
-            portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-        }
-        
-        guard let minDay = dailyTotals.min(by: { $0.value < $1.value }) else {
-            return "No data"
-        }
-        
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return "\(formatter.string(from: minDay.key)) (\(formatAmount(minDay.value)))"
+        cachedStatistics?.leastActiveDayString ?? "No data"
     }
     
     private var favoriteDrink: String {
-        let groupedByDrink = Dictionary(grouping: filteredPortions) { $0.drink }
-        let drinkCounts = groupedByDrink.mapValues { $0.count }
-        
-        guard let favorite = drinkCounts.max(by: { $0.value < $1.value }) else {
-            return "No data"
-        }
-        
-        return "\(favorite.key.title) (\(favorite.value) drinks)"
+        cachedStatistics?.favoriteDrink ?? "No data"
     }
     
     private var bestStreak: Int {
-        // Calculate the longest streak of days meeting the goal
-        let groupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
-        let dailyTotals = groupedByDay.mapValues { portions in
-            portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-        }
-        
-        let sortedDays = dailyTotals.keys.sorted()
-        var maxStreak = 0
-        var currentStreak = 0
-        
-        for day in sortedDays {
-            if let total = dailyTotals[day], total >= Double(waterGoalMl) {
-                currentStreak += 1
-                maxStreak = max(maxStreak, currentStreak)
-            } else {
-                currentStreak = 0
-            }
-        }
-        
-        return maxStreak
+        cachedStatistics?.bestStreak ?? 0
     }
     
     private var currentStreak: Int {
-        // Calculate current streak from today backwards
-        let calendar = Calendar.current
-        let today = Date().rounded()
-        var streak = 0
-        var checkDate = today
-        
-        let groupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
-        
-        while let dayTotal = groupedByDay[checkDate]?.reduce(0, { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
-        }), dayTotal >= Double(waterGoalMl) {
-            streak += 1
-            checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
-        }
-        
-        return streak
+        cachedStatistics?.currentStreak ?? 0
     }
     
     // MARK: - Helper Functions
@@ -531,10 +395,204 @@ struct StatisticsView: View {
         
         do {
             waterPortions = try modelContext.fetch(fetchDescriptor)
+            calculateAndCacheStatistics()
         } catch {
             print("Error fetching water portions: \(error)")
             waterPortions = []
+            cachedStatistics = nil
         }
+    }
+    
+    private func calculateAndCacheStatistics() {
+        let endDate = Date()
+        let startDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate) ?? endDate
+        
+        // Filter portions to selected time range
+        let filteredPortions = waterPortions.filter { portion in
+            portion.dayDate >= startDate && portion.dayDate <= endDate
+        }
+        
+        // Calculate basic statistics
+        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
+        let dailyTotals = groupedByDay.mapValues { portions in
+            portions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+        }
+        
+        let averageDailyIntake = dailyTotals.isEmpty ? 0 : dailyTotals.values.reduce(0, +) / Double(dailyTotals.count)
+        
+        let averageDrinkSize = filteredPortions.isEmpty ? 0 : {
+            let totalAmount = filteredPortions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            return totalAmount / Double(filteredPortions.count)
+        }()
+        
+        let totalDrinks = filteredPortions.count
+        
+        let goalAchievementRate = {
+            guard !dailyTotals.isEmpty else { return 0.0 }
+            let daysReachedGoal = dailyTotals.values.filter { $0 >= Double(waterGoalMl) }.count
+            return (Double(daysReachedGoal) / Double(dailyTotals.count)) * 100
+        }()
+        
+        let totalIntakeInRange = filteredPortions.reduce(0) { total, portion in
+            total + convertToMl(amount: portion.amount, unit: portion.unit)
+        }
+        
+        // Calculate chart data
+        let dailyIntakeData = groupedByDay.map { date, portions in
+            let totalAmount = portions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            return DailyIntakeData(date: date, amount: totalAmount)
+        }.sorted { $0.date < $1.date }
+        
+        let drinkTypeData = {
+            let groupedByDrink = Dictionary(grouping: filteredPortions) { $0.drink }
+            return groupedByDrink.map { drink, portions in
+                let totalAmount = portions.reduce(0) { total, portion in
+                    total + convertToMl(amount: portion.amount, unit: portion.unit)
+                }
+                return DrinkTypeData(drink: drink, amount: totalAmount)
+            }.sorted { $0.amount > $1.amount }
+        }()
+        
+        let weeklyTrendData = {
+            let calendar = Calendar.current
+            var weeklyData: [WeeklyTrendData] = []
+            var currentDate = startDate
+            var weekNumber = 1
+            
+            while currentDate <= endDate {
+                let weekEnd = min(calendar.date(byAdding: .day, value: 6, to: currentDate) ?? currentDate, endDate)
+                
+                let weekPortions = filteredPortions.filter { portion in
+                    portion.dayDate >= currentDate && portion.dayDate <= weekEnd
+                }
+                
+                let weekGroupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
+                let weekDailyTotals = weekGroupedByDay.mapValues { portions in
+                    portions.reduce(0) { total, portion in
+                        total + convertToMl(amount: portion.amount, unit: portion.unit)
+                    }
+                }
+                
+                let averageIntake = weekDailyTotals.isEmpty ? 0 : weekDailyTotals.values.reduce(0, +) / Double(weekDailyTotals.count)
+                
+                weeklyData.append(WeeklyTrendData(week: weekNumber, averageIntake: averageIntake))
+                
+                currentDate = calendar.date(byAdding: .day, value: 7, to: currentDate) ?? currentDate
+                weekNumber += 1
+            }
+            
+            return weeklyData
+        }()
+        
+        let goalProgressData = groupedByDay.map { date, portions in
+            let totalAmount = portions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            let progressPercentage = (totalAmount / Double(waterGoalMl)) * 100
+            return GoalProgressData(date: date, progressPercentage: min(progressPercentage, 150))
+        }.sorted { $0.date < $1.date }
+        
+        // Calculate detailed statistics
+        let mostActiveDayString = {
+            guard let maxDay = dailyTotals.max(by: { $0.value < $1.value }) else {
+                return "No data"
+            }
+            
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            return "\(formatter.string(from: maxDay.key)) (\(formatAmount(maxDay.value)))"
+        }()
+        
+        let leastActiveDayString = {
+            guard let minDay = dailyTotals.min(by: { $0.value < $1.value }) else {
+                return "No data"
+            }
+            
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            return "\(formatter.string(from: minDay.key)) (\(formatAmount(minDay.value)))"
+        }()
+        
+        let favoriteDrink = {
+            let groupedByDrink = Dictionary(grouping: filteredPortions) { $0.drink }
+            let drinkCounts = groupedByDrink.mapValues { $0.count }
+            
+            guard let favorite = drinkCounts.max(by: { $0.value < $1.value }) else {
+                return "No data"
+            }
+            
+            return "\(favorite.key.title) (\(favorite.value) drinks)"
+        }()
+        
+        let bestStreak = {
+            let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
+            let allDailyTotals = allGroupedByDay.mapValues { portions in
+                portions.reduce(0) { total, portion in
+                    total + convertToMl(amount: portion.amount, unit: portion.unit)
+                }
+            }
+            
+            let sortedDays = allDailyTotals.keys.sorted()
+            var maxStreak = 0
+            var currentStreak = 0
+            
+            for day in sortedDays {
+                if let total = allDailyTotals[day], total >= Double(waterGoalMl) {
+                    currentStreak += 1
+                    maxStreak = max(maxStreak, currentStreak)
+                } else {
+                    currentStreak = 0
+                }
+            }
+            
+            return maxStreak
+        }()
+        
+        let currentStreak = {
+            let calendar = Calendar.current
+            let today = Date().rounded()
+            var streak = 0
+            var checkDate = today
+            
+            let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
+            
+            while let dayTotal = allGroupedByDay[checkDate]?.reduce(0, { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }), dayTotal >= Double(waterGoalMl) {
+                streak += 1
+                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+            }
+            
+            return streak
+        }()
+        
+        // Cache all calculated data
+        cachedStatistics = DetailedStatisticsData(
+            filteredPortions: filteredPortions,
+            averageDailyIntake: averageDailyIntake,
+            averageDrinkSize: averageDrinkSize,
+            totalDrinks: totalDrinks,
+            goalAchievementRate: goalAchievementRate,
+            totalIntakeInRange: totalIntakeInRange,
+            dailyIntakeData: dailyIntakeData,
+            drinkTypeData: drinkTypeData,
+            weeklyTrendData: weeklyTrendData,
+            goalProgressData: goalProgressData,
+            mostActiveDayString: mostActiveDayString,
+            leastActiveDayString: leastActiveDayString,
+            favoriteDrink: favoriteDrink,
+            bestStreak: bestStreak,
+            currentStreak: currentStreak
+        )
+        
+        lastFetchDate = Date()
+        lastTimeRange = selectedTimeRange
     }
 }
 
@@ -562,6 +620,24 @@ struct GoalProgressData: Identifiable {
     let id = UUID()
     let date: Date
     let progressPercentage: Double
+}
+
+struct DetailedStatisticsData {
+    let filteredPortions: [WaterPortion]
+    let averageDailyIntake: Double
+    let averageDrinkSize: Double
+    let totalDrinks: Int
+    let goalAchievementRate: Double
+    let totalIntakeInRange: Double
+    let dailyIntakeData: [DailyIntakeData]
+    let drinkTypeData: [DrinkTypeData]
+    let weeklyTrendData: [WeeklyTrendData]
+    let goalProgressData: [GoalProgressData]
+    let mostActiveDayString: String
+    let leastActiveDayString: String
+    let favoriteDrink: String
+    let bestStreak: Int
+    let currentStreak: Int
 }
 
 // MARK: - Supporting Views

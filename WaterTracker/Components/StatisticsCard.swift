@@ -18,6 +18,10 @@ struct StatisticsCard: View {
     @State var isPresentedPaywall = false
     @State var isPresentedStatisticsView = false
     @State private var waterPortions: [WaterPortion] = []
+    
+    // Cached computed data to avoid recalculation
+    @State private var cachedStats: StatisticsData?
+    @State private var lastFetchDate: Date?
 
     var body: some View {
         Button(action: {
@@ -171,84 +175,35 @@ struct StatisticsCard: View {
             PaywallView()
         }
         .onAppear {
-            fetchWaterPortions()
+            if cachedStats == nil || lastFetchDate == nil {
+                fetchWaterPortions()
+            }
         }
         .onChange(of: modelContext) { _, _ in
-            fetchWaterPortions()
+            // Only refetch if we don't have cached data or it's been more than 5 minutes
+            if cachedStats == nil || lastFetchDate == nil || 
+               (lastFetchDate != nil && Date().timeIntervalSince(lastFetchDate!) > 300) {
+                fetchWaterPortions()
+            }
         }
     }
     
     // MARK: - Computed Properties
     
     private var weeklyAverage: Double {
-        let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate) ?? endDate
-        
-        let weekPortions = waterPortions.filter { portion in
-            portion.dayDate >= startDate && portion.dayDate <= endDate
-        }
-        
-        let groupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
-        let dailyTotals = groupedByDay.mapValues { portions in
-            portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-        }
-        
-        guard !dailyTotals.isEmpty else { return 0 }
-        return dailyTotals.values.reduce(0, +) / Double(dailyTotals.count)
+        cachedStats?.weeklyAverage ?? 0
     }
     
     private var averageDrinkSize: Double {
-        let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate) ?? endDate
-        
-        let weekPortions = waterPortions.filter { portion in
-            portion.dayDate >= startDate && portion.dayDate <= endDate
-        }
-        
-        guard !weekPortions.isEmpty else { return 0 }
-        let totalAmount = weekPortions.reduce(0) { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
-        }
-        return totalAmount / Double(weekPortions.count)
+        cachedStats?.averageDrinkSize ?? 0
     }
     
     private var todayGoalProgress: Double {
-        let today = Date().rounded()
-        let todayPortions = waterPortions.filter { $0.dayDate == today }
-        
-        let todayTotal = todayPortions.reduce(0) { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
-        }
-        
-        return (todayTotal / Double(waterGoalMl)) * 100
+        cachedStats?.todayGoalProgress ?? 0
     }
     
     private var last7DaysData: [DayData] {
-        let calendar = Calendar.current
-        let today = Date()
-        var data: [DayData] = []
-        
-        for i in 0..<7 {
-            guard let date = calendar.date(byAdding: .day, value: -i, to: today) else { continue }
-            let dayDate = date.rounded()
-            
-            let dayPortions = waterPortions.filter { $0.dayDate == dayDate }
-            let dayTotal = dayPortions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-            
-            let formatter = DateFormatter()
-            formatter.dateFormat = "E"
-            let dayOfWeek = formatter.string(from: date)
-            
-            data.append(DayData(dayOfWeek: dayOfWeek, amount: dayTotal))
-        }
-        
-        return data.reversed()
+        cachedStats?.last7DaysData ?? []
     }
     
     // MARK: - Helper Functions
@@ -332,39 +287,15 @@ struct StatisticsCard: View {
     }
     
     private var netHydrationAmount: Double {
-        waterPortions.reduce(0) { sum, portion in
-            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
-            return sum + (amountInMl * portion.drink.hydrationFactor)
-        }
+        cachedStats?.netHydrationAmount ?? 0
     }
     
     private var dehydrationAmount: Double {
-        waterPortions.reduce(0) { sum, portion in
-            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
-            if portion.drink.hydrationFactor < 0 {
-                return sum + (amountInMl * abs(portion.drink.hydrationFactor))
-            }
-            return sum
-        }
+        cachedStats?.dehydrationAmount ?? 0
     }
     
     private var categoryBreakdown: [(category: HydrationCategory, amount: Double, color: Color)] {
-        let breakdown = Dictionary(grouping: waterPortions) { $0.drink.hydrationCategory }
-        
-        return breakdown.compactMap { category, portions in
-            let totalAmount = portions.reduce(0) { sum, portion in
-                sum + convertToMl(amount: portion.amount, unit: portion.unit)
-            }
-            
-            let color: Color = switch category {
-            case .fullyHydrating: .blue
-            case .mildDiuretic: .teal
-            case .partiallyHydrating: .orange
-            case .dehydrating: .red
-            }
-            
-            return (category: category, amount: totalAmount, color: color)
-        }.sorted { $0.amount > $1.amount }
+        cachedStats?.categoryBreakdown ?? []
     }
     
     private func formatAmount(_ amount: Double) -> String {
@@ -381,7 +312,7 @@ struct StatisticsCard: View {
     private func fetchWaterPortions() {
         let calendar = Calendar.current
         let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -30, to: endDate) ?? endDate // Fetch last 30 days for comprehensive stats
+        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate) ?? endDate // Only fetch last 7 days for statistics card
         
         let fetchDescriptor = FetchDescriptor<WaterPortion>(
             predicate: #Predicate<WaterPortion> { portion in
@@ -392,10 +323,112 @@ struct StatisticsCard: View {
         
         do {
             waterPortions = try modelContext.fetch(fetchDescriptor)
+            calculateAndCacheStatistics()
         } catch {
             print("Error fetching water portions for statistics: \(error)")
             waterPortions = []
+            cachedStats = nil
         }
+    }
+    
+    private func calculateAndCacheStatistics() {
+        let calendar = Calendar.current
+        let endDate = Date()
+        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate) ?? endDate
+        
+        // Filter to last 7 days
+        let weekPortions = waterPortions.filter { portion in
+            portion.dayDate >= startDate && portion.dayDate <= endDate
+        }
+        
+        // Calculate weekly average
+        let groupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
+        let dailyTotals = groupedByDay.mapValues { portions in
+            portions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+        }
+        
+        let weeklyAverage = dailyTotals.isEmpty ? 0 : dailyTotals.values.reduce(0, +) / Double(dailyTotals.count)
+        
+        // Calculate average drink size
+        let averageDrinkSize = weekPortions.isEmpty ? 0 : {
+            let totalAmount = weekPortions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            return totalAmount / Double(weekPortions.count)
+        }()
+        
+        // Calculate today's goal progress
+        let today = Date().rounded()
+        let todayPortions = waterPortions.filter { $0.dayDate == today }
+        let todayTotal = todayPortions.reduce(0) { total, portion in
+            total + convertToMl(amount: portion.amount, unit: portion.unit)
+        }
+        let todayGoalProgress = (todayTotal / Double(waterGoalMl)) * 100
+        
+        // Calculate last 7 days chart data
+        var last7DaysData: [DayData] = []
+        for i in 0..<7 {
+            guard let date = calendar.date(byAdding: .day, value: -i, to: endDate) else { continue }
+            let dayDate = date.rounded()
+            
+            let dayPortions = waterPortions.filter { $0.dayDate == dayDate }
+            let dayTotal = dayPortions.reduce(0) { total, portion in
+                total + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "E"
+            let dayOfWeek = formatter.string(from: date)
+            
+            last7DaysData.append(DayData(dayOfWeek: dayOfWeek, amount: dayTotal))
+        }
+        last7DaysData = last7DaysData.reversed()
+        
+        // Calculate hydration amounts
+        let netHydrationAmount = waterPortions.reduce(0) { sum, portion in
+            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
+            return sum + (amountInMl * portion.drink.hydrationFactor)
+        }
+        
+        let dehydrationAmount = waterPortions.reduce(0) { sum, portion in
+            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
+            if portion.drink.hydrationFactor < 0 {
+                return sum + (amountInMl * abs(portion.drink.hydrationFactor))
+            }
+            return sum
+        }
+        
+        // Calculate category breakdown
+        let breakdown = Dictionary(grouping: waterPortions) { $0.drink.hydrationCategory }
+        let categoryBreakdown = breakdown.compactMap { category, portions in
+            let totalAmount = portions.reduce(0) { sum, portion in
+                sum + convertToMl(amount: portion.amount, unit: portion.unit)
+            }
+            
+            let color: Color = switch category {
+            case .fullyHydrating: .blue
+            case .mildDiuretic: .teal
+            case .partiallyHydrating: .orange
+            case .dehydrating: .red
+            }
+            
+            return (category: category, amount: totalAmount, color: color)
+        }.sorted { $0.amount > $1.amount }
+        
+        // Cache all calculated data
+        cachedStats = StatisticsData(
+            weeklyAverage: weeklyAverage,
+            averageDrinkSize: averageDrinkSize,
+            todayGoalProgress: todayGoalProgress,
+            last7DaysData: last7DaysData,
+            netHydrationAmount: netHydrationAmount,
+            dehydrationAmount: dehydrationAmount,
+            categoryBreakdown: categoryBreakdown
+        )
+        
+        lastFetchDate = Date()
     }
 }
 
@@ -434,6 +467,16 @@ struct DayData: Identifiable {
     let id = UUID()
     let dayOfWeek: String
     let amount: Double
+}
+
+struct StatisticsData {
+    let weeklyAverage: Double
+    let averageDrinkSize: Double
+    let todayGoalProgress: Double
+    let last7DaysData: [DayData]
+    let netHydrationAmount: Double
+    let dehydrationAmount: Double
+    let categoryBreakdown: [(category: HydrationCategory, amount: Double, color: Color)]
 }
 
 #Preview {
