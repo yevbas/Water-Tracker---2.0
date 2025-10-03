@@ -21,7 +21,23 @@ class HealthKitService: ObservableObject {
         HKObjectType.quantityType(forIdentifier: .numberOfAlcoholicBeverages)!
     ]
 
-    init() {}
+    init() {
+        // Initialize default sync settings if they don't exist
+        initializeSyncSettings()
+    }
+    
+    private func initializeSyncSettings() {
+        // Set default values for sync toggles if they haven't been set yet
+        if UserDefaults.standard.object(forKey: "healthkit_sync_water") == nil {
+            UserDefaults.standard.set(true, forKey: "healthkit_sync_water")
+        }
+        if UserDefaults.standard.object(forKey: "healthkit_sync_caffeine") == nil {
+            UserDefaults.standard.set(true, forKey: "healthkit_sync_caffeine")
+        }
+        if UserDefaults.standard.object(forKey: "healthkit_sync_alcohol") == nil {
+            UserDefaults.standard.set(true, forKey: "healthkit_sync_alcohol")
+        }
+    }
     
     // MARK: - HealthKit Authorization
     
@@ -60,6 +76,72 @@ class HealthKitService: ObservableObject {
         
         print("🔍 Permission check result - has any data: \(hasAnyData)")
         return hasAnyData
+    }
+    
+    func checkHealthKitWritePermissions() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
+            return false
+        }
+        
+        print("🔍 Checking HealthKit write permissions...")
+        
+        // Check authorization status for each write type
+        for writeType in healthKitWriteTypes {
+            let status = healthStore.authorizationStatus(for: writeType)
+            print("🔍 Write permission for \(writeType.identifier): \(status.rawValue)")
+            
+            // If any write permission is denied or not determined, we don't have full write access
+            if status != .sharingAuthorized {
+                print("❌ Write permissions not fully granted")
+                return false
+            }
+        }
+        
+        print("✅ All write permissions granted")
+        return true
+    }
+    
+    func checkWaterWritePermission() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            return false
+        }
+        
+        guard let waterType = HKQuantityType.quantityType(forIdentifier: .dietaryWater) else {
+            return false
+        }
+        
+        let status = healthStore.authorizationStatus(for: waterType)
+        print("🔍 Water write permission: \(status.rawValue)")
+        return status == .sharingAuthorized
+    }
+    
+    func checkCaffeineWritePermission() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            return false
+        }
+        
+        guard let caffeineType = HKQuantityType.quantityType(forIdentifier: .dietaryCaffeine) else {
+            return false
+        }
+        
+        let status = healthStore.authorizationStatus(for: caffeineType)
+        print("🔍 Caffeine write permission: \(status.rawValue)")
+        return status == .sharingAuthorized
+    }
+    
+    func checkAlcoholWritePermission() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            return false
+        }
+        
+        guard let alcoholType = HKQuantityType.quantityType(forIdentifier: .numberOfAlcoholicBeverages) else {
+            return false
+        }
+        
+        let status = healthStore.authorizationStatus(for: alcoholType)
+        print("🔍 Alcohol write permission: \(status.rawValue)")
+        return status == .sharingAuthorized
     }
     
     // MARK: - Unified HealthKit Data Fetching
@@ -254,6 +336,12 @@ class HealthKitService: ObservableObject {
     // MARK: - Water Intake Saving
     
     func saveWaterIntake(amount: Double, unit: WaterUnit, date: Date = Date()) async -> Bool {
+        // Check if water sync is enabled
+        guard UserDefaults.standard.bool(forKey: "healthkit_sync_water") else {
+            print("💧 Water sync is disabled, skipping HealthKit save")
+            return true // Return true since this is intentional, not an error
+        }
+        
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit not available on device")
             return false
@@ -291,6 +379,12 @@ class HealthKitService: ObservableObject {
     }
     
     func saveCaffeineIntake(amount: Double, unit: WaterUnit, date: Date = Date()) async -> Bool {
+        // Check if caffeine sync is enabled
+        guard UserDefaults.standard.bool(forKey: "healthkit_sync_caffeine") else {
+            print("☕️ Caffeine sync is disabled, skipping HealthKit save")
+            return true // Return true since this is intentional, not an error
+        }
+        
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit not available on device")
             return false
@@ -333,6 +427,12 @@ class HealthKitService: ObservableObject {
     }
     
     func saveAlcoholIntake(amount: Double, unit: WaterUnit, alcoholType: Drink, date: Date = Date()) async -> Bool {
+        // Check if alcohol sync is enabled
+        guard UserDefaults.standard.bool(forKey: "healthkit_sync_alcohol") else {
+            print("🍷 Alcohol sync is disabled, skipping HealthKit save")
+            return true // Return true since this is intentional, not an error
+        }
+        
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit not available on device")
             return false
@@ -403,7 +503,7 @@ class HealthKitService: ObservableObject {
     
     // MARK: - Bulk Data Synchronization
     
-    func syncAllHistoricalData(from portions: [WaterPortion]) async -> (success: Int, failed: Int, total: Int) {
+    func syncAllHistoricalData(from portions: [WaterPortion], syncWater: Bool = true, syncCaffeine: Bool = true, syncAlcohol: Bool = true) async -> (success: Int, failed: Int, total: Int) {
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit not available on device")
             return (0, 0, 0)
@@ -428,9 +528,9 @@ class HealthKitService: ObservableObject {
                     var syncTasks: [Task<Bool, Never>] = []
                     
                     // Sync water intake for hydrating drinks
-                    if portion.drink.hydrationCategory == .fullyHydrating || 
+                    if syncWater && (portion.drink.hydrationCategory == .fullyHydrating || 
                        portion.drink.hydrationCategory == .mildDiuretic || 
-                       portion.drink.hydrationCategory == .partiallyHydrating {
+                       portion.drink.hydrationCategory == .partiallyHydrating) {
                         
                         let waterTask = Task {
                             await saveWaterIntake(
@@ -443,7 +543,7 @@ class HealthKitService: ObservableObject {
                     }
                     
                     // Sync caffeine intake for caffeinated drinks
-                    if portion.drink.containsCaffeine {
+                    if syncCaffeine && portion.drink.containsCaffeine {
                         let caffeineTask = Task {
                             await saveCaffeineIntake(
                                 amount: portion.amount,
@@ -455,7 +555,7 @@ class HealthKitService: ObservableObject {
                     }
                     
                     // Sync alcohol intake for alcoholic drinks
-                    if portion.drink.containsAlcohol {
+                    if syncAlcohol && portion.drink.containsAlcohol {
                         let alcoholTask = Task {
                             await saveAlcoholIntake(
                                 amount: portion.amount,

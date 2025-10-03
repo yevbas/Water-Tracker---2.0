@@ -17,6 +17,7 @@ struct ScheduleView: View {
     @State private var reminders: [Reminder] = []
     @State private var loading: Bool = false
     @State private var isShowingPaywall: Bool = false
+    @State private var showingDuplicateAlert: Bool = false
 
     struct Reminder: Identifiable, Hashable {
         let id: String
@@ -55,6 +56,11 @@ struct ScheduleView: View {
         }
         .sheet(isPresented: $isPresentingAdd) { addReminderSheet }
         .sheet(isPresented: $isShowingPaywall) { PaywallView() }
+        .alert(String(localized: "Reminder Already Exists"), isPresented: $showingDuplicateAlert) {
+            Button(String(localized: "OK"), role: .cancel) { }
+        } message: {
+            Text(String(localized: "You already have a reminder set for this time. Please choose a different time."))
+        }
     }
 
     private var content: some View {
@@ -316,6 +322,15 @@ struct ScheduleView: View {
     private func addReminder() async {
         let comps = Calendar.current.dateComponents([.hour, .minute], from: newTime)
         guard let hour = comps.hour, let minute = comps.minute else { return }
+        
+        // Check if a reminder already exists for this time
+        if reminderExistsForTime(hour: hour, minute: minute) {
+            await MainActor.run {
+                showingDuplicateAlert = true
+            }
+            return
+        }
+        
         do {
             let newId = UUID().uuidString
             let id = try await notifications.scheduleDailyReminder(id: newId, hour: hour, minute: minute)
@@ -324,6 +339,12 @@ struct ScheduleView: View {
             isPresentingAdd = false
         } catch {
             // silently fail for now
+        }
+    }
+    
+    private func reminderExistsForTime(hour: Int, minute: Int) -> Bool {
+        return reminders.contains { reminder in
+            reminder.hour == hour && reminder.minute == minute
         }
     }
 
