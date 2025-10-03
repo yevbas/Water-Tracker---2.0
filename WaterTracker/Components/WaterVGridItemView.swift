@@ -40,49 +40,83 @@ struct WaterVGridItemView: View {
             return "Fully hydrating"
         }
     }
+    
+    private var caffeineContent: Double {
+        // Approximate caffeine content per 100ml for different drinks
+        let caffeinePer100ml = switch waterPortion.drink {
+        case .coffee: 40.0 // mg per 100ml
+        case .coffeeWithMilk: 35.0 // slightly less due to milk
+        case .tea: 20.0 // mg per 100ml
+        case .energyShot: 320.0 // mg per 100ml (very high)
+        default: 0.0
+        }
+        
+        return (waterPortion.amount / 100.0) * caffeinePer100ml
+    }
+    
+    private var caffeineDisplay: String {
+        let caffeine = caffeineContent
+        if caffeine > 0 {
+            return "\(Int(caffeine.rounded())) mg caffeine"
+        }
+        return ""
+    }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.ultraThinMaterial)
-            .overlay {
-                HStack(spacing: 12) {
-                    Text(waterPortion.drink.emoji)
-                        .font(.largeTitle)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            Text(waterPortion.drink.emoji)
+                .font(.largeTitle)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(waterPortion.drink.title)
+                        .font(.headline)
+                    Spacer()
+                }
+
+                HStack {
+                    Text("\(waterPortion.amount.formatted()) ml")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    if waterPortion.drink.hydrationFactor != 1.0 {
                         HStack {
-                            Text(waterPortion.drink.title)
-                                .font(.headline)
+                            Text(hydrationEffectText)
+                                .font(.caption)
+                                .foregroundStyle(hydrationEffectColor)
                             Spacer()
                         }
-                        
-                        HStack {
-                            Text("\(waterPortion.amount.formatted()) ml")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                    }
+
+                    if waterPortion.drink.containsCaffeine && caffeineContent > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.brown)
+                            Text(caffeineDisplay)
+                                .font(.caption)
+                                .foregroundStyle(.brown)
                             Spacer()
-                        }
-                        
-                        if waterPortion.drink.hydrationFactor != 1.0 {
-                            HStack {
-                                Text(hydrationEffectText)
-                                    .font(.caption)
-                                    .foregroundStyle(hydrationEffectColor)
-                                Spacer()
-                            }
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
             }
-            .overlay(alignment: .topTrailing, content: {
-                Text(waterPortion.createDate.formatted(date: .omitted, time: .shortened))
-                    .padding()
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            })
-            .frame(height: 75)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        }
+        .overlay(alignment: .topTrailing, content: {
+            Text(waterPortion.createDate.formatted(date: .omitted, time: .shortened))
+                .padding()
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        })
     }
 }
 

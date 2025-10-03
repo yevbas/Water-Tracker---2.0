@@ -289,9 +289,48 @@ struct DashboardView: View {
             Text(percentageDisplay)
                 .font(.system(size: scrollOffset < scrollUpThreshold ? 44 : 22, weight: .bold, design: .rounded))
                 .contentTransition(.numericText())
-            Text(consumedDisplay)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+            
+            // Improved hydration display with better visual hierarchy
+            VStack(spacing: 2) {
+                Text(netHydrationDisplay)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                
+                if totalDehydrationMl(for: selectedDate) > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        Text(dehydrationDisplay)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.orange.opacity(0.1))
+                    )
+                }
+                
+                if totalCaffeineMg(for: selectedDate) > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.brown)
+                        Text("\(Int(totalCaffeineMg(for: selectedDate).rounded())) mg caffeine")
+                            .font(.caption)
+                            .foregroundStyle(.brown)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.brown.opacity(0.1))
+                    )
+                }
+            }
+            
             Text(goalDisplay)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -356,32 +395,59 @@ struct DashboardView: View {
         }
         return dehydrationMl
     }
+    
+    private func totalCaffeineMg(for date: Date?) -> Double {
+        let items = waterPortions
+        var totalCaffeine: Double = 0
+        for p in items {
+            if p.drink.containsCaffeine {
+                let amountInMl = switch p.unit {
+                case .millilitres:
+                    p.amount
+                case .ounces:
+                    p.amount * 29.5735
+                }
+                
+                // Approximate caffeine content per 100ml for different drinks
+                let caffeinePer100ml = switch p.drink {
+                case .coffee: 40.0 // mg per 100ml
+                case .coffeeWithMilk: 35.0 // slightly less due to milk
+                case .tea: 20.0 // mg per 100ml
+                case .energyShot: 320.0 // mg per 100ml (very high)
+                default: 0.0
+                }
+                
+                totalCaffeine += (amountInMl / 100.0) * caffeinePer100ml
+            }
+        }
+        return totalCaffeine
+    }
 
     private var percentageDisplay: String {
         "\(Int(progressPercent.rounded()))%"
     }
 
-    private var consumedDisplay: String {
+    private var netHydrationDisplay: String {
         let netHydrationMl = totalConsumedMl(for: selectedDate)
         let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
-        let dehydrationMl = totalDehydrationMl(for: selectedDate)
         
         if measurementUnits == "fl_oz" {
             let netOz = netHydrationMl / 29.5735
             let rawOz = rawConsumedMl / 29.5735
-            let dehydrationOz = dehydrationMl / 29.5735
-            
-            if dehydrationOz > 0 {
-                return "\(Int(netOz.rounded())) fl oz net (\(Int(rawOz.rounded())) consumed, -\(Int(dehydrationOz.rounded())) dehydrated)"
-            } else {
-                return "\(Int(netOz.rounded())) fl oz net hydration"
-            }
+            return "\(Int(netOz.rounded())) fl oz net (\(Int(rawOz.rounded())) consumed)"
         } else {
-            if dehydrationMl > 0 {
-                return "\(Int(netHydrationMl.rounded())) ml net (\(Int(rawConsumedMl.rounded())) consumed, -\(Int(dehydrationMl.rounded())) dehydrated)"
-            } else {
-                return "\(Int(netHydrationMl.rounded())) ml net hydration"
-            }
+            return "\(Int(netHydrationMl.rounded())) ml net (\(Int(rawConsumedMl.rounded())) consumed)"
+        }
+    }
+    
+    private var dehydrationDisplay: String {
+        let dehydrationMl = totalDehydrationMl(for: selectedDate)
+        
+        if measurementUnits == "fl_oz" {
+            let dehydrationOz = dehydrationMl / 29.5735
+            return "\(Int(dehydrationOz.rounded())) fl oz dehydrated"
+        } else {
+            return "\(Int(dehydrationMl.rounded())) ml dehydrated"
         }
     }
 
