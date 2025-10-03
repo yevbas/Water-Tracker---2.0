@@ -731,18 +731,18 @@ class HealthKitService: ObservableObject {
     
     // MARK: - HealthKit Record Updates
     
-    func updateWaterIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, newAmount: Double, newUnit: WaterUnit, date: Date) async -> Bool {
+    func updateWaterIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, newAmount: Double, newUnit: WaterUnit, oldDate: Date, newDate: Date) async -> Bool {
         print("🔄 Updating water intake record: \(oldAmount) \(oldUnit.shortName) -> \(newAmount) \(newUnit.shortName)")
         
-        // First delete the old record
-        let deleteSuccess = await deleteWaterIntakeRecord(amount: oldAmount, unit: oldUnit, date: date)
+        // First delete the old record using the original date
+        let deleteSuccess = await deleteWaterIntakeRecord(amount: oldAmount, unit: oldUnit, date: oldDate)
         if !deleteSuccess {
             print("❌ Failed to delete old water record")
             return false
         }
         
-        // Then add the new record
-        let addSuccess = await saveWaterIntake(amount: newAmount, unit: newUnit, date: date)
+        // Then add the new record using the new date
+        let addSuccess = await saveWaterIntake(amount: newAmount, unit: newUnit, date: newDate)
         if !addSuccess {
             print("❌ Failed to add new water record")
             return false
@@ -752,18 +752,18 @@ class HealthKitService: ObservableObject {
         return true
     }
     
-    func updateCaffeineIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, newAmount: Double, newUnit: WaterUnit, date: Date) async -> Bool {
+    func updateCaffeineIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, newAmount: Double, newUnit: WaterUnit, oldDate: Date, newDate: Date) async -> Bool {
         print("🔄 Updating caffeine intake record: \(oldAmount) \(oldUnit.shortName) -> \(newAmount) \(newUnit.shortName)")
         
-        // First delete the old record
-        let deleteSuccess = await deleteCaffeineIntakeRecord(amount: oldAmount, unit: oldUnit, date: date)
+        // First delete the old record using the original date
+        let deleteSuccess = await deleteCaffeineIntakeRecord(amount: oldAmount, unit: oldUnit, date: oldDate)
         if !deleteSuccess {
             print("❌ Failed to delete old caffeine record")
             return false
         }
         
-        // Then add the new record
-        let addSuccess = await saveCaffeineIntake(amount: newAmount, unit: newUnit, date: date)
+        // Then add the new record using the new date
+        let addSuccess = await saveCaffeineIntake(amount: newAmount, unit: newUnit, date: newDate)
         if !addSuccess {
             print("❌ Failed to add new caffeine record")
             return false
@@ -773,18 +773,18 @@ class HealthKitService: ObservableObject {
         return true
     }
     
-    func updateAlcoholIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, oldAlcoholType: Drink, newAmount: Double, newUnit: WaterUnit, newAlcoholType: Drink, date: Date) async -> Bool {
+    func updateAlcoholIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, oldAlcoholType: Drink, newAmount: Double, newUnit: WaterUnit, newAlcoholType: Drink, oldDate: Date, newDate: Date) async -> Bool {
         print("🔄 Updating alcohol intake record: \(oldAmount) \(oldUnit.shortName) \(oldAlcoholType.title) -> \(newAmount) \(newUnit.shortName) \(newAlcoholType.title)")
         
-        // First delete the old record
-        let deleteSuccess = await deleteAlcoholIntakeRecord(amount: oldAmount, unit: oldUnit, alcoholType: oldAlcoholType, date: date)
+        // First delete the old record using the original date
+        let deleteSuccess = await deleteAlcoholIntakeRecord(amount: oldAmount, unit: oldUnit, alcoholType: oldAlcoholType, date: oldDate)
         if !deleteSuccess {
             print("❌ Failed to delete old alcohol record")
             return false
         }
         
-        // Then add the new record
-        let addSuccess = await saveAlcoholIntake(amount: newAmount, unit: newUnit, alcoholType: newAlcoholType, date: date)
+        // Then add the new record using the new date
+        let addSuccess = await saveAlcoholIntake(amount: newAmount, unit: newUnit, alcoholType: newAlcoholType, date: newDate)
         if !addSuccess {
             print("❌ Failed to add new alcohol record")
             return false

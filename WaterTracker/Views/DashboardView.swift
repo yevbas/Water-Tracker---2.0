@@ -143,7 +143,7 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $isPresentedImagePicker) {
             DrinkAnalysisView { drink, amount in
-                saveDrink(drink, amount)
+                saveDrink(drink, amount, date: Date())
             }
             .presentationDetents([.medium])
         }
@@ -466,13 +466,13 @@ struct DashboardView: View {
         }
     }
 
-    func saveDrink(_ drink: Drink, _ amount: Double) {
+    func saveDrink(_ drink: Drink, _ amount: Double, date: Date) {
         let waterPortion = WaterPortion(
             amount: amount,
             unit: .millilitres,
             drink: drink,
-            createDate: Date(),
-            dayDate: Date().rounded()
+            createDate: date,
+            dayDate: date.rounded()
         )
         modelContext.insert(waterPortion)
         try? modelContext.save()

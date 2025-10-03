@@ -31,33 +31,16 @@ struct EditWaterPortionView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 16) {
-                if !revenueCatMonitor.userHasFullAccess {
-                    buildAdBannerView(.editScreen)
-                        .padding(.top)
-                }
-                DatePicker(
-                    selection: .init(
-                        get: { waterPortion.createDate },
-                        set: { waterPortion.createDate = $0 }
-                    )
-                ) {
-                    Text(verbatim: "")
-                }
-                .font(.title2.weight(.medium))
-            }
-            .padding(16)
+        DrinkSelector(
+            createDate: waterPortion.createDate,
+            amount: waterPortion.amount.description,
+            drink: waterPortion.drink
+        ) { newDrink, newAmount, newTime in
+            waterPortion.drink = newDrink
+            waterPortion.amount = newAmount
+            waterPortion.createDate = newTime
 
-            DrinkSelector(
-                amount: waterPortion.amount.description,
-                drink: waterPortion.drink
-            ) { newDrink, newAmount in
-                waterPortion.drink = newDrink
-                waterPortion.amount = newAmount
-                saveChanges()
-            }
-            Spacer()
+            saveChanges()
         }
     }
 
@@ -108,7 +91,8 @@ struct EditWaterPortionView: View {
                     oldUnit: originalUnit,
                     newAmount: newWaterAmount,
                     newUnit: waterPortion.unit,
-                    date: waterPortion.createDate
+                    oldDate: originalDate,
+                    newDate: waterPortion.createDate
                 )
             }
         }
@@ -120,7 +104,8 @@ struct EditWaterPortionView: View {
                 oldUnit: originalUnit,
                 newAmount: waterPortion.amount,
                 newUnit: waterPortion.unit,
-                date: waterPortion.createDate
+                oldDate: originalDate,
+                newDate: waterPortion.createDate
             )
         }
         
@@ -133,7 +118,8 @@ struct EditWaterPortionView: View {
                 newAmount: waterPortion.amount,
                 newUnit: waterPortion.unit,
                 newAlcoholType: waterPortion.drink,
-                date: waterPortion.createDate
+                oldDate: originalDate,
+                newDate: waterPortion.createDate
             )
         }
         

@@ -18,6 +18,7 @@ enum PortionSize: CaseIterable {
 
 struct DrinkSelector: View {
     @Environment(\.dismiss) var dismiss
+    @State var createDate = Date()
     @State var amount: String = "250"
     @FocusState var isFocused: Bool
     @State var formattedAmount: String = ""
@@ -31,7 +32,7 @@ struct DrinkSelector: View {
         set { measurementUnitsString = newValue == .ounces ? "fl_oz" : "ml" }
     }
 
-    var onDrinkSelected: (Drink, Double) -> Void = { _, _  in }
+    var onDrinkSelected: (Drink, Double, Date) -> Void = { _, _, _  in }
 
     var body: some View {
         VStack {
@@ -39,17 +40,17 @@ struct DrinkSelector: View {
                 buildAdBannerView(.createScreen)
                     .padding()
             }
+            DatePicker(selection: $createDate, displayedComponents: [.hourAndMinute]) {
+                Text(verbatim: "")
+            }
+            .font(.title2.weight(.medium))
+            .padding()
             Spacer()
-//            if #available(iOS 26.0, *) {
-//                amountInput
-//                    .glassEffect()
-//            } else {
-                amountInput
-                    .background {
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    }
-//            }
+            amountInput
+                .background {
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                }
             Spacer()
             HStack {
                 Spacer()
@@ -76,7 +77,7 @@ struct DrinkSelector: View {
         Button(action: {
             if let amount = Double(amount) {
                 if rc.userHasFullAccess || drink == .water {
-                    onDrinkSelected(drink, amount)
+                    onDrinkSelected(drink, amount, createDate)
                     dismiss()
                 } else {
                     isShowingPaywall = true
@@ -101,10 +102,6 @@ struct DrinkSelector: View {
                         .opacity(0)
                         .focused($isFocused)
                         .keyboardType(.numberPad)
-//                            .submitLabel(.done)
-//                            .onSubmit {
-                            // dismiss
-//                            }
                 }
                 .contentTransition(.numericText())
                 .animation(.smooth, value: formattedAmount)
