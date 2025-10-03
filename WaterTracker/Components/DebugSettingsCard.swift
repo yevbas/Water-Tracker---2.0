@@ -27,6 +27,7 @@ struct DebugSettingsCard: View {
     @State private var showingDebugAlert = false
     @State private var debugAlertMessage = ""
     @State private var showingClearDataConfirmation = false
+    @State private var showingClearHealthDataConfirmation = false
     
     @AppStorage("UseMockSleepData") private var useMockSleepData: Bool = false
 
@@ -132,6 +133,16 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
+                    title: "Clear ALL Health Data",
+                    subtitle: "Remove water, caffeine & alcohol from HealthKit",
+                    icon: "trash.circle.fill",
+                    iconColor: .red,
+                    action: {
+                        showingClearHealthDataConfirmation = true
+                    }
+                )
+
+                SettingsButton(
                     title: "Clear All Data",
                     subtitle: "Delete all water portions & cache",
                     icon: "trash.fill",
@@ -153,6 +164,14 @@ struct DebugSettingsCard: View {
             Button("OK") { }
         } message: {
             Text(debugAlertMessage)
+        }
+        .alert("Clear ALL Health Data", isPresented: $showingClearHealthDataConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear All Health Data", role: .destructive) {
+                clearAllHealthData()
+            }
+        } message: {
+            Text("Are you sure you want to delete ALL water, caffeine, and alcohol data from HealthKit? This action cannot be undone.")
         }
         .alert("Clear All Data", isPresented: $showingClearDataConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -637,6 +656,99 @@ struct DebugSettingsCard: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func clearAllHealthData() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            debugAlertMessage = "HealthKit is not available on this device."
+            showingDebugAlert = true
+            return
+        }
+
+        isGeneratingSleepData = true
+
+        Task { @MainActor in
+            let healthStore = healthKitService.healthStore
+
+            do {
+                var totalDeleted = 0
+
+                // Clear water data
+                let waterDeleted = await clearHealthData(type: .dietaryWater, name: "water")
+                totalDeleted += waterDeleted
+
+                // Clear caffeine data
+                let caffeineDeleted = await clearHealthData(type: .dietaryCaffeine, name: "caffeine")
+                totalDeleted += caffeineDeleted
+
+                // Clear alcohol data
+                let alcoholDeleted = await clearHealthData(type: .numberOfAlcoholicBeverages, name: "alcohol")
+                totalDeleted += alcoholDeleted
+
+                isGeneratingSleepData = false
+                debugAlertMessage = "Successfully deleted \(totalDeleted) health data samples from HealthKit!\n• Water: \(waterDeleted) samples\n• Caffeine: \(caffeineDeleted) samples\n• Alcohol: \(alcoholDeleted) samples"
+                showingDebugAlert = true
+                print("✅ Debug: Cleared all health data - \(totalDeleted) total samples deleted")
+
+            } catch {
+                isGeneratingSleepData = false
+                debugAlertMessage = "Failed to clear health data: \(error.localizedDescription)"
+                showingDebugAlert = true
+                print("❌ Debug: Failed to clear health data - \(error)")
+            }
+        }
+    }
+
+    private func clearHealthData(type: HKQuantityTypeIdentifier, name: String) async -> Int {
+        guard let quantityType = HKQuantityType.quantityType(forIdentifier: type) else {
+            print("❌ \(name.capitalized) type not available")
+            return 0
+        }
+
+        let calendar = Calendar.current
+        let endDate = Date()
+        guard let startDate = calendar.date(byAdding: .year, value: -10, to: endDate) else {
+            print("❌ Failed to calculate date range for \(name)")
+            return 0
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: quantityType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                Task { @MainActor in
+                    if let error = error {
+                        print("❌ Debug: Failed to fetch \(name) data - \(error)")
+                        continuation.resume(returning: 0)
+                        return
+                    }
+
+                    guard let samples = samples, !samples.isEmpty else {
+                        print("⚠️ Debug: No \(name) samples to delete")
+                        continuation.resume(returning: 0)
+                        return
+                    }
+
+                    print("🗑️ Debug: Found \(samples.count) \(name) samples to delete")
+
+                    do {
+                        try await self.healthKitService.healthStore.delete(samples)
+                        print("✅ Debug: Deleted \(samples.count) \(name) samples")
+                        continuation.resume(returning: samples.count)
+                    } catch {
+                        print("❌ Debug: Failed to delete \(name) samples - \(error)")
+                        continuation.resume(returning: 0)
+                    }
+                }
+            }
+
+            self.healthKitService.healthStore.execute(query)
+        }
     }
 
     private func clearAllData() {
