@@ -23,7 +23,7 @@ struct DashboardView: View {
     @AppStorage("show_statistics_card") private var showStatisticsCard: Bool = true
 
     @State var waterPortions: [WaterPortion] = []
-    @State var selectedDate: Date? = Date().rounded()
+    @State var selectedDate: Date = Date().rounded()
 
     @State var editingWaterPortion: WaterPortion?
     @State var isPresentedSchedule = false
@@ -109,21 +109,29 @@ struct DashboardView: View {
             addDrinkButton
                 .padding(.trailing, 8)
         }
-        .navigationTitle("Current's progress")
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    isPresentedSchedule = true
-                } label: {
-                    Image(systemName: "clock")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: SettingsView.init) {
-                    Image(systemName: "gear")
-                }
-            }
-        }
+//        .navigationTitle("Current's progress")
+//        .toolbar {
+//            ToolbarItem(placement: .topBarLeading) {
+//                Button {
+//                    isPresentedSchedule = true
+//                } label: {
+//                    Image(systemName: "clock")
+//                }
+//            }
+//            ToolbarItem(placement: .topBarLeading) {
+////                DatePicker("", selection: .constant(Date()))
+//                DatePicker(
+//                    "",
+//                    selection: $selectedDate,
+//                    displayedComponents: [.date]
+//                )
+//            }
+//            ToolbarItem(placement: .topBarTrailing) {
+//                NavigationLink(destination: SettingsView.init) {
+//                    Image(systemName: "gear")
+//                }
+//            }
+//        }
         .sheet(isPresented: $isPresentedSchedule) {
             ScheduleView()
         }
@@ -160,10 +168,10 @@ struct DashboardView: View {
                 .overlay {
                     VStack {
                         if scrollOffset < scrollUpThreshold {
-                            if !revenueCatMonitor.userHasFullAccess {
-                                buildAdBannerView(.mainScreen)
-                                    .padding(.horizontal)
-                            }
+//                            if !revenueCatMonitor.userHasFullAccess {
+//                                buildAdBannerView(.mainScreen)
+//                                    .padding(.horizontal)
+//                            }
                             datePicker
                         }
                         HStack {
@@ -246,7 +254,7 @@ struct DashboardView: View {
                 }
             }
 
-            if selectedDate?.rounded() == Date().rounded() {
+            if selectedDate.rounded() == Date().rounded() {
                 // Weather Card - Shows if cached data exists or if loading and toggle is enabled
                 if showWeatherCard {
                     WeatherCardView()
@@ -488,6 +496,9 @@ struct ViewOffsetKey: PreferenceKey {
         DashboardView()
             .modelContainer(for: [WaterPortion.self, WeatherAnalysisCache.self, SleepAnalysisCache.self], inMemory: true)
             .environmentObject(RevenueCatMonitor(state: .preview(true)))
+            .environmentObject(WeatherService())
+            .environmentObject(SleepService())
+            .environmentObject(HealthKitService())
     }
 }
 

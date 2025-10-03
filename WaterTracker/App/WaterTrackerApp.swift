@@ -41,7 +41,7 @@ struct WaterTrackerApp: App {
             Group {
                 if isConfigured {
                     if onboardingPassed {
-                        MainView()
+                        MainTabView()
                             .modelContainer(sharedModelContainer)
                             .environmentObject(revenueCatMonitor)
                             .environmentObject(healthKitService)

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CustomDatePicker: View {
-    @Binding var selectedDate: Date?
+    @Binding var selectedDate: Date
     @State private var dates: [Date] = []
     @State private var viewHeight: CGFloat?
     @State private var isPrepending: Bool = false
@@ -83,13 +83,13 @@ struct CustomDatePicker: View {
                         }
                     } else {
                         // On subsequent appearances, just scroll to the currently selected date
-                        if let currentDate = selectedDate {
+//                        if let currentDate = selectedDate {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                 withAnimation(.easeInOut(duration: 0.3)) {
-                                    scroll.scrollTo(currentDate, anchor: .center)
+                                    scroll.scrollTo(selectedDate, anchor: .center)
                                 }
                             }
-                        }
+//                        }
                     }
                 }
             }

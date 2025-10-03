@@ -58,7 +58,7 @@ struct SettingsView: View {
             .padding(.top, 10)
             .padding(.bottom, 30)
         }
-        .navigationTitle("Settings")
+//        .navigationTitle("Settings")
         .overlay {
             if isConvertingUnits {
                 ZStack {

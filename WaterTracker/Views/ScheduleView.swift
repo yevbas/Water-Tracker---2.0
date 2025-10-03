@@ -83,6 +83,7 @@ struct ScheduleView: View {
             Spacer()
             addButton
                 .padding(.horizontal)
+                .padding(.bottom, 8)
         }
     }
 
@@ -190,7 +191,6 @@ struct ScheduleView: View {
         .cornerRadius(10)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal)
-        .padding(.top)
     }
 
     private var emptyState: some View {

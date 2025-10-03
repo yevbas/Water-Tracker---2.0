@@ -19,14 +19,20 @@ struct NoDrinksView: View {
 //                maxHeight: .infinity
 //            )
 //            .font(.title.weight(.medium))
-        VStack {
-//            LottieView(animation: .named("h2o-rocket"))
-//                .looping()
-//                .frame(height: 200)
-            Text("No drinks found")
-                .font(.system(.title, design: .rounded, weight: .bold))
-        }
 
+        RoundedRectangle(cornerRadius: 24)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                VStack {
+                    LottieView(animation: .named("h2o-rocket"))
+                        .looping()
+//                        .frame(height: 120)
+                    Text("No drinks found")
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .padding()
+                }
+            }
+            .frame(height: 200)
     }
 }
 
