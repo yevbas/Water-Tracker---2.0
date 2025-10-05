@@ -247,9 +247,35 @@ enum WaterUnit: Codable, Equatable, CaseIterable {
         if self == targetUnit {
             return amount
         }
-        
+
         // Convert to ml first, then to target unit
         let amountInMl = amount * self.conversionFactor
         return amountInMl / targetUnit.conversionFactor
+    }
+
+    /// Convert amount from this unit to milliliters
+    func toMilliliters(_ amount: Double) -> Double {
+        return amount * self.conversionFactor
+    }
+
+    /// Convert amount from milliliters to this unit
+    func fromMilliliters(_ amountInMl: Double) -> Double {
+        return amountInMl / self.conversionFactor
+    }
+}
+
+// MARK: - Convenience Extensions
+extension WaterUnit {
+    /// The conversion factor from fluid ounces to milliliters
+    static let mlPerFlOz: Double = 29.5735
+
+    /// Convert any amount to milliliters, given the source unit
+    static func toMilliliters(_ amount: Double, from unit: WaterUnit) -> Double {
+        return unit.toMilliliters(amount)
+    }
+
+    /// Convert milliliters to the target unit
+    static func fromMilliliters(_ amountInMl: Double, to unit: WaterUnit) -> Double {
+        return unit.fromMilliliters(amountInMl)
     }
 }

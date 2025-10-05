@@ -12,8 +12,6 @@ import HealthKit
 #if DEBUG
 struct DebugSettingsCard: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var portions: [WaterPortion]
-    @Query private var weatherAnalysisCache: [WeatherAnalysisCache]
 
     @EnvironmentObject private var healthKitService: HealthKitService
     @EnvironmentObject private var rcMonitor: RevenueCatMonitor

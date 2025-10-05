@@ -353,7 +353,7 @@ class HealthKitService: ObservableObject {
         }
         
         // Convert amount to milliliters for HealthKit
-        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
+        let amountInMl = unit.toMilliliters(amount)
         let quantity = HKQuantity(unit: HKUnit.literUnit(with: .milli), doubleValue: amountInMl)
 
         let sample = HKQuantitySample(
@@ -396,8 +396,8 @@ class HealthKitService: ObservableObject {
         }
         
         // Convert amount to milliliters for HealthKit, then estimate caffeine content
-        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
-        
+        let amountInMl = unit.toMilliliters(amount)
+
         // Estimate caffeine content: ~95mg per 240ml (8 fl oz) of coffee
         let caffeinePerMl = 95.0 / 240.0 // mg per ml
         let caffeineAmount = amountInMl * caffeinePerMl
@@ -444,8 +444,8 @@ class HealthKitService: ObservableObject {
         }
         
         // Convert amount to milliliters
-        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
-        
+        let amountInMl = unit.toMilliliters(amount)
+
         // Calculate standard drinks based on alcohol type and volume
         let standardDrinks = calculateStandardDrinks(volumeMl: amountInMl, alcoholType: alcoholType)
         
@@ -502,294 +502,206 @@ class HealthKitService: ObservableObject {
     }
     
     // MARK: - HealthKit Record Management
-    
+
+    /// Generic method to delete a HealthKit record by matching quantity and date
+    private func deleteHealthKitRecord(
+        quantityType: HKQuantityType,
+        expectedQuantity: Double,
+        unit: HKUnit,
+        date: Date,
+        tolerance: Double,
+        logPrefix: String
+    ) async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available on device")
+            return false
+        }
+
+        // Create a time window around the date (±1 minute) to find the record
+        let calendar = Calendar.current
+        let startDate = calendar.date(byAdding: .minute, value: -1, to: date) ?? date
+        let endDate = calendar.date(byAdding: .minute, value: 1, to: date) ?? date
+
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: quantityType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+            ) { _, samples, error in
+                if let error = error {
+                    print("❌ Error fetching \(logPrefix) records for deletion: \(error)")
+                    continuation.resume(returning: false)
+                    return
+                }
+
+                guard let samples = samples as? [HKQuantitySample] else {
+                    print("❌ No \(logPrefix) samples found for deletion")
+                    continuation.resume(returning: true) // No records to delete is success
+                    return
+                }
+
+                // Find the sample with matching quantity and date
+                let matchingSample = samples.first { sample in
+                    let sampleQuantity = sample.quantity.doubleValue(for: unit)
+                    let timeDiff = abs(sample.startDate.timeIntervalSince(date))
+                    return abs(sampleQuantity - expectedQuantity) < tolerance && timeDiff < 60
+                }
+
+                guard let sampleToDelete = matchingSample else {
+                    print("❌ No matching \(logPrefix) record found for deletion")
+                    continuation.resume(returning: true) // No matching record is success
+                    return
+                }
+
+                // Delete the matching sample
+                self.healthStore.delete(sampleToDelete) { success, error in
+                    if let error = error {
+                        print("❌ Failed to delete \(logPrefix) record from HealthKit: \(error)")
+                        continuation.resume(returning: false)
+                    } else {
+                        print("✅ \(logPrefix.capitalized) record deleted from HealthKit successfully")
+                        continuation.resume(returning: true)
+                    }
+                }
+            }
+
+            self.healthStore.execute(query)
+        }
+    }
+
     func deleteWaterIntakeRecord(amount: Double, unit: WaterUnit, date: Date) async -> Bool {
         guard UserDefaults.standard.bool(forKey: "healthkit_sync_water") else {
             print("💧 Water sync is disabled, skipping HealthKit deletion")
             return true
         }
-        
-        guard HKHealthStore.isHealthDataAvailable() else {
-            print("❌ HealthKit not available on device")
-            return false
-        }
-        
+
         guard let waterType = HKQuantityType.quantityType(forIdentifier: .dietaryWater) else {
             print("❌ Water type not available")
             return false
         }
-        
+
         // Convert amount to milliliters for HealthKit
-        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
-        let quantity = HKQuantity(unit: HKUnit.literUnit(with: .milli), doubleValue: amountInMl)
-        
-        // Create a time window around the date (±1 minute) to find the record
-        let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .minute, value: -1, to: date) ?? date
-        let endDate = calendar.date(byAdding: .minute, value: 1, to: date) ?? date
-        
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-        
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: waterType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-            ) { _, samples, error in
-                if let error = error {
-                    print("❌ Error fetching water records for deletion: \(error)")
-                    continuation.resume(returning: false)
-                    return
-                }
-                
-                guard let samples = samples as? [HKQuantitySample] else {
-                    print("❌ No water samples found for deletion")
-                    continuation.resume(returning: true) // No records to delete is success
-                    return
-                }
-                
-                // Find the sample with matching quantity and date
-                let matchingSample = samples.first { sample in
-                    let sampleQuantity = sample.quantity.doubleValue(for: HKUnit.literUnit(with: .milli))
-                    let timeDiff = abs(sample.startDate.timeIntervalSince(date))
-                    return abs(sampleQuantity - amountInMl) < 0.1 && timeDiff < 60 // Within 0.1ml and 1 minute
-                }
-                
-                guard let sampleToDelete = matchingSample else {
-                    print("❌ No matching water record found for deletion")
-                    continuation.resume(returning: true) // No matching record is success
-                    return
-                }
-                
-                // Delete the matching sample
-                self.healthStore.delete(sampleToDelete) { success, error in
-                    if let error = error {
-                        print("❌ Failed to delete water record from HealthKit: \(error)")
-                        continuation.resume(returning: false)
-                    } else {
-                        print("✅ Water record deleted from HealthKit successfully")
-                        continuation.resume(returning: true)
-                    }
-                }
-            }
-            
-            self.healthStore.execute(query)
-        }
+        let amountInMl = unit.toMilliliters(amount)
+
+        return await deleteHealthKitRecord(
+            quantityType: waterType,
+            expectedQuantity: amountInMl,
+            unit: HKUnit.literUnit(with: .milli),
+            date: date,
+            tolerance: 0.1,
+            logPrefix: "water"
+        )
     }
-    
+
     func deleteCaffeineIntakeRecord(amount: Double, unit: WaterUnit, date: Date) async -> Bool {
         guard UserDefaults.standard.bool(forKey: "healthkit_sync_caffeine") else {
             print("☕️ Caffeine sync is disabled, skipping HealthKit deletion")
             return true
         }
-        
-        guard HKHealthStore.isHealthDataAvailable() else {
-            print("❌ HealthKit not available on device")
-            return false
-        }
-        
+
         guard let caffeineType = HKQuantityType.quantityType(forIdentifier: .dietaryCaffeine) else {
             print("❌ Caffeine type not available")
             return false
         }
-        
+
         // Convert amount to milliliters and calculate caffeine content
-        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
+        let amountInMl = unit.toMilliliters(amount)
         let caffeinePerMl = 95.0 / 240.0 // mg per ml
         let expectedCaffeineAmount = amountInMl * caffeinePerMl
-        
-        // Create a time window around the date (±1 minute) to find the record
-        let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .minute, value: -1, to: date) ?? date
-        let endDate = calendar.date(byAdding: .minute, value: 1, to: date) ?? date
-        
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-        
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: caffeineType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-            ) { _, samples, error in
-                if let error = error {
-                    print("❌ Error fetching caffeine records for deletion: \(error)")
-                    continuation.resume(returning: false)
-                    return
-                }
-                
-                guard let samples = samples as? [HKQuantitySample] else {
-                    print("❌ No caffeine samples found for deletion")
-                    continuation.resume(returning: true) // No records to delete is success
-                    return
-                }
-                
-                // Find the sample with matching quantity and date
-                let matchingSample = samples.first { sample in
-                    let sampleQuantity = sample.quantity.doubleValue(for: HKUnit.gramUnit(with: .milli))
-                    let timeDiff = abs(sample.startDate.timeIntervalSince(date))
-                    return abs(sampleQuantity - expectedCaffeineAmount) < 0.1 && timeDiff < 60 // Within 0.1mg and 1 minute
-                }
-                
-                guard let sampleToDelete = matchingSample else {
-                    print("❌ No matching caffeine record found for deletion")
-                    continuation.resume(returning: true) // No matching record is success
-                    return
-                }
-                
-                // Delete the matching sample
-                self.healthStore.delete(sampleToDelete) { success, error in
-                    if let error = error {
-                        print("❌ Failed to delete caffeine record from HealthKit: \(error)")
-                        continuation.resume(returning: false)
-                    } else {
-                        print("✅ Caffeine record deleted from HealthKit successfully")
-                        continuation.resume(returning: true)
-                    }
-                }
-            }
-            
-            self.healthStore.execute(query)
-        }
+
+        return await deleteHealthKitRecord(
+            quantityType: caffeineType,
+            expectedQuantity: expectedCaffeineAmount,
+            unit: HKUnit.gramUnit(with: .milli),
+            date: date,
+            tolerance: 0.1,
+            logPrefix: "caffeine"
+        )
     }
-    
+
     func deleteAlcoholIntakeRecord(amount: Double, unit: WaterUnit, alcoholType: Drink, date: Date) async -> Bool {
         guard UserDefaults.standard.bool(forKey: "healthkit_sync_alcohol") else {
             print("🍷 Alcohol sync is disabled, skipping HealthKit deletion")
             return true
         }
-        
-        guard HKHealthStore.isHealthDataAvailable() else {
-            print("❌ HealthKit not available on device")
-            return false
-        }
-        
+
         guard let alcoholQuantityType = HKQuantityType.quantityType(forIdentifier: .numberOfAlcoholicBeverages) else {
             print("❌ Alcohol type not available")
             return false
         }
-        
+
         // Convert amount to milliliters and calculate standard drinks
-        let amountInMl = unit == .ounces ? amount * 29.5735 : amount
+        let amountInMl = unit.toMilliliters(amount)
         let expectedStandardDrinks = calculateStandardDrinks(volumeMl: amountInMl, alcoholType: alcoholType)
-        
-        // Create a time window around the date (±1 minute) to find the record
-        let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .minute, value: -1, to: date) ?? date
-        let endDate = calendar.date(byAdding: .minute, value: 1, to: date) ?? date
-        
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-        
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: alcoholQuantityType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-            ) { _, samples, error in
-                if let error = error {
-                    print("❌ Error fetching alcohol records for deletion: \(error)")
-                    continuation.resume(returning: false)
-                    return
-                }
-                
-                guard let samples = samples as? [HKQuantitySample] else {
-                    print("❌ No alcohol samples found for deletion")
-                    continuation.resume(returning: true) // No records to delete is success
-                    return
-                }
-                
-                // Find the sample with matching quantity and date
-                let matchingSample = samples.first { sample in
-                    let sampleQuantity = sample.quantity.doubleValue(for: HKUnit.count())
-                    let timeDiff = abs(sample.startDate.timeIntervalSince(date))
-                    return abs(sampleQuantity - expectedStandardDrinks) < 0.01 && timeDiff < 60 // Within 0.01 drinks and 1 minute
-                }
-                
-                guard let sampleToDelete = matchingSample else {
-                    print("❌ No matching alcohol record found for deletion")
-                    continuation.resume(returning: true) // No matching record is success
-                    return
-                }
-                
-                // Delete the matching sample
-                self.healthStore.delete(sampleToDelete) { success, error in
-                    if let error = error {
-                        print("❌ Failed to delete alcohol record from HealthKit: \(error)")
-                        continuation.resume(returning: false)
-                    } else {
-                        print("✅ Alcohol record deleted from HealthKit successfully")
-                        continuation.resume(returning: true)
-                    }
-                }
-            }
-            
-            self.healthStore.execute(query)
-        }
+
+        return await deleteHealthKitRecord(
+            quantityType: alcoholQuantityType,
+            expectedQuantity: expectedStandardDrinks,
+            unit: HKUnit.count(),
+            date: date,
+            tolerance: 0.01,
+            logPrefix: "alcohol"
+        )
     }
     
     // MARK: - HealthKit Record Updates
-    
+
     func updateWaterIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, newAmount: Double, newUnit: WaterUnit, oldDate: Date, newDate: Date) async -> Bool {
         print("🔄 Updating water intake record: \(oldAmount) \(oldUnit.shortName) -> \(newAmount) \(newUnit.shortName)")
-        
-        // First delete the old record using the original date
+
         let deleteSuccess = await deleteWaterIntakeRecord(amount: oldAmount, unit: oldUnit, date: oldDate)
-        if !deleteSuccess {
+        guard deleteSuccess else {
             print("❌ Failed to delete old water record")
             return false
         }
-        
-        // Then add the new record using the new date
+
         let addSuccess = await saveWaterIntake(amount: newAmount, unit: newUnit, date: newDate)
-        if !addSuccess {
+        guard addSuccess else {
             print("❌ Failed to add new water record")
             return false
         }
-        
+
         print("✅ Water intake record updated successfully")
         return true
     }
-    
+
     func updateCaffeineIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, newAmount: Double, newUnit: WaterUnit, oldDate: Date, newDate: Date) async -> Bool {
         print("🔄 Updating caffeine intake record: \(oldAmount) \(oldUnit.shortName) -> \(newAmount) \(newUnit.shortName)")
-        
-        // First delete the old record using the original date
+
         let deleteSuccess = await deleteCaffeineIntakeRecord(amount: oldAmount, unit: oldUnit, date: oldDate)
-        if !deleteSuccess {
+        guard deleteSuccess else {
             print("❌ Failed to delete old caffeine record")
             return false
         }
-        
-        // Then add the new record using the new date
+
         let addSuccess = await saveCaffeineIntake(amount: newAmount, unit: newUnit, date: newDate)
-        if !addSuccess {
+        guard addSuccess else {
             print("❌ Failed to add new caffeine record")
             return false
         }
-        
+
         print("✅ Caffeine intake record updated successfully")
         return true
     }
-    
+
     func updateAlcoholIntakeRecord(oldAmount: Double, oldUnit: WaterUnit, oldAlcoholType: Drink, newAmount: Double, newUnit: WaterUnit, newAlcoholType: Drink, oldDate: Date, newDate: Date) async -> Bool {
         print("🔄 Updating alcohol intake record: \(oldAmount) \(oldUnit.shortName) \(oldAlcoholType.title) -> \(newAmount) \(newUnit.shortName) \(newAlcoholType.title)")
-        
-        // First delete the old record using the original date
+
         let deleteSuccess = await deleteAlcoholIntakeRecord(amount: oldAmount, unit: oldUnit, alcoholType: oldAlcoholType, date: oldDate)
-        if !deleteSuccess {
+        guard deleteSuccess else {
             print("❌ Failed to delete old alcohol record")
             return false
         }
-        
-        // Then add the new record using the new date
+
         let addSuccess = await saveAlcoholIntake(amount: newAmount, unit: newUnit, alcoholType: newAlcoholType, date: newDate)
-        if !addSuccess {
+        guard addSuccess else {
             print("❌ Failed to add new alcohol record")
             return false
         }
-        
+
         print("✅ Alcohol intake record updated successfully")
         return true
     }

@@ -10,30 +10,42 @@ import HealthKit
 import SwiftData
 
 struct HealthKitCard: View {
+    // MARK: - Environment
     @EnvironmentObject private var healthKitService: HealthKitService
     @Environment(\.modelContext) private var modelContext
+
+    // MARK: - State: Loading & Data
     @State private var isLoading = true
     @State private var healthDataAvailable = false
     @State private var healthData: HealthKitData?
-    @State private var showingEnableTutorial = false
-    @State private var showingDisableTutorial = false
+
+    // MARK: - State: Actions
     @State private var isRefreshing = false
     @State private var isCalculatingWaterIntake = false
-    @State private var showingCalculationResult = false
-    @State private var calculatedWaterGoal: Int?
     @State private var isSyncing = false
     @State private var syncProgress: Double = 0.0
-    @State private var showingSyncResult = false
-    @State private var syncResult: (success: Int, failed: Int, total: Int)?
+
+    // MARK: - State: Permissions
     @State private var hasWritePermissions = false
     @State private var hasWaterWritePermission = false
     @State private var hasCaffeineWritePermission = false
     @State private var hasAlcoholWritePermission = false
+
+    // MARK: - State: UI & Navigation
+    @State private var showingEnableTutorial = false
+    @State private var showingDisableTutorial = false
+    @State private var showingCalculationResult = false
+    @State private var calculatedWaterGoal: Int?
+    @State private var showingSyncResult = false
+    @State private var syncResult: (success: Int, failed: Int, total: Int)?
+
+    // MARK: - State: Sync Settings
     @State private var syncWater = UserDefaults.standard.bool(forKey: "healthkit_sync_water")
     @State private var syncCaffeine = UserDefaults.standard.bool(forKey: "healthkit_sync_caffeine")
     @State private var syncAlcohol = UserDefaults.standard.bool(forKey: "healthkit_sync_alcohol")
-    
-    // Computed properties for connection state
+
+    // MARK: - Computed Properties
+
     private var availableDataCount: Int {
         guard let data = healthData else { return 0 }
         var count = 0
@@ -65,7 +77,17 @@ struct HealthKitCard: View {
         guard let data = healthData else { return false }
         return data.height != nil && data.weight != nil && data.age != nil && data.gender != nil
     }
-    
+
+    private var hasAnySyncPermissions: Bool {
+        hasWaterWritePermission || hasCaffeineWritePermission || hasAlcoholWritePermission
+    }
+
+    private var isPerformingAction: Bool {
+        isRefreshing || isCalculatingWaterIntake || isSyncing
+    }
+
+    // MARK: - Body
+
     var body: some View {
         VStack(spacing: 0) {
             // Header - Enhanced with better spacing and alignment
@@ -222,267 +244,288 @@ struct HealthKitCard: View {
     }
     
     // MARK: - Health Data Available View
-    
+
     private var healthDataAvailableView: some View {
         VStack(spacing: 12) {
             Divider()
                 .padding(.horizontal, 16)
-            
-            // Success indicator
+
+            connectionStatusIndicator
+
+            healthDataGrid
+
+            actionButtonsSection
+        }
+    }
+
+    private var connectionStatusIndicator: some View {
+        HStack {
+            Image(systemName: isPartiallyConnected ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(isPartiallyConnected ? .orange : .green)
+                .font(.system(size: 12))
+            Text(connectionStatusText)
+                .font(.system(size: 12))
+                .foregroundStyle(isPartiallyConnected ? .orange : .green)
+                .fontWeight(.medium)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private var healthDataGrid: some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
+            if let height = healthData?.height {
+                DataItemView(
+                    icon: "ruler",
+                    title: "Height",
+                    value: String(format: "%.1f m", height),
+                    color: .blue
+                )
+            }
+
+            if let weight = healthData?.weight {
+                DataItemView(
+                    icon: "scalemass",
+                    title: "Weight",
+                    value: String(format: "%.1f kg", weight),
+                    color: .green
+                )
+            }
+
+            if let age = healthData?.age {
+                DataItemView(
+                    icon: "calendar",
+                    title: "Age",
+                    value: "\(age) years",
+                    color: .purple
+                )
+            }
+
+            if let sleep = healthData?.averageSleepHours {
+                DataItemView(
+                    icon: "moon",
+                    title: "Sleep",
+                    value: String(format: "%.1f hrs", sleep),
+                    color: .indigo
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private var actionButtonsSection: some View {
+        VStack(spacing: 12) {
+            refreshDataButton
+
+            if canCalculateWaterIntake {
+                calculateWaterIntakeButton
+            }
+
+            syncDataButton
+
+            if hasAnySyncPermissions {
+                syncSettingsSection
+            }
+
+            secondaryActionsSection
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+    }
+
+    private var refreshDataButton: some View {
+        Button {
+            refreshHealthData()
+        } label: {
+            HStack(spacing: 10) {
+                if isRefreshing {
+                    ProgressView()
+                        .scaleEffect(0.9)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                Text(isRefreshing ? "Refreshing..." : "Refresh Data")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [.blue, .blue.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+        .disabled(isRefreshing)
+    }
+
+    private var calculateWaterIntakeButton: some View {
+        Button {
+            calculateWaterIntake()
+        } label: {
+            HStack(spacing: 10) {
+                if isCalculatingWaterIntake {
+                    ProgressView()
+                        .scaleEffect(0.9)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "drop.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                Text(isCalculatingWaterIntake ? "Calculating..." : "Calculate Water Intake")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [.green, .green.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .green.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+        .disabled(isPerformingAction)
+    }
+
+    private var syncDataButton: some View {
+        Button {
+            syncAllDataToHealthKit()
+        } label: {
+            HStack(spacing: 10) {
+                if isSyncing {
+                    ProgressView()
+                        .scaleEffect(0.9)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "arrow.up.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                VStack(spacing: 2) {
+                    Text(isSyncing ? "Syncing to Health..." : "Sync All Data to Health")
+                        .font(.system(size: 16, weight: .semibold))
+                    if isSyncing && syncProgress > 0 {
+                        Text("\(Int(syncProgress * 100))% complete")
+                            .font(.system(size: 12, weight: .medium))
+                            .opacity(0.9)
+                    }
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [.purple, .purple.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .purple.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+        .disabled(isPerformingAction)
+    }
+
+    private var syncSettingsSection: some View {
+        VStack(spacing: 16) {
+            // Enhanced divider with better spacing
             HStack {
-                Image(systemName: isPartiallyConnected ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                    .foregroundStyle(isPartiallyConnected ? .orange : .green)
-                    .font(.system(size: 12))
-                Text(connectionStatusText)
-                    .font(.system(size: 12))
-                    .foregroundStyle(isPartiallyConnected ? .orange : .green)
-                    .fontWeight(.medium)
-                Spacer()
+                Rectangle()
+                    .fill(.secondary.opacity(0.3))
+                    .frame(height: 1)
+                Text("Sync Settings")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                Rectangle()
+                    .fill(.secondary.opacity(0.3))
+                    .frame(height: 1)
             }
-            .padding(.horizontal, 16)
-            
-            // Data summary - Enhanced grid with better spacing
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ], spacing: 12) {
-                if let height = healthData?.height {
-                    DataItemView(
-                        icon: "ruler",
-                        title: "Height",
-                        value: String(format: "%.1f m", height),
-                        color: .blue
+            .padding(.horizontal, 20)
+
+            VStack(spacing: 10) {
+                if hasWaterWritePermission {
+                    SyncToggleRow(
+                        title: "Water Intake",
+                        subtitle: "Sync hydration data",
+                        icon: "drop.fill",
+                        color: .blue,
+                        isOn: $syncWater
                     )
                 }
-                
-                if let weight = healthData?.weight {
-                    DataItemView(
-                        icon: "scalemass",
-                        title: "Weight",
-                        value: String(format: "%.1f kg", weight),
-                        color: .green
+
+                if hasCaffeineWritePermission {
+                    SyncToggleRow(
+                        title: "Caffeine",
+                        subtitle: "Sync caffeine consumption",
+                        icon: "cup.and.saucer.fill",
+                        color: .brown,
+                        isOn: $syncCaffeine
                     )
                 }
-                
-                if let age = healthData?.age {
-                    DataItemView(
-                        icon: "calendar",
-                        title: "Age",
-                        value: "\(age) years",
-                        color: .purple
-                    )
-                }
-                
-                if let sleep = healthData?.averageSleepHours {
-                    DataItemView(
-                        icon: "moon",
-                        title: "Sleep",
-                        value: String(format: "%.1f hrs", sleep),
-                        color: .indigo
+
+                if hasAlcoholWritePermission {
+                    SyncToggleRow(
+                        title: "Alcohol",
+                        subtitle: "Sync alcohol consumption",
+                        icon: "wineglass.fill",
+                        color: .purple,
+                        isOn: $syncAlcohol
                     )
                 }
             }
             .padding(.horizontal, 20)
-            
-            // Action buttons - Enhanced with better spacing and hierarchy
-            VStack(spacing: 12) {
-                // Primary action - Refresh Data
+        }
+    }
+
+    private var secondaryActionsSection: some View {
+        VStack(spacing: 8) {
+            if isPartiallyConnected {
                 Button {
-                    refreshHealthData()
+                    showingEnableTutorial = true
                 } label: {
-                    HStack(spacing: 10) {
-                        if isRefreshing {
-                            ProgressView()
-                                .scaleEffect(0.9)
-                                .tint(.white)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        Text(isRefreshing ? "Refreshing..." : "Refresh Data")
-                            .font(.system(size: 16, weight: .semibold))
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Connect More Services")
+                            .font(.system(size: 15, weight: .semibold))
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 12)
                     .background(
                         LinearGradient(
-                            colors: [.blue, .blue.opacity(0.8)],
+                            colors: [.orange, .orange.opacity(0.8)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
-                }
-                .disabled(isRefreshing)
-                
-                // Water intake calculation button
-                if canCalculateWaterIntake {
-                    Button {
-                        calculateWaterIntake()
-                    } label: {
-                        HStack(spacing: 10) {
-                            if isCalculatingWaterIntake {
-                                ProgressView()
-                                    .scaleEffect(0.9)
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "drop.circle")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            Text(isCalculatingWaterIntake ? "Calculating..." : "Calculate Water Intake")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: [.green, .green.opacity(0.8)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: .green.opacity(0.3), radius: 4, x: 0, y: 2)
-                    }
-                    .disabled(isCalculatingWaterIntake || isRefreshing)
-                }
-                
-                // Sync all data button
-                Button {
-                    syncAllDataToHealthKit()
-                } label: {
-                    HStack(spacing: 10) {
-                        if isSyncing {
-                            ProgressView()
-                                .scaleEffect(0.9)
-                                .tint(.white)
-                        } else {
-                            Image(systemName: "arrow.up.circle")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        VStack(spacing: 2) {
-                            Text(isSyncing ? "Syncing to Health..." : "Sync All Data to Health")
-                                .font(.system(size: 16, weight: .semibold))
-                            if isSyncing && syncProgress > 0 {
-                                Text("\(Int(syncProgress * 100))% complete")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .opacity(0.9)
-                            }
-                        }
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            colors: [.purple, .purple.opacity(0.8)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .purple.opacity(0.3), radius: 4, x: 0, y: 2)
-                }
-                .disabled(isSyncing || isRefreshing || isCalculatingWaterIntake)
-                
-                // Sync toggles - only show if any write permissions exist
-                if hasWaterWritePermission || hasCaffeineWritePermission || hasAlcoholWritePermission {
-                    VStack(spacing: 16) {
-                        // Enhanced divider with better spacing
-                        HStack {
-                            Rectangle()
-                                .fill(.secondary.opacity(0.3))
-                                .frame(height: 1)
-                            Text("Sync Settings")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 12)
-                            Rectangle()
-                                .fill(.secondary.opacity(0.3))
-                                .frame(height: 1)
-                        }
-                        .padding(.horizontal, 20)
-                        
-                        VStack(spacing: 10) {
-                            // Water toggle - only show if water write permission exists
-                            if hasWaterWritePermission {
-                                SyncToggleRow(
-                                    title: "Water Intake",
-                                    subtitle: "Sync hydration data",
-                                    icon: "drop.fill",
-                                    color: .blue,
-                                    isOn: $syncWater
-                                )
-                            }
-                            
-                            // Caffeine toggle - only show if caffeine write permission exists
-                            if hasCaffeineWritePermission {
-                                SyncToggleRow(
-                                    title: "Caffeine",
-                                    subtitle: "Sync caffeine consumption",
-                                    icon: "cup.and.saucer.fill",
-                                    color: .brown,
-                                    isOn: $syncCaffeine
-                                )
-                            }
-                            
-                            // Alcohol toggle - only show if alcohol write permission exists
-                            if hasAlcoholWritePermission {
-                                SyncToggleRow(
-                                    title: "Alcohol",
-                                    subtitle: "Sync alcohol consumption",
-                                    icon: "wineglass.fill",
-                                    color: .purple,
-                                    isOn: $syncAlcohol
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                    }
-                }
-                
-                // Secondary actions with better spacing
-                VStack(spacing: 8) {
-                    if isPartiallyConnected {
-                        Button {
-                            showingEnableTutorial = true
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "plus.circle")
-                                    .font(.system(size: 14, weight: .medium))
-                                Text("Connect More Services")
-                                    .font(.system(size: 15, weight: .semibold))
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                LinearGradient(
-                                    colors: [.orange, .orange.opacity(0.8)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .shadow(color: .orange.opacity(0.3), radius: 3, x: 0, y: 1)
-                        }
-                    }
-                    
-                    Button {
-                        showingDisableTutorial = true
-                    } label: {
-                        Text("Disable Health Sync")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 4)
-                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(color: .orange.opacity(0.3), radius: 3, x: 0, y: 1)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
+
+            Button {
+                showingDisableTutorial = true
+            } label: {
+                Text("Disable Health Sync")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            }
         }
     }
     
@@ -567,9 +610,9 @@ struct HealthKitCard: View {
             .padding(.bottom, 16)
         }
     }
-    
-    // MARK: - Helper Methods
-    
+
+    // MARK: - Data Fetching
+
     private func fetchHealthData() {
         print("🔍 Starting fetchHealthData...")
         isLoading = true
@@ -598,7 +641,9 @@ struct HealthKitCard: View {
             }
         }
     }
-    
+
+    // MARK: - Permissions
+
     private func checkWritePermissions() {
         Task {
             let hasWrite = await healthKitService.checkHealthKitWritePermissions()
@@ -614,7 +659,9 @@ struct HealthKitCard: View {
             }
         }
     }
-    
+
+    // MARK: - Data Refresh
+
     private func refreshHealthData() {
         isRefreshing = true
         Task {
@@ -654,7 +701,7 @@ struct HealthKitCard: View {
             }
         }
     }
-    
+
     private func requestHealthKitPermissions() {
         Task {
             print("🔐 Requesting HealthKit permissions...")
@@ -671,7 +718,9 @@ struct HealthKitCard: View {
             }
         }
     }
-    
+
+    // MARK: - Water Intake Calculation
+
     private func calculateWaterIntake() {
         guard let data = healthData,
               let height = data.height,
@@ -734,7 +783,9 @@ struct HealthKitCard: View {
             }
         }
     }
-    
+
+    // MARK: - Data Sync
+
     private func syncAllDataToHealthKit() {
         isSyncing = true
         syncProgress = 0.0
@@ -807,158 +858,8 @@ struct HealthKitCard: View {
     }
 }
 
-// MARK: - Data Item View
-
-struct DataItemView: View {
-    let icon: String
-    let title: String
-    let value: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            // Enhanced icon with background
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 32, height: 32)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(color)
-            }
-            
-            VStack(spacing: 2) {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                
-                Text(value)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .padding(.horizontal, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.2), lineWidth: 1)
-                )
-        )
-    }
-}
-
-// MARK: - Missing Service View
-
-struct MissingServiceView: View {
-    let title: String
-    let isMissing: Bool
-    let icon: String
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.caption2)
-                .foregroundStyle(isMissing ? .orange : .green)
-            
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(isMissing ? .orange : .green)
-                .fontWeight(.medium)
-            
-            if isMissing {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            } else {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.green)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isMissing ? .orange.opacity(0.1) : .green.opacity(0.1))
-        )
-    }
-}
-
-// MARK: - Sync Toggle Row
-
-struct SyncToggleRow: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    @Binding var isOn: Bool
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Enhanced icon with better styling
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 36, height: 36)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(color)
-            }
-            
-            // Text content with improved typography
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
-                
-                Text(subtitle)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            
-            Spacer()
-            
-            // Enhanced toggle with better styling
-            Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: color))
-                .scaleEffect(0.9)
-                .onChange(of: isOn) { _, newValue in
-                    // Save to UserDefaults immediately
-                    let key: String
-                    switch title {
-                    case "Water Intake":
-                        key = "healthkit_sync_water"
-                    case "Caffeine":
-                        key = "healthkit_sync_caffeine"
-                    case "Alcohol":
-                        key = "healthkit_sync_alcohol"
-                    default:
-                        key = "healthkit_sync_\(title.lowercased().replacingOccurrences(of: " ", with: "_"))"
-                    }
-                    UserDefaults.standard.set(newValue, forKey: key)
-                }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.2), lineWidth: 1)
-                )
-        )
-    }
-}
+// MARK: - Shared View Components
+// DataItemView, MissingServiceView, and SyncToggleRow are now defined in HealthKitSharedViews.swift
 
 #Preview {
     HealthKitCard()

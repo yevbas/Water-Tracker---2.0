@@ -622,7 +622,7 @@ struct SettingsView: View {
     private var goalDisplay: String {
         switch measurementUnits {
         case .ounces:
-            let oz = Double(waterGoalMl) / 29.5735
+            let oz = WaterUnit.ounces.fromMilliliters(Double(waterGoalMl))
             return "\(Int(oz.rounded())) fl oz"
         case .millilitres:
             return "\(waterGoalMl) ml"

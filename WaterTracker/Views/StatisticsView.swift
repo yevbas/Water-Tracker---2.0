@@ -371,13 +371,13 @@ struct StatisticsView: View {
         case .millilitres:
             return amount
         case .ounces:
-            return amount * 29.5735
+            return unit.toMilliliters(amount)
         }
     }
-    
+
     private func formatAmount(_ amount: Double) -> String {
         if measurementUnits == "fl_oz" {
-            let oz = amount / 29.5735
+            let oz = WaterUnit.ounces.fromMilliliters(amount)
             return "\(Int(oz.rounded())) fl oz"
         } else {
             return "\(Int(amount.rounded())) ml"

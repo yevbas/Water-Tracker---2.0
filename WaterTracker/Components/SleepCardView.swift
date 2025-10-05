@@ -1219,7 +1219,7 @@ struct SleepCardView: View {
 
     private func formatWaterAmount(_ ml: Int) -> String {
         if measurementUnits == "fl_oz" {
-            let oz = Double(ml) / 29.5735
+            let oz = WaterUnit.ounces.fromMilliliters(Double(ml))
             return "\(Int(oz.rounded())) fl oz"
         } else {
             return "\(ml) ml"
