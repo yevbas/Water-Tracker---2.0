@@ -13,55 +13,55 @@ struct HealthKitTutorialView: View {
     
     private let pages = [
         TutorialPage(
-            title: "Connect Your Health Data",
-            subtitle: "Unlock Personalized Hydration",
-            description: "HealthKit integration allows WaterTracker to access your health metrics like height, weight, age, and sleep data to provide personalized hydration recommendations.",
+            title: String(localized: "Connect Your Health Data"),
+            subtitle: String(localized: "Unlock Personalized Hydration"),
+            description: String(localized: "HealthKit integration allows WaterTracker to access your health metrics like height, weight, age, and sleep data to provide personalized hydration recommendations."),
             icon: "heart.fill",
             iconColor: .red,
             benefits: [
-                "Personalized daily water goals based on your body metrics",
-                "Automatic calculation of optimal hydration levels",
-                "Sleep quality analysis with hydration correlation",
-                "Sync your water intake data to the Health app"
+                String(localized: "Personalized daily water goals based on your body metrics"),
+                String(localized: "Automatic calculation of optimal hydration levels"),
+                String(localized: "Sleep quality analysis with hydration correlation"),
+                String(localized: "Sync your water intake data to the Health app")
             ]
         ),
         TutorialPage(
-            title: "Why HealthKit Integration?",
-            subtitle: "Science-Based Recommendations",
-            description: "Your hydration needs depend on your individual characteristics. By connecting HealthKit, we can calculate your optimal water intake using proven formulas.",
+            title: String(localized: "Why HealthKit Integration?"),
+            subtitle: String(localized: "Science-Based Recommendations"),
+            description: String(localized: "Your hydration needs depend on your individual characteristics. By connecting HealthKit, we can calculate your optimal water intake using proven formulas."),
             icon: "brain.head.profile",
             iconColor: .blue,
             benefits: [
-                "Body weight affects how much water you need daily",
-                "Age and gender influence hydration requirements",
-                "Sleep patterns show how hydration affects rest quality",
-                "Activity levels determine additional water needs"
+                String(localized: "Body weight affects how much water you need daily"),
+                String(localized: "Age and gender influence hydration requirements"),
+                String(localized: "Sleep patterns show how hydration affects rest quality"),
+                String(localized: "Activity levels determine additional water needs")
             ]
         ),
         TutorialPage(
-            title: "What Data We Use",
-            subtitle: "Privacy & Transparency",
-            description: "We only access the health data you explicitly allow. All calculations happen on your device, and your data never leaves your iPhone.",
+            title: String(localized: "What Data We Use"),
+            subtitle: String(localized: "Privacy & Transparency"),
+            description: String(localized: "We only access the health data you explicitly allow. All calculations happen on your device, and your data never leaves your iPhone."),
             icon: "lock.shield.fill",
             iconColor: .green,
             benefits: [
-                "Height & Weight: For personalized hydration formulas",
-                "Age & Gender: For metabolic rate adjustments",
-                "Sleep Data: To optimize hydration timing",
-                "Activity Data: For exercise-based recommendations"
+                String(localized: "Height & Weight: For personalized hydration formulas"),
+                String(localized: "Age & Gender: For metabolic rate adjustments"),
+                String(localized: "Sleep Data: To optimize hydration timing"),
+                String(localized: "Activity Data: For exercise-based recommendations")
             ]
         ),
         TutorialPage(
-            title: "Getting Started",
-            subtitle: "Enable HealthKit in Settings",
-            description: "Go to Settings → Health & Data to connect HealthKit. You can choose which data to share and modify permissions anytime in the Health app.",
+            title: String(localized: "Getting Started"),
+            subtitle: String(localized: "Enable HealthKit in Settings"),
+            description: String(localized: "Go to Settings → Health & Data to connect HealthKit. You can choose which data to share and modify permissions anytime in the Health app."),
             icon: "gearshape.fill",
             iconColor: .purple,
             benefits: [
-                "Tap 'Enable HealthKit' in the Health & Data card",
-                "Grant permissions for the data you want to share",
-                "Your personalized recommendations will appear instantly",
-                "Modify permissions anytime in the Health app"
+                String(localized: "Tap 'Enable HealthKit' in the Health & Data card"),
+                String(localized: "Grant permissions for the data you want to share"),
+                String(localized: "Your personalized recommendations will appear instantly"),
+                String(localized: "Modify permissions anytime in the Health app")
             ]
         )
     ]
@@ -72,7 +72,7 @@ struct HealthKitTutorialView: View {
             // Page Content
             TabView(selection: $currentPage) {
                 ForEach(0..<pages.count, id: \.self) { index in
-                    TutorialPageView(page: pages[index])
+                    HKTutorialPageView(page: pages[index])
                         .tag(index)
                 }
             }
@@ -143,7 +143,7 @@ struct TutorialPage {
     let benefits: [String]
 }
 
-struct TutorialPageView: View {
+struct HKTutorialPageView: View {
     let page: TutorialPage
     
     var body: some View {

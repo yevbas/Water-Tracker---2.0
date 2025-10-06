@@ -632,20 +632,20 @@ struct SleepCardView: View {
             HStack(spacing: 12) {
                 sleepStatItem(
                     icon: "moon.fill",
-                    label: "Duration",
+                    label: String(localized: "Duration"),
                     value: formatSleepDuration(recommendation.sleepDurationHours)
                 )
 
                 sleepStatItem(
                     icon: "star.fill",
-                    label: "Quality",
+                    label: String(localized: "Quality"),
                     value: "\(Int(recommendation.sleepQualityScore * 100))%"
                 )
 
                 sleepStatItem(
                     icon: "brain.head.profile",
-                    label: "Deep Sleep",
-                    value: "\(recommendation.deepSleepMinutes)min"
+                    label: String(localized: "Deep Sleep"),
+                    value: String(localized: "\(recommendation.deepSleepMinutes)min")
                 )
             }
         }
@@ -792,7 +792,7 @@ struct SleepCardView: View {
         HStack(spacing: 8) {
             // Evening intake percentage
             metricItem(
-                label: "Evening Intake",
+                label: String(localized: "Evening Intake"),
                 value: "\(Int(hydrationMetrics.eveningIntakePercentage * 100))%",
                 status: hydrationMetrics.eveningIntakeStatus,
                 icon: "moon.circle.fill"
@@ -800,7 +800,7 @@ struct SleepCardView: View {
             
             // Hydration score
             metricItem(
-                label: "Daily Hydration",
+                label: String(localized: "Daily Hydration"),
                 value: "\(Int(hydrationMetrics.dailyHydrationScore * 100))%",
                 status: hydrationMetrics.hydrationStatus,
                 icon: "drop.circle.fill"
@@ -808,7 +808,7 @@ struct SleepCardView: View {
             
             // Nocturia risk
             metricItem(
-                label: "Sleep Risk",
+                label: String(localized: "Sleep Risk"),
                 value: hydrationMetrics.nocturiaRisk.displayText,
                 status: hydrationMetrics.nocturiaRisk.status,
                 icon: "bed.double.circle.fill"
@@ -873,7 +873,7 @@ struct SleepCardView: View {
                 dailyHydrationScore: 0,
                 hydrationStatus: .critical,
                 nocturiaRisk: .low,
-                insights: ["No hydration data available for today. Start logging your water intake to see personalized sleep insights."]
+                insights: [String(localized: "No hydration data available for today. Start logging your water intake to see personalized sleep insights.")]
             )
         }
         
@@ -1078,16 +1078,16 @@ struct SleepCardView: View {
         
         // Evening timing insights
         if eveningPercentage >= 0.30 {
-            insights.append("\(confidencePrefix)You drank \(Int(eveningPercentage * 100))% of your fluids in the evening, which may disrupt sleep. Try shifting intake earlier.")
+            insights.append(String(localized: "\(confidencePrefix)You drank \(Int(eveningPercentage * 100))% of your fluids in the evening, which may disrupt sleep. Try shifting intake earlier."))
         } else if eveningPercentage <= 0.15 && hydrationScore >= 0.70 {
-            insights.append("\(confidencePrefix)Great hydration timing! Your steady intake throughout the day supports better sleep quality.")
+            insights.append(String(localized: "\(confidencePrefix)Great hydration timing! Your steady intake throughout the day supports better sleep quality."))
         }
         
         // Hydration level insights
         if hydrationScore < 0.60 {
-            insights.append("Low daily hydration (\(Int(totalIntake))ml) may increase risk of shorter sleep duration and morning fatigue.")
+            insights.append(String(localized: "Low daily hydration (\(Int(totalIntake))ml) may increase risk of shorter sleep duration and morning fatigue."))
         } else if hydrationScore >= 0.85 {
-            insights.append("Excellent hydration (\(Int(totalIntake))ml) supports optimal melatonin production and sleep regulation.")
+            insights.append(String(localized: "Excellent hydration (\(Int(totalIntake))ml) supports optimal melatonin production and sleep regulation."))
         }
         
         // Nocturia risk insights with research context
@@ -1095,22 +1095,22 @@ struct SleepCardView: View {
         
         switch nocturiaRisk {
         case .high:
-            var highRiskInsight = "High risk of sleep interruptions. Research shows >25% evening intake can cause 2-3 nighttime awakenings. Limit fluids 2-3 hours before bed to <200ml."
+            var highRiskInsight = String(localized: "High risk of sleep interruptions. Research shows >25% evening intake can cause 2-3 nighttime awakenings. Limit fluids 2-3 hours before bed to <200ml.")
             if !caffeineInsight.isEmpty {
                 highRiskInsight += " " + caffeineInsight
             }
             insights.append(highRiskInsight)
         case .moderate:
-            var moderateRiskInsight = "Moderate risk of nighttime awakenings. Consider shifting more hydration to earlier in the day."
+            var moderateRiskInsight = String(localized: "Moderate risk of nighttime awakenings. Consider shifting more hydration to earlier in the day.")
             if !caffeineInsight.isEmpty {
                 moderateRiskInsight += " " + caffeineInsight
             }
             insights.append(moderateRiskInsight)
         case .low:
             if eveningPercentage <= 0.20 {
-                insights.append("Optimal hydration timing reduces sleep disruption risk. Your pattern aligns with research recommendations.")
+                insights.append(String(localized: "Optimal hydration timing reduces sleep disruption risk. Your pattern aligns with research recommendations."))
             } else {
-                insights.append("Low risk of sleep disruption from current hydration patterns.")
+                insights.append(String(localized: "Low risk of sleep disruption from current hydration patterns."))
             }
             
             // Add caffeine insight even for low risk if relevant
@@ -1121,9 +1121,9 @@ struct SleepCardView: View {
         
         // Add data completeness guidance
         if dataCompleteness == .minimal {
-            insights.append("💡 Track for 7+ days to unlock personalized patterns and more accurate recommendations.")
+            insights.append(String(localized: "💡 Track for 7+ days to unlock personalized patterns and more accurate recommendations."))
         } else if dataCompleteness == .moderate {
-            insights.append("📈 Great progress! 21+ days of data will enable even more precise sleep-hydration insights.")
+            insights.append(String(localized: "📈 Great progress! 21+ days of data will enable even more precise sleep-hydration insights."))
         }
         
         return insights
@@ -1132,11 +1132,11 @@ struct SleepCardView: View {
     private func getConfidencePrefix() -> String {
         switch dataCompleteness {
         case .minimal:
-            return "Early pattern: "
+            return String(localized: "Early pattern: ")
         case .moderate:
-            return "Emerging trend: "
+            return String(localized: "Emerging trend: ")
         case .good:
-            return "Reliable pattern: "
+            return String(localized: "Reliable pattern: ")
         case .robust:
             return ""  // No prefix needed for high confidence
         }
@@ -1160,11 +1160,11 @@ struct SleepCardView: View {
             let timeString = latestCaffeineTime?.formatted(date: .omitted, time: .shortened) ?? ""
             
             if lateCaffeineAmount >= 500 {
-                return "⚠️ High caffeine intake (\(Int(lateCaffeineAmount))ml) after 3 PM (last: \(timeString)) significantly increases sleep disruption risk."
+                return String(localized: "⚠️ High caffeine intake (\(Int(lateCaffeineAmount))ml) after 3 PM (last: \(timeString)) significantly increases sleep disruption risk.")
             } else if lateCaffeineAmount >= 250 {
-                return "☕️ Moderate caffeine after 3 PM (last: \(timeString)) may affect sleep quality. Consider earlier timing."
+                return String(localized: "☕️ Moderate caffeine after 3 PM (last: \(timeString)) may affect sleep quality. Consider earlier timing.")
             } else {
-                return "☕️ Small amount of caffeine after 3 PM noted. Monitor impact on sleep quality."
+                return String(localized: "☕️ Small amount of caffeine after 3 PM noted. Monitor impact on sleep quality.")
             }
         }
         
@@ -1174,7 +1174,7 @@ struct SleepCardView: View {
         }
         
         if !morningCaffeine.isEmpty && lateCaffeineIntake.isEmpty {
-            return "✅ Good caffeine timing! All coffee/tea before 3 PM supports better sleep quality."
+            return String(localized: "✅ Good caffeine timing! All coffee/tea before 3 PM supports better sleep quality.")
         }
         
         return ""
@@ -1220,9 +1220,9 @@ struct SleepCardView: View {
     private func formatWaterAmount(_ ml: Int) -> String {
         if measurementUnits == "fl_oz" {
             let oz = WaterUnit.ounces.fromMilliliters(Double(ml))
-            return "\(Int(oz.rounded())) fl oz"
+            return String(localized: "\(Int(oz.rounded())) fl oz")
         } else {
-            return "\(ml) ml"
+            return String(localized: "\(ml) ml")
         }
     }
     
@@ -1386,9 +1386,9 @@ enum NocturiaRisk {
     
     var displayText: String {
         switch self {
-        case .low: return "Low"
-        case .moderate: return "Moderate"
-        case .high: return "High"
+        case .low: return String(localized: "Low")
+        case .moderate: return String(localized: "Moderate")
+        case .high: return String(localized: "High")
         }
     }
     
@@ -1409,10 +1409,10 @@ enum DataCompleteness {
     
     var label: String {
         switch self {
-        case .minimal: return "Early"
-        case .moderate: return "Moderate"
-        case .good: return "Good"
-        case .robust: return "Robust"
+        case .minimal: return String(localized: "Early")
+        case .moderate: return String(localized:  "Moderate")
+        case .good: return String(localized: "Good")
+        case .robust: return String(localized: "Robust")
         }
     }
     

@@ -51,9 +51,17 @@ final class NotificationsManager: ObservableObject {
         let titles: (String, String, String)
         switch units {
         case .ounces:
-            titles = ("+6 fl oz", "+8 fl oz", "+12 fl oz")
+            titles = (
+                String(localized: "+6 fl oz"),
+                String(localized: "+8 fl oz"),
+                String(localized: "+12 fl oz")
+            )
         case .millilitres:
-            titles = ("+150 ml", "+250 ml", "+350 ml")
+            titles = (
+                String(localized: "+150 ml"),
+                String(localized: "+250 ml"),
+                String(localized: "+350 ml")
+            )
         }
         let small = UNNotificationAction(identifier: ActionId.quickAddSmall.rawValue, title: titles.0, options: [])
         let medium = UNNotificationAction(identifier: ActionId.quickAddMedium.rawValue, title: titles.1, options: [])

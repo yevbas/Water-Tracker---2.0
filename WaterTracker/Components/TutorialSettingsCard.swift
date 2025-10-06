@@ -16,8 +16,8 @@ struct TutorialSettingsCard: View {
             VStack(spacing: 12) {
                 NavigationLink(destination: HealthKitTutorialView()) {
                     TutorialButtonContent(
-                        title: "HealthKit Integration",
-                        subtitle: "Sync health data & personalize goals",
+                        title: String(localized: "HealthKit Integration"),
+                        subtitle: String(localized: "Sync health data & personalize goals"),
                         icon: "heart.fill",
                         iconColor: .red
                     )
@@ -26,8 +26,8 @@ struct TutorialSettingsCard: View {
                 
                 NavigationLink(destination: WeatherTutorialView()) {
                     TutorialButtonContent(
-                        title: "Weather Analysis",
-                        subtitle: "Smart hydration based on conditions",
+                        title: String(localized: "Weather Analysis"),
+                        subtitle: String(localized: "Smart hydration based on conditions"),
                         icon: "cloud.sun.fill",
                         iconColor: .blue
                     )
@@ -36,8 +36,8 @@ struct TutorialSettingsCard: View {
                 
                 NavigationLink(destination: SleepTutorialView()) {
                     TutorialButtonContent(
-                        title: "Sleep Insights",
-                        subtitle: "Optimize hydration for better sleep",
+                        title: String(localized: "Sleep Insights"),
+                        subtitle: String(localized: "Optimize hydration for better sleep"),
                         icon: "moon.fill",
                         iconColor: .cyan
                     )
@@ -46,8 +46,8 @@ struct TutorialSettingsCard: View {
                 
                 NavigationLink(destination: StatisticsTutorialView()) {
                     TutorialButtonContent(
-                        title: "Statistics & Analytics",
-                        subtitle: "Track progress with detailed charts",
+                        title: String(localized: "Statistics & Analytics"),
+                        subtitle: String(localized: "Track progress with detailed charts"),
                         icon: "chart.bar.fill",
                         iconColor: .green
                     )

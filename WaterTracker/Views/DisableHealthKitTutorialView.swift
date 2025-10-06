@@ -46,29 +46,29 @@ struct DisableHealthKitTutorialView: View {
                     VStack(spacing: 16) {
                         ImpactRowView(
                             icon: "target",
-                            title: "Generic Goals",
-                            description: "You'll use default hydration targets instead of personalized ones",
+                            title: String(localized: "Generic Goals"),
+                            description: String(localized: "You'll use default hydration targets instead of personalized ones"),
                             isNegative: true
                         )
 
                         ImpactRowView(
                             icon: "moon.zzz",
-                            title: "No Sleep Integration",
-                            description: "Sleep patterns won't be considered for hydration recommendations",
+                            title: String(localized: "No Sleep Integration"),
+                            description: String(localized: "Sleep patterns won't be considered for hydration recommendations"),
                             isNegative: true
                         )
 
                         ImpactRowView(
                             icon: "chart.bar",
-                            title: "Limited Insights",
-                            description: "Health-based analytics and trends will be unavailable",
+                            title: String(localized: "Limited Insights"),
+                            description: String(localized: "Health-based analytics and trends will be unavailable"),
                             isNegative: true
                         )
 
                         ImpactRowView(
                             icon: "bell.slash",
-                            title: "Basic Reminders",
-                            description: "You'll only get simple time-based notifications",
+                            title: String(localized: "Basic Reminders"),
+                            description: String(localized: "You'll only get simple time-based notifications"),
                             isNegative: true
                         )
                     }
@@ -85,32 +85,32 @@ struct DisableHealthKitTutorialView: View {
                     VStack(spacing: 16) {
                         StepView(
                             stepNumber: 1,
-                            title: "Open Settings",
-                            description: "Go to your iPhone's Settings app"
+                            title: String(localized: "Open Settings"),
+                            description: String(localized: "Go to your iPhone's Settings app")
                         )
 
                         StepView(
                             stepNumber: 2,
-                            title: "Find Privacy & Security",
-                            description: "Scroll down and tap on 'Privacy & Security'"
+                            title: String(localized: "Find Privacy & Security"),
+                            description: String(localized: "Scroll down and tap on 'Privacy & Security'")
                         )
 
                         StepView(
                             stepNumber: 3,
-                            title: "Select Health",
-                            description: "Tap on 'Health' in the list of privacy settings"
+                            title: String(localized: "Select Health"),
+                            description: String(localized: "Tap on 'Health' in the list of privacy settings")
                         )
 
                         StepView(
                             stepNumber: 4,
-                            title: "Find WaterTracker",
-                            description: "Look for 'WaterTracker' in the list of apps"
+                            title: String(localized: "Find WaterTracker"),
+                            description: String(localized: "Look for 'WaterTracker' in the list of apps")
                         )
 
                         StepView(
                             stepNumber: 5,
-                            title: "Turn Off All",
-                            description: "Toggle off all the switches for data types"
+                            title: String(localized: "Turn Off All"),
+                            description: String(localized: "Toggle off all the switches for data types")
                         )
                     }
                 }

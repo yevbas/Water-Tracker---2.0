@@ -49,17 +49,17 @@ struct ScheduleView: View {
                 requestView
             }
         }
-        .navigationTitle(String(localized: "Water Reminders"))
+        .navigationTitle("Water Reminders")
         .task { await loadReminders() }
         .onReceive(notifications.$authorizationStatus) { _ in
             Task { await loadReminders() }
         }
         .sheet(isPresented: $isPresentingAdd) { addReminderSheet }
         .sheet(isPresented: $isShowingPaywall) { PaywallView() }
-        .alert(String(localized: "Reminder Already Exists"), isPresented: $showingDuplicateAlert) {
-            Button(String(localized: "OK"), role: .cancel) { }
+        .alert("Reminder Already Exists", isPresented: $showingDuplicateAlert) {
+            Button("OK", role: .cancel) { }
         } message: {
-            Text(String(localized: "You already have a reminder set for this time. Please choose a different time."))
+            Text("You already have a reminder set for this time. Please choose a different time.")
         }
     }
 
@@ -103,7 +103,7 @@ struct ScheduleView: View {
                     .foregroundStyle(.blue)
                 
                 VStack(spacing: 8) {
-                    Text(String(localized: "Stay on track with friendly reminders"))
+                    Text("Stay on track with friendly reminders")
                         .multilineTextAlignment(.center)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.primary)
@@ -139,11 +139,11 @@ struct ScheduleView: View {
                     .foregroundStyle(.red)
                 
                 VStack(spacing: 8) {
-                    Text(String(localized: "Notifications are turned off"))
+                    Text("Notifications are turned off")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.primary)
                     
-                    Text(String(localized: "Turn on notifications in Settings to receive water reminders."))
+                    Text("Turn on notifications in Settings to receive water reminders.")
                         .multilineTextAlignment(.center)
                         .font(.system(size: 15))
                         .foregroundStyle(.secondary)
@@ -179,14 +179,14 @@ struct ScheduleView: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(.blue)
                 
-                Text(String(localized: "Hydration Schedule"))
+                Text("Hydration Schedule")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.primary)
                 
                 Spacer()
             }
             
-            Text(String(localized: "Add times to get a nudge to drink water throughout your day."))
+            Text("Add times to get a nudge to drink water throughout your day.")
                 .font(.system(size: 15))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -202,10 +202,10 @@ struct ScheduleView: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             VStack(spacing: 12) {
-                Text(String(localized: "No reminders yet"))
+                Text("No reminders yet")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.primary)
-                Text(String(localized: "Tap Add Reminder to choose your first time."))
+                Text("Tap Add Reminder to choose your first time.")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -240,7 +240,7 @@ struct ScheduleView: View {
                 Button(role: .destructive) {
                     deleteReminder(reminder)
                 } label: {
-                    Label(String(localized: "Delete"), systemImage: "trash")
+                    Label("Delete", systemImage: "trash")
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -267,7 +267,7 @@ struct ScheduleView: View {
     private var addReminderSheet: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                DatePicker(String(localized: "Time"), selection: $newTime, displayedComponents: .hourAndMinute)
+                DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
                     .environment(\ .locale, Locale(identifier: Locale.current.identifier))
@@ -286,10 +286,10 @@ struct ScheduleView: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle(String(localized: "New Reminder"))
+            .navigationTitle("New Reminder")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "Cancel")) { isPresentingAdd = false }
+                    Button("Cancel") { isPresentingAdd = false }
                 }
             }
             .presentationDetents([.medium])

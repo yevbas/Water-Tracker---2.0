@@ -72,22 +72,22 @@ struct HealthKitPermissionView: View {
                 VStack(spacing: 16) {
                     DataUsageCard(
                         icon: "person.crop.circle.fill",
-                        title: "Age & Gender",
-                        description: "Used to calculate your optimal daily water intake based on your body's needs",
+                        title: String(localized: "Age & Gender"),
+                        description: String(localized: "Used to calculate your optimal daily water intake based on your body's needs"),
                         gradientColors: [.red.opacity(0.1), .orange.opacity(0.1)]
                     )
 
                     DataUsageCard(
                         icon: "ruler.fill",
-                        title: "Height & Weight",
-                        description: "Helps determine your body's water requirements and hydration goals",
+                        title: String(localized: "Height & Weight"),
+                        description: String(localized: "Helps determine your body's water requirements and hydration goals"),
                         gradientColors: [.pink.opacity(0.1), .purple.opacity(0.1)]
                     )
 
                     DataUsageCard(
                         icon: "bed.double.fill",
-                        title: "Sleep Data",
-                        description: "Sleep quality affects hydration needs - we'll suggest adjustments based on your sleep patterns",
+                        title: String(localized: "Sleep Data"),
+                        description: String(localized: "Sleep quality affects hydration needs - we'll suggest adjustments based on your sleep patterns"),
                         gradientColors: [.purple.opacity(0.1), .blue.opacity(0.1)]
                     )
                 }
@@ -295,22 +295,22 @@ struct HealthKitPermissionPreviewView: View {
                 VStack(spacing: 16) {
                     DataUsageCard(
                         icon: "person.crop.circle.fill",
-                        title: "Age & Gender",
-                        description: "Used to calculate your optimal daily water intake based on your body's needs",
+                        title: String(localized: "Age & Gender"),
+                        description: String(localized: "Used to calculate your optimal daily water intake based on your body's needs"),
                         gradientColors: [.red.opacity(0.1), .orange.opacity(0.1)]
                     )
 
                     DataUsageCard(
                         icon: "ruler.fill",
-                        title: "Height & Weight",
-                        description: "Helps determine your body's water requirements and hydration goals",
+                        title: String(localized: "Height & Weight"),
+                        description: String(localized: "Helps determine your body's water requirements and hydration goals"),
                         gradientColors: [.pink.opacity(0.1), .purple.opacity(0.1)]
                     )
 
                     DataUsageCard(
                         icon: "bed.double.fill",
-                        title: "Sleep Data",
-                        description: "Sleep quality affects hydration needs - we'll suggest adjustments based on your sleep patterns",
+                        title: String(localized: "Sleep Data"),
+                        description: String(localized: "Sleep quality affects hydration needs - we'll suggest adjustments based on your sleep patterns"),
                         gradientColors: [.purple.opacity(0.1), .blue.opacity(0.1)]
                     )
                 }

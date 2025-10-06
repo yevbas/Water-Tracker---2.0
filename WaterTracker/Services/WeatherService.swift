@@ -64,12 +64,12 @@ class WeatherService: NSObject, ObservableObject {
         do {
             let placemarks = try await geocoder.reverseGeocodeLocation(location)
             if let placemark = placemarks.first {
-                return placemark.locality ?? placemark.administrativeArea ?? placemark.country ?? "Unknown Location"
+                return placemark.locality ?? placemark.administrativeArea ?? placemark.country ?? String(localized: "Unknown Location")
             }
         } catch {
-            return "Current Location"
+            return String(localized: "Current Location")
         }
-        return "Current Location"
+        return String(localized: "Current Location")
     }
     
     
@@ -85,37 +85,37 @@ class WeatherService: NSObject, ObservableObject {
         // Temperature-based adjustments
         if tempCelsius > 30 {
             baseAdjustment += 500
-            factors.append("High temperature (+500ml)")
+            factors.append(String(localized: "High temperature (+500ml)"))
         } else if tempCelsius > 25 {
             baseAdjustment += 300
-            factors.append("Warm temperature (+300ml)")
+            factors.append(String(localized: "Warm temperature (+300ml)"))
         } else if tempCelsius < 10 {
             baseAdjustment -= 100
-            factors.append("Cold weather (-100ml)")
+            factors.append(String(localized: "Cold weather (-100ml)"))
         }
         
         // Humidity adjustments
         if humidity < 0.3 {
             baseAdjustment += 200
-            factors.append("Low humidity (+200ml)")
+            factors.append(String(localized: "Low humidity (+200ml)"))
         } else if humidity > 0.8 {
             baseAdjustment += 100
-            factors.append("High humidity (+100ml)")
+            factors.append(String(localized: "High humidity (+100ml)"))
         }
         
         // UV Index adjustments
         if uvIndex >= 8 {
             baseAdjustment += 150
-            factors.append("Very high UV (+150ml)")
+            factors.append(String(localized: "Very high UV (+150ml)"))
         } else if uvIndex >= 6 {
             baseAdjustment += 100
-            factors.append("High UV (+100ml)")
+            factors.append(String(localized: "High UV (+100ml)"))
         }
         
         // Daily max temperature consideration
         if maxTemp > 35 {
             baseAdjustment += 200
-            factors.append("Very hot day expected (+200ml)")
+            factors.append(String(localized: "Very hot day expected (+200ml)"))
         }
         
         let totalAdjustment = max(0, baseAdjustment)
@@ -196,11 +196,11 @@ enum WeatherError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .locationPermissionRequired:
-            return "Location permission required. Please enable location access in Settings."
+            return String(localized: "Location permission required. Please enable location access in Settings.")
         case .locationUnavailable:
-            return "Getting your location..."
+            return String(localized: "Getting your location...")
         case .noWeatherData:
-            return "Failed to fetch weather data"
+            return String(localized: "Failed to fetch weather data")
         }
     }
 }

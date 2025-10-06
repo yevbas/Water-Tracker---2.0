@@ -19,8 +19,8 @@ struct HealthKitDataGridView: View {
             if let height = healthData?.height {
                 DataItemView(
                     icon: "figure.stand",
-                    title: "Height",
-                    value: "\(Int(height * 100)) cm",
+                    title: String(localized: "Height"),
+                    value: String(localized: "\(Int(height * 100)) cm"),
                     color: .blue
                 )
             }
@@ -28,8 +28,8 @@ struct HealthKitDataGridView: View {
             if let weight = healthData?.weight {
                 DataItemView(
                     icon: "scalemass",
-                    title: "Weight",
-                    value: "\(Int(weight)) kg",
+                    title: String(localized: "Weight"),
+                    value: String(localized: "\(Int(weight)) kg"),
                     color: .green
                 )
             }
@@ -37,8 +37,8 @@ struct HealthKitDataGridView: View {
             if let age = healthData?.age {
                 DataItemView(
                     icon: "calendar",
-                    title: "Age",
-                    value: "\(age) years",
+                    title: String(localized: "Age"),
+                    value: String(localized: "\(age) years"),
                     color: .orange
                 )
             }
@@ -47,21 +47,21 @@ struct HealthKitDataGridView: View {
                 let genderText: String = {
                     switch gender {
                     case .male:
-                        return "Male"
+                        return String(localized: "Male")
                     case .female:
-                        return "Female"
+                        return String(localized: "Female")
                     case .other:
-                        return "Other"
+                        return String(localized: "Other")
                     case .notSet:
-                        return "Not Set"
+                        return String(localized: "Not Set")
                     @unknown default:
-                        return "Unknown"
+                        return String(localized: "Unknown")
                     }
                 }()
 
                 DataItemView(
                     icon: "person",
-                    title: "Gender",
+                    title: String(localized: "Gender"),
                     value: genderText,
                     color: .purple
                 )
@@ -70,8 +70,8 @@ struct HealthKitDataGridView: View {
             if let sleepHours = healthData?.averageSleepHours {
                 DataItemView(
                     icon: "bed.double",
-                    title: "Avg Sleep",
-                    value: String(format: "%.1f hrs", sleepHours),
+                    title: String(localized: "Avg Sleep"),
+                    value: String(localized: "\(sleepHours, specifier: "%.1f") hrs"),
                     color: .indigo
                  )
             }

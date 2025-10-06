@@ -55,26 +55,26 @@ struct EnableHealthKitTutorialView: View {
                     VStack(spacing: 16) {
                         BenefitRowView(
                             icon: "person.fill",
-                            title: "Personalized Goals",
-                            description: "Hydration targets based on your body weight and activity level"
+                            title: String(localized: "Personalized Goals"),
+                            description: String(localized: "Hydration targets based on your body weight and activity level")
                         )
 
                         BenefitRowView(
                             icon: "moon.fill",
-                            title: "Sleep Integration",
-                            description: "Adjustments based on your sleep patterns and recovery needs"
+                            title: String(localized: "Sleep Integration"),
+                            description: String(localized: "Adjustments based on your sleep patterns and recovery needs")
                         )
 
                         BenefitRowView(
                             icon: "chart.line.uptrend.xyaxis",
-                            title: "Health Insights",
-                            description: "Track how hydration affects your overall health metrics"
+                            title: String(localized: "Health Insights"),
+                            description: String(localized: "Track how hydration affects your overall health metrics")
                         )
 
                         BenefitRowView(
                             icon: "bell.fill",
-                            title: "Smart Reminders",
-                            description: "Intelligent notifications based on your daily routine"
+                            title: String(localized: "Smart Reminders"),
+                            description: String(localized: "Intelligent notifications based on your daily routine")
                         )
                     }
                 }
@@ -184,14 +184,14 @@ struct EnableHealthKitTutorialView: View {
 
         switch result {
         case .success:
-            alertMessage = "HealthKit access granted! Your health data can now be used for personalized hydration recommendations."
+            alertMessage = String(localized: "HealthKit access granted! Your health data can now be used for personalized hydration recommendations.")
             showingAlert = true
             // Dismiss after successful permission
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 dismiss()
             }
         case .failure(let error):
-            alertMessage = "Failed to access HealthKit: \(error.localizedDescription)"
+            alertMessage = String(localized: "Failed to access HealthKit: \(error.localizedDescription)")
             showingAlert = true
         }
     }

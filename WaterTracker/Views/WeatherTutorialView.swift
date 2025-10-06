@@ -13,55 +13,55 @@ struct WeatherTutorialView: View {
 
     private let pages = [
         TutorialPage(
-            title: "Smart Weather Analysis",
-            subtitle: "Hydration Based on Conditions",
-            description: "The Weather card automatically adjusts your hydration recommendations based on current weather conditions, temperature, humidity, and UV index.",
+            title: String(localized: "Smart Weather Analysis"),
+            subtitle: String(localized: "Hydration Based on Conditions"),
+            description: String(localized: "The Weather card automatically adjusts your hydration recommendations based on current weather conditions, temperature, humidity, and UV index."),
             icon: "cloud.sun.fill",
             iconColor: .blue,
             benefits: [
-                "Real-time weather data from your location",
-                "Temperature-based hydration adjustments",
-                "Humidity and UV index considerations",
-                "AI-powered personalized recommendations"
+                String(localized: "Real-time weather data from your location"),
+                String(localized: "Temperature-based hydration adjustments"),
+                String(localized: "Humidity and UV index considerations"),
+                String(localized: "AI-powered personalized recommendations")
             ]
         ),
         TutorialPage(
-            title: "How Weather Affects Hydration",
-            subtitle: "Science Behind the Recommendations",
-            description: "Your body loses more water in hot, humid, or sunny conditions. Our algorithm calculates additional water needs based on environmental factors.",
+            title: String(localized: "How Weather Affects Hydration"),
+            subtitle: String(localized: "Science Behind the Recommendations"),
+            description: String(localized: "Your body loses more water in hot, humid, or sunny conditions. Our algorithm calculates additional water needs based on environmental factors."),
             icon: "thermometer.sun.fill",
             iconColor: .orange,
             benefits: [
-                "Hot weather increases sweat and water loss",
-                "High humidity makes cooling less efficient",
-                "UV exposure accelerates dehydration",
-                "Wind and dry air increase fluid needs"
+                String(localized: "Hot weather increases sweat and water loss"),
+                String(localized: "High humidity makes cooling less efficient"),
+                String(localized: "UV exposure accelerates dehydration"),
+                String(localized: "Wind and dry air increase fluid needs")
             ]
         ),
         TutorialPage(
-            title: "Weather Card Features",
-            subtitle: "What You'll See",
-            description: "The weather card shows current conditions, temperature, and provides specific hydration recommendations with AI-generated insights.",
+            title: String(localized: "Weather Card Features"),
+            subtitle: String(localized: "What You'll See"),
+            description: String(localized: "The weather card shows current conditions, temperature, and provides specific hydration recommendations with AI-generated insights."),
             icon: "sparkles",
             iconColor: .purple,
             benefits: [
-                "Current temperature and weather condition",
-                "Humidity percentage and UV index",
-                "Additional water intake recommendations",
-                "AI insights explaining the reasoning"
+                String(localized: "Current temperature and weather condition"),
+                String(localized: "Humidity percentage and UV index"),
+                String(localized: "Additional water intake recommendations"),
+                String(localized: "AI insights explaining the reasoning")
             ]
         ),
         TutorialPage(
-            title: "Using Weather Insights",
-            subtitle: "Make Informed Decisions",
-            description: "Tap the weather card to expand and see detailed analysis. Use the refresh button to get updated conditions and recommendations.",
+            title: String(localized: "Using Weather Insights"),
+            subtitle: String(localized: "Make Informed Decisions"),
+            description: String(localized: "Tap the weather card to expand and see detailed analysis. Use the refresh button to get updated conditions and recommendations."),
             icon: "lightbulb.fill",
             iconColor: .yellow,
             benefits: [
-                "Tap the card to expand for full details",
-                "Refresh for updated weather conditions",
-                "Follow AI recommendations for optimal hydration",
-                "Adjust your daily routine based on weather"
+                String(localized: "Tap the card to expand for full details"),
+                String(localized: "Refresh for updated weather conditions"),
+                String(localized: "Follow AI recommendations for optimal hydration"),
+                String(localized: "Adjust your daily routine based on weather")
             ]
         )
     ]
@@ -246,9 +246,21 @@ struct WeatherTutorialPageView: View {
 
                 // Mock weather stats
                 HStack(spacing: 12) {
-                    weatherStatExample(icon: "thermometer", label: "High", value: "32°C")
-                    weatherStatExample(icon: "drop.fill", label: "Humidity", value: "65%")
-                    weatherStatExample(icon: "sun.max.fill", label: "UV Index", value: "8")
+                    weatherStatExample(
+                        icon: "thermometer",
+                        label: String(localized: "High"),
+                        value: "32°C"
+                    )
+                    weatherStatExample(
+                        icon: "drop.fill",
+                        label: String(localized: "Humidity"),
+                        value: "65%"
+                    )
+                    weatherStatExample(
+                        icon: "sun.max.fill",
+                        label: String(localized: "UV Index"),
+                        value: "8"
+                    )
                 }
 
                 // Mock recommendation

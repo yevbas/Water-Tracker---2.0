@@ -59,13 +59,13 @@ struct HealthKitCard: View {
     
     private var connectionStatusText: String {
         if !healthDataAvailable {
-            return "Connect HealthKit services"
+            return String(localized: "Connect HealthKit services")
         }
         let total = 5 // height, weight, age, gender, sleep
         if availableDataCount == total {
-            return "All HealthKit services connected"
+            return String(localized: "All HealthKit services connected")
         } else {
-            return "\(availableDataCount) of \(total) HealthKit services connected"
+            return String(localized: "\(availableDataCount) of \(total) HealthKit services connected")
         }
     }
     
@@ -280,8 +280,8 @@ struct HealthKitCard: View {
             if let height = healthData?.height {
                 DataItemView(
                     icon: "ruler",
-                    title: "Height",
-                    value: String(format: "%.1f m", height),
+                    title: String(localized: "Height"),
+                    value: String(localized: "\(height, specifier: "%.1f") m"),
                     color: .blue
                 )
             }
@@ -289,8 +289,8 @@ struct HealthKitCard: View {
             if let weight = healthData?.weight {
                 DataItemView(
                     icon: "scalemass",
-                    title: "Weight",
-                    value: String(format: "%.1f kg", weight),
+                    title: String(localized: "Weight"),
+                    value: String(localized: "\(weight, specifier: "%.1f") kg"),
                     color: .green
                 )
             }
@@ -307,8 +307,8 @@ struct HealthKitCard: View {
             if let sleep = healthData?.averageSleepHours {
                 DataItemView(
                     icon: "moon",
-                    title: "Sleep",
-                    value: String(format: "%.1f hrs", sleep),
+                    title: String(localized: "Sleep"),
+                    value: String(localized: "\(sleep, specifier: "%.1f") hrs"),
                     color: .indigo
                 )
             }
@@ -459,8 +459,8 @@ struct HealthKitCard: View {
             VStack(spacing: 10) {
                 if hasWaterWritePermission {
                     SyncToggleRow(
-                        title: "Water Intake",
-                        subtitle: "Sync hydration data",
+                        title: String(localized: "Water Intake"),
+                        subtitle: String(localized: "Sync hydration data"),
                         icon: "drop.fill",
                         color: .blue,
                         isOn: $syncWater
@@ -469,8 +469,8 @@ struct HealthKitCard: View {
 
                 if hasCaffeineWritePermission {
                     SyncToggleRow(
-                        title: "Caffeine",
-                        subtitle: "Sync caffeine consumption",
+                        title: String(localized: "Caffeine"),
+                        subtitle: String(localized: "Sync caffeine consumption"),
                         icon: "cup.and.saucer.fill",
                         color: .brown,
                         isOn: $syncCaffeine
@@ -479,8 +479,8 @@ struct HealthKitCard: View {
 
                 if hasAlcoholWritePermission {
                     SyncToggleRow(
-                        title: "Alcohol",
-                        subtitle: "Sync alcohol consumption",
+                        title: String(localized: "Alcohol"),
+                        subtitle: String(localized: "Sync alcohol consumption"),
                         icon: "wineglass.fill",
                         color: .purple,
                         isOn: $syncAlcohol

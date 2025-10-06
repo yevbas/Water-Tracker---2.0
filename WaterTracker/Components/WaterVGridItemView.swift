@@ -30,14 +30,14 @@ struct WaterVGridItemView: View {
     private var hydrationEffectText: String {
         let netAmount = waterPortion.amount * waterPortion.drink.hydrationFactor
         if waterPortion.drink.hydrationFactor < 0 {
-            return "Dehydrates \(abs(netAmount).formatted()) ml"
+            return String(localized: "Dehydrates \(abs(netAmount).formatted()) ml")
         } else if waterPortion.drink.hydrationFactor < 1.0 {
             if waterPortion.drink == .coffee {
-                return "Mild diuretic: \(netAmount.formatted()) ml net"
+                return String(localized: "Mild diuretic: \(netAmount.formatted()) ml net")
             }
-            return "Net hydration: \(netAmount.formatted()) ml"
+            return String(localized: "Net hydration: \(netAmount.formatted()) ml")
         } else {
-            return "Fully hydrating"
+            return String(localized: "Fully hydrating")
         }
     }
     
@@ -57,7 +57,7 @@ struct WaterVGridItemView: View {
     private var caffeineDisplay: String {
         let caffeine = caffeineContent
         if caffeine > 0 {
-            return "\(Int(caffeine.rounded())) mg caffeine"
+            return String(localized: "\(Int(caffeine.rounded())) mg caffeine")
         }
         return ""
     }

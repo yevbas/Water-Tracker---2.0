@@ -65,7 +65,7 @@ struct SettingsView: View {
                     Color.black.opacity(0.4).ignoresSafeArea()
                     VStack(spacing: 16) {
                         ProgressView()
-                        Text("Recalculating saved portions…")
+                        Text("Recalculating saved portions...")
                             .foregroundStyle(.white)
                             .font(.headline)
                     }
@@ -156,32 +156,32 @@ struct SettingsView: View {
         VStack(spacing: 12) {
             UnlockFeatureRow(
                 icon: "xmark.circle.fill",
-                title: "Remove Ads",
-                description: "Enjoy an ad-free experience with full access"
+                title: String(localized: "Remove Ads"),
+                description: String(localized: "Enjoy an ad-free experience with full access")
             )
             
             UnlockFeatureRow(
                 icon: "cloud.sun.fill",
-                title: "Weather Insights",
-                description: "Get hydration recommendations based on weather conditions"
+                title: String(localized: "Weather Insights"),
+                description: String(localized: "Get hydration recommendations based on weather conditions")
             )
             
             UnlockFeatureRow(
                 icon: "moon.fill",
-                title: "Sleep Analysis",
-                description: "Track how hydration affects your sleep quality"
+                title: String(localized: "Sleep Analysis"),
+                description: String(localized: "Track how hydration affects your sleep quality")
             )
             
             UnlockFeatureRow(
                 icon: "chart.bar.fill",
-                title: "Advanced Statistics",
-                description: "View detailed analytics and weekly trends"
+                title: String(localized: "Advanced Statistics"),
+                description: String(localized: "View detailed analytics and weekly trends")
             )
             
             UnlockFeatureRow(
                 icon: "drop.triangle.fill",
-                title: "All Drink Types",
-                description: "Track coffee, tea, juice, and other beverages"
+                title: String(localized: "All Drink Types"),
+                description: String(localized: "Track coffee, tea, juice, and other beverages")
             )
         }
     }
@@ -501,8 +501,8 @@ struct SettingsView: View {
                 )
 
                 SettingsButton(
-                    title: "Rate Us",
-                    subtitle: "Help us improve",
+                    title: String(localized: "Rate Us"),
+                    subtitle: String(localized: "Help us improve"),
                     icon: "star.fill",
                     iconColor: .yellow,
                     action: {
@@ -557,8 +557,8 @@ struct SettingsView: View {
 
             VStack(spacing: 12) {
                 SettingsButton(
-                    title: "Privacy Policy",
-                    subtitle: "How we protect your data",
+                    title: String(localized: "Privacy Policy"),
+                    subtitle: String(localized: "How we protect your data"),
                     icon: "hand.raised.fill",
                     iconColor: .green,
                     action: {
@@ -567,8 +567,8 @@ struct SettingsView: View {
                 )
 
                 SettingsButton(
-                    title: "Terms of Service",
-                    subtitle: "App terms and conditions",
+                    title: String(localized: "Terms of Service"),
+                    subtitle: String(localized: "App terms and conditions"),
                     icon: "text.document.fill",
                     iconColor: .orange,
                     action: {
@@ -623,9 +623,9 @@ struct SettingsView: View {
         switch measurementUnits {
         case .ounces:
             let oz = WaterUnit.ounces.fromMilliliters(Double(waterGoalMl))
-            return "\(Int(oz.rounded())) fl oz"
+            return String(localized: "\(Int(oz.rounded())) fl oz")
         case .millilitres:
-            return "\(waterGoalMl) ml"
+            return String(localized: "\(waterGoalMl) ml")
         }
     }
 

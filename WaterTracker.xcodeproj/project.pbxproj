@@ -25,7 +25,6 @@
 		EE3F7F202E8ACFBC00031995 /* Exceptions for "WaterTracker" folder in "WaterTracker" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				HealthKitCard.swift,
 				Info.plist,
 			);
 			target = EE73B70D2E6F09710061DE68 /* WaterTracker */;

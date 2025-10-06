@@ -20,7 +20,7 @@ struct ConfigureView: View {
             Color(.systemBackground).ignoresSafeArea()
             VStack(spacing: 16) {
                 ProgressView()
-                Text(String(localized: "Preparing your app…"))
+                Text("Preparing your app...")
                     .font(.headline)
                     .foregroundStyle(.secondary)
             }

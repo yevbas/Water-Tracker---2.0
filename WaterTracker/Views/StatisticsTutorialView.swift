@@ -14,55 +14,55 @@ struct StatisticsTutorialView: View {
 
     private let pages = [
         TutorialPage(
-            title: "Comprehensive Analytics",
-            subtitle: "Track Your Hydration Journey",
-            description: "The Statistics view provides detailed insights into your hydration patterns with interactive charts, trends analysis, and achievement tracking.",
+            title: String(localized: "Comprehensive Analytics"),
+            subtitle: String(localized: "Track Your Hydration Journey"),
+            description: String(localized: "The Statistics view provides detailed insights into your hydration patterns with interactive charts, trends analysis, and achievement tracking."),
             icon: "chart.bar.fill",
             iconColor: .green,
             benefits: [
-                "Daily, weekly, monthly, and yearly views",
-                "Interactive charts with multiple data types",
-                "Goal achievement tracking and streaks",
-                "Drink type distribution analysis"
+                String(localized: "Daily, weekly, monthly, and yearly views"),
+                String(localized: "Interactive charts with multiple data types"),
+                String(localized: "Goal achievement tracking and streaks"),
+                String(localized: "Drink type distribution analysis")
             ]
         ),
         TutorialPage(
-            title: "Key Metrics & Insights",
-            subtitle: "Understand Your Patterns",
-            description: "Monitor essential hydration metrics including daily averages, drink sizes, total intake, and goal achievement rates over different time periods.",
+            title: String(localized: "Key Metrics & Insights"),
+            subtitle: String(localized: "Understand Your Patterns"),
+            description: String(localized: "Monitor essential hydration metrics including daily averages, drink sizes, total intake, and goal achievement rates over different time periods."),
             icon: "target",
             iconColor: .blue,
             benefits: [
-                "Average daily intake and drink size",
-                "Total drinks consumed over time",
-                "Goal achievement percentage",
-                "Best and current streaks"
+                String(localized: "Average daily intake and drink size"),
+                String(localized: "Total drinks consumed over time"),
+                String(localized: "Goal achievement percentage"),
+                String(localized: "Best and current streaks")
             ]
         ),
         TutorialPage(
-            title: "Interactive Charts",
-            subtitle: "Visualize Your Progress",
-            description: "Switch between different chart types to analyze your data: daily intake bars, drink type pie charts, weekly trends, and goal progress tracking.",
+            title: String(localized: "Interactive Charts"),
+            subtitle: String(localized: "Visualize Your Progress"),
+            description: String(localized: "Switch between different chart types to analyze your data: daily intake bars, drink type pie charts, weekly trends, and goal progress tracking."),
             icon: "chart.line.uptrend.xyaxis",
             iconColor: .purple,
             benefits: [
-                "Daily intake bar charts with goal lines",
-                "Drink type distribution pie charts",
-                "Weekly trend lines showing patterns",
-                "Goal progress visualization over time"
+                String(localized: "Daily intake bar charts with goal lines"),
+                String(localized: "Drink type distribution pie charts"),
+                String(localized: "Weekly trend lines showing patterns"),
+                String(localized: "Goal progress visualization over time")
             ]
         ),
         TutorialPage(
-            title: "Using Statistics Effectively",
-            subtitle: "Improve Your Habits",
-            description: "Use the statistics to identify patterns, set realistic goals, and maintain consistent hydration habits. Look for trends and adjust your routine accordingly.",
+            title: String(localized: "Using Statistics Effectively"),
+            subtitle: String(localized: "Improve Your Habits"),
+            description: String(localized: "Use the statistics to identify patterns, set realistic goals, and maintain consistent hydration habits. Look for trends and adjust your routine accordingly."),
             icon: "lightbulb.fill",
             iconColor: .orange,
             benefits: [
-                "Identify your most and least active days",
-                "Find your favorite drink types and patterns",
-                "Track improvement over different time periods",
-                "Use insights to maintain healthy habits"
+                String(localized: "Identify your most and least active days"),
+                String(localized: "Find your favorite drink types and patterns"),
+                String(localized: "Track improvement over different time periods"),
+                String(localized: "Use insights to maintain healthy habits")
             ]
         )
     ]
@@ -225,33 +225,30 @@ struct StatisticsTutorialPageView: View {
             GridItem(.flexible())
         ], spacing: 16) {
             StatCardExample(
-                title: "Average Daily",
+                title: String(localized: "Average Daily"),
                 value: "2,340 ml",
-                subtitle: "per day",
+                subtitle: String(localized: "per day"),
                 icon: "drop.fill",
                 color: .blue
             )
-
             StatCardExample(
-                title: "Average Size",
+                title: String(localized: "Average Size"),
                 value: "285 ml",
-                subtitle: "per drink",
+                subtitle: String(localized: "per drink"),
                 icon: "cup.and.saucer.fill",
                 color: .green
             )
-
             StatCardExample(
-                title: "Total Drinks",
+                title: String(localized: "Total Drinks"),
                 value: "156",
-                subtitle: "drinks",
+                subtitle: String(localized: "drinks"),
                 icon: "number",
                 color: .orange
             )
-
             StatCardExample(
-                title: "Goal Achievement",
+                title: String(localized: "Goal Achievement"),
                 value: "78%",
-                subtitle: "of days",
+                subtitle: String(localized: "of days"),
                 icon: "target",
                 color: .purple
             )

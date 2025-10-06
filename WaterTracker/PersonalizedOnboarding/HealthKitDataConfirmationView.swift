@@ -71,8 +71,8 @@ struct HealthKitDataConfirmationView: View {
                         if let height = userHeight {
                             HealthDataCard(
                                 icon: "ruler.fill",
-                                title: "Height",
-                                value: "\(Int(height * 100)) cm",
+                                title: String(localized: "Height"),
+                                value: String(localized: "\(Int(height * 100)) cm"),
                                 gradientColors: [.red.opacity(0.1), .orange.opacity(0.1)]
                             )
                         }
@@ -80,8 +80,8 @@ struct HealthKitDataConfirmationView: View {
                         if let weight = userWeight {
                             HealthDataCard(
                                 icon: "scalemass.fill",
-                                title: "Weight",
-                                value: "\(Int(weight)) kg",
+                                title: String(localized: "Weight"),
+                                value: String(localized: "\(Int(weight)) kg"),
                                 gradientColors: [.pink.opacity(0.1), .purple.opacity(0.1)]
                             )
                         }
@@ -89,8 +89,8 @@ struct HealthKitDataConfirmationView: View {
                         if let age = userAge {
                             HealthDataCard(
                                 icon: "calendar.circle.fill",
-                                title: "Age",
-                                value: "\(age) years",
+                                title: String(localized: "Age"),
+                                value: String(localized: "\(age) years"),
                                 gradientColors: [.purple.opacity(0.1), .blue.opacity(0.1)]
                             )
                         }
@@ -98,7 +98,7 @@ struct HealthKitDataConfirmationView: View {
                         if let gender = userGender {
                             HealthDataCard(
                                 icon: "person.circle.fill",
-                                title: "Gender",
+                                title: String(localized: "Gender"),
                                 value: gender.stringValue.capitalized,
                                 gradientColors: [.blue.opacity(0.1), .cyan.opacity(0.1)]
                             )
@@ -111,7 +111,7 @@ struct HealthKitDataConfirmationView: View {
         .safeAreaInset(edge: .bottom, content: {
             // Action Button
             PrimaryButton(
-                title: "Review & Continue",
+                title: String(localized: "Review & Continue"),
                 systemImage: "arrow.right.circle.fill",
                 colors: [.green, .mint],
                 action: onContinue

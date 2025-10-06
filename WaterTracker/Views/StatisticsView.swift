@@ -97,33 +97,33 @@ struct StatisticsView: View {
             GridItem(.flexible())
         ], spacing: 16) {
             StatCard(
-                title: "Average Daily",
+                title: String(localized: "Average Daily"),
                 value: formatAmount(averageDailyIntake),
-                subtitle: "per day",
+                subtitle: String(localized: "per day"),
                 icon: "drop.fill",
                 color: .blue
             )
             
             StatCard(
-                title: "Average Size",
+                title: String(localized: "Average Size"),
                 value: formatAmount(averageDrinkSize),
-                subtitle: "per drink",
+                subtitle: String(localized: "per drink"),
                 icon: "cup.and.saucer.fill",
                 color: .green
             )
             
             StatCard(
-                title: "Total Drinks",
+                title: String(localized: "Total Drinks"),
                 value: "\(totalDrinks)",
-                subtitle: "drinks",
+                subtitle: String(localized: "drinks"),
                 icon: "number",
                 color: .orange
             )
             
             StatCard(
-                title: "Goal Achievement",
+                title: String(localized: "Goal Achievement"),
                 value: "\(Int(goalAchievementRate))%",
-                subtitle: "of days",
+                subtitle: String(localized: "of days"),
                 icon: "target",
                 color: .purple
             )
@@ -289,12 +289,30 @@ struct StatisticsView: View {
                 .fontWeight(.bold)
             
             VStack(spacing: 12) {
-                DetailRow(title: "Most Active Day", value: mostActiveDayString)
-                DetailRow(title: "Least Active Day", value: leastActiveDayString)
-                DetailRow(title: "Favorite Drink", value: favoriteDrink)
-                DetailRow(title: "Best Streak", value: "\(bestStreak) days")
-                DetailRow(title: "Current Streak", value: "\(currentStreak) days")
-                DetailRow(title: "Total Volume", value: formatAmount(totalIntakeInRange))
+                DetailRow(
+                    title: String(localized: "Most Active Day"),
+                    value: mostActiveDayString
+                )
+                DetailRow(
+                    title: String(localized: "Least Active Day"),
+                    value: leastActiveDayString
+                )
+                DetailRow(
+                    title: String(localized: "Favorite Drink"),
+                    value: favoriteDrink
+                )
+                DetailRow(
+                    title: String(localized: "Best Streak"),
+                    value: String(localized: "\(bestStreak) days")
+                )
+                DetailRow(
+                    title: String(localized: "Current Streak"),
+                    value: String(localized: "\(currentStreak) days")
+                )
+                DetailRow(
+                    title: String(localized: "Total Volume"),
+                    value: formatAmount(totalIntakeInRange)
+                )
             }
             .padding()
             .background(Color(.systemGray6))
@@ -345,15 +363,15 @@ struct StatisticsView: View {
     }
     
     private var mostActiveDayString: String {
-        cachedStatistics?.mostActiveDayString ?? "No data"
+        cachedStatistics?.mostActiveDayString ?? String(localized: "No data")
     }
     
     private var leastActiveDayString: String {
-        cachedStatistics?.leastActiveDayString ?? "No data"
+        cachedStatistics?.leastActiveDayString ?? String(localized: "No data")
     }
     
     private var favoriteDrink: String {
-        cachedStatistics?.favoriteDrink ?? "No data"
+        cachedStatistics?.favoriteDrink ?? String(localized: "No data")
     }
     
     private var bestStreak: Int {
@@ -378,9 +396,9 @@ struct StatisticsView: View {
     private func formatAmount(_ amount: Double) -> String {
         if measurementUnits == "fl_oz" {
             let oz = WaterUnit.ounces.fromMilliliters(amount)
-            return "\(Int(oz.rounded())) fl oz"
+            return String(localized: "\(Int(oz.rounded())) fl oz")
         } else {
-            return "\(Int(amount.rounded())) ml"
+            return String(localized: "\(Int(amount.rounded())) ml")
         }
     }
     
@@ -501,7 +519,7 @@ struct StatisticsView: View {
         // Calculate detailed statistics
         let mostActiveDayString = {
             guard let maxDay = dailyTotals.max(by: { $0.value < $1.value }) else {
-                return "No data"
+                return String(localized: "No data")
             }
             
             let formatter = DateFormatter()
@@ -511,7 +529,7 @@ struct StatisticsView: View {
         
         let leastActiveDayString = {
             guard let minDay = dailyTotals.min(by: { $0.value < $1.value }) else {
-                return "No data"
+                return String(localized: "No data")
             }
             
             let formatter = DateFormatter()
@@ -524,10 +542,10 @@ struct StatisticsView: View {
             let drinkCounts = groupedByDrink.mapValues { $0.count }
             
             guard let favorite = drinkCounts.max(by: { $0.value < $1.value }) else {
-                return "No data"
+                return String(localized: "No data")
             }
             
-            return "\(favorite.key.title) (\(favorite.value) drinks)"
+            return String(localized: "\(favorite.key.title) (\(favorite.value) drinks)")
         }()
         
         let bestStreak = {

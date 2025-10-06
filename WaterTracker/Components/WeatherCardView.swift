@@ -419,19 +419,19 @@ struct WeatherCardView: View {
         HStack(spacing: 12) {
             weatherStatItem(
                 icon: "thermometer",
-                label: "High",
+                label: String(localized: "High"),
                 value: "\(Int(recommendation.maxTemperature))°C"
             )
 
             weatherStatItem(
                 icon: "drop.fill",
-                label: "Humidity",
+                label: String(localized: "Humidity"),
                 value: "\(Int(recommendation.humidity * 100))%"
             )
 
             weatherStatItem(
                 icon: "sun.max.fill",
-                label: "UV Index",
+                label: String(localized: "UV Index"),
                 value: "\(recommendation.uvIndex)"
             )
         }
@@ -612,9 +612,9 @@ struct WeatherCardView: View {
     private func formatWaterAmount(_ ml: Int) -> String {
         if measurementUnits == "fl_oz" {
             let oz = WaterUnit.ounces.fromMilliliters(Double(ml))
-            return "\(Int(oz.rounded())) fl oz"
+            return String(localized: "\(Int(oz.rounded())) fl oz")
         } else {
-            return "\(ml) ml"
+            return String(localized: "\(ml) ml")
         }
     }
     
@@ -662,7 +662,7 @@ struct WeatherCardView: View {
             } catch let weatherError as WeatherError {
                 errorMessage = weatherError.localizedDescription
             } catch let error {
-                errorMessage = "Failed to fetch weather data: \(error.localizedDescription)"
+                errorMessage = String(localized: "Failed to fetch weather data: \(error.localizedDescription)")
             }
             isRefreshingWeather = false
             currentAIComment = ""
@@ -686,7 +686,7 @@ struct WeatherCardView: View {
             }
         } catch {
             await MainActor.run {
-                errorMessage = "Failed to clean old weather data"
+                errorMessage = String(localized: "Failed to clean old weather data")
             }
         }
     }
@@ -714,7 +714,7 @@ struct WeatherCardView: View {
             } catch {
                 await MainActor.run {
                     isGeneratingAIComment = false
-                    errorMessage = "Failed to generate AI insight"
+                    errorMessage = String(localized: "Failed to generate AI insight")
                 }
             }
         }

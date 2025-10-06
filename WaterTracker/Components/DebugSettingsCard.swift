@@ -48,8 +48,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Simulate Crash",
-                    subtitle: "Test crash reporting",
+                    title: String(localized: "Simulate Crash"),
+                    subtitle: String(localized: "Test crash reporting"),
                     icon: "exclamationmark.triangle.fill",
                     iconColor: .red,
                     action: {
@@ -58,8 +58,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Generate 4 Months Data",
-                    subtitle: "Create random test data",
+                    title: String(localized: "Generate 4 Months Data"),
+                    subtitle: String(localized: "Create random test data"),
                     icon: "chart.bar.fill",
                     iconColor: .blue,
                     action: {
@@ -68,8 +68,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Generate Sample Health Data",
-                    subtitle: "Height, weight & 30 days of sleep",
+                    title: String(localized: "Generate Sample Health Data"),
+                    subtitle: String(localized: "Height, weight & 30 days of sleep"),
                     icon: "heart.text.square.fill",
                     iconColor: .pink,
                     action: {
@@ -78,8 +78,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Add Today's Sleep Data",
-                    subtitle: "Generate realistic sleep for today",
+                    title: String(localized: "Add Today's Sleep Data"),
+                    subtitle: String(localized: "Generate realistic sleep for today"),
                     icon: "bed.double.fill",
                     iconColor: .purple,
                     action: {
@@ -121,8 +121,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Clear Sleep Data",
-                    subtitle: "Remove all sleep samples from Health",
+                    title: String(localized: "Clear Sleep Data"),
+                    subtitle: String(localized: "Remove all sleep samples from Health"),
                     icon: "moon.zzz.fill",
                     iconColor: .indigo,
                     action: {
@@ -131,8 +131,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Clear ALL Health Data",
-                    subtitle: "Remove water, caffeine & alcohol from HealthKit",
+                    title: String(localized: "Clear ALL Health Data"),
+                    subtitle: String(localized: "Remove water, caffeine & alcohol from HealthKit"),
                     icon: "trash.circle.fill",
                     iconColor: .red,
                     action: {
@@ -141,8 +141,8 @@ struct DebugSettingsCard: View {
                 )
 
                 SettingsButton(
-                    title: "Clear All Data",
-                    subtitle: "Delete all water portions & cache",
+                    title: String(localized: "Clear All Data"),
+                    subtitle: String(localized: "Delete all water portions & cache"),
                     icon: "trash.fill",
                     iconColor: .red,
                     action: {
@@ -200,13 +200,13 @@ struct DebugSettingsCard: View {
 
     private var loadingMessage: String {
         if isGeneratingTestData {
-            return "Generating test data…"
+            return String(localized: "Generating test data...")
         } else if isGeneratingHealthData {
-            return "Generating health data…"
+            return String(localized: "Generating health data...")
         } else if isGeneratingSleepData {
-            return "Generating sleep data…"
+            return String(localized: "Generating sleep data...")
         }
-        return "Processing…"
+        return String(localized: "Processing...")
     }
 
     private var debugCardHeader: some View {
