@@ -33,10 +33,9 @@ struct SettingsView: View {
             set: { measurementUnitsString = $0 == .ounces ? "fl_oz" : "ml" }
         )
     }
-    @AppStorage("app_language") private var appLanguage: String = Locale.current.language.languageCode?.identifier ?? "en"
 
-    private let privacyPolicyURL = URL(string: "https://example.com/privacy")!
-    private let termsOfUseURL = URL(string: "https://example.com/terms")!
+    private let privacyPolicyURL = URL(string: "https://sites.google.com/view/aquioapp/privacy-policy")!
+    private let termsOfUseURL = URL(string: "https://sites.google.com/view/aquioapp/terms-conditions")!
 
     var body: some View {
         ScrollView {
