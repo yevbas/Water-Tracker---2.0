@@ -11,8 +11,19 @@ import Charts
 import SwiftData
 
 struct WaterVGridItemView: View {
+    @AppStorage("measurement_units") private var measurementUnits: String = "ml"
+
     var waterPortion: WaterPortion
-    
+
+    var amount: Double {
+        let unit = WaterUnit.fromString(measurementUnits)
+
+        return switch unit {
+        case .ounces: WaterUnit.ounces.fromMilliliters(waterPortion.amount)
+        case .millilitres: waterPortion.amount
+        }
+    }
+
     private var hydrationEffectColor: Color {
         if waterPortion.drink.hydrationFactor < 0 {
             return .red
@@ -75,7 +86,7 @@ struct WaterVGridItemView: View {
                 }
 
                 HStack {
-                    Text("\(waterPortion.amount.formatted()) ml")
+                    Text("\(amount.formatted()) \(measurementUnits)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()

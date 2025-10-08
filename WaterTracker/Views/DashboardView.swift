@@ -532,7 +532,7 @@ struct DashboardView: View {
     func saveDrink(_ drink: Drink, _ amount: Double, date: Date) {
         let waterPortion = WaterPortion(
             amount: amount,
-            unit: .millilitres,
+            unit: WaterUnit.fromString(measurementUnits),
             drink: drink,
             createDate: date,
             dayDate: date.rounded()

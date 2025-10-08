@@ -16,7 +16,13 @@ final class WaterPortion {
     var createDate: Date
     var dayDate: Date
 
-    init(amount: Double, unit: WaterUnit = .millilitres, drink: Drink = .water, createDate: Date, dayDate: Date) {
+    init(
+        amount: Double,
+        unit: WaterUnit = .millilitres,
+        drink: Drink = .water,
+        createDate: Date,
+        dayDate: Date
+    ) {
         self.amount = amount
         self.unit = unit
         self.drink = drink
