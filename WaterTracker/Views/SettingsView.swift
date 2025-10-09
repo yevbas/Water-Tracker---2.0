@@ -54,8 +54,6 @@ struct SettingsView: View {
                 #endif
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 30)
         }
 //        .navigationTitle("Settings")
         .overlay {
@@ -237,6 +235,7 @@ struct SettingsView: View {
                 .fill(.ultraThinMaterial)
                 .shadow(color: .blue.opacity(0.1), radius: 10, x: 0, y: 5)
         )
+        .animation(.smooth, value: waterGoalMl)
     }
 
     private var hydrationCardHeader: some View {
@@ -288,6 +287,7 @@ struct SettingsView: View {
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
+                    .contentTransition(.numericText())
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(
@@ -306,15 +306,15 @@ struct SettingsView: View {
                 Slider(value: Binding(
                     get: { Double(waterGoalMl) },
                     set: { waterGoalMl = Int($0) }
-                ), in: 1000...6000, step: 50)
+                ), in: 250...10000, step: 50)
                 .tint(.blue)
 
                 HStack {
-                    Text("1000 ml")
+                    Text(sliderMinDisplay)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("6000 ml")
+                    Text(sliderMaxDisplay)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -624,6 +624,28 @@ struct SettingsView: View {
             return String(localized: "\(Int(oz.rounded())) fl oz")
         case .millilitres:
             return String(localized: "\(waterGoalMl) ml")
+        }
+    }
+    
+    private var sliderMinDisplay: String {
+        let minMl = 250.0
+        switch measurementUnits {
+        case .ounces:
+            let oz = WaterUnit.ounces.fromMilliliters(minMl)
+            return String(localized: "\(Int(oz.rounded())) fl oz")
+        case .millilitres:
+            return String(localized: "\(Int(minMl)) ml")
+        }
+    }
+    
+    private var sliderMaxDisplay: String {
+        let maxMl = 10000.0
+        switch measurementUnits {
+        case .ounces:
+            let oz = WaterUnit.ounces.fromMilliliters(maxMl)
+            return String(localized: "\(Int(oz.rounded())) fl oz")
+        case .millilitres:
+            return String(localized: "\(Int(maxMl)) ml")
         }
     }
 
