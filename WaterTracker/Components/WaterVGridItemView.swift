@@ -11,13 +11,15 @@ import Charts
 import SwiftData
 
 struct WaterVGridItemView: View {
-    @AppStorage("measurement_units") private var measurementUnits: String = "ml"
+    @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
 
     var waterPortion: WaterPortion
 
     var amount: Double {
-        let unit = WaterUnit.fromString(measurementUnits)
-
+        let unit = WaterUnit.fromString(measurementUnitsString)
+        
+        // waterPortion.amount is ALWAYS stored in milliliters
+        // We just need to convert it to display units
         return switch unit {
         case .ounces: WaterUnit.ounces.fromMilliliters(waterPortion.amount)
         case .millilitres: waterPortion.amount
@@ -40,7 +42,7 @@ struct WaterVGridItemView: View {
     
     private var hydrationEffectText: String {
         let netAmountMl = waterPortion.amount * waterPortion.drink.hydrationFactor
-        let unit = WaterUnit.fromString(measurementUnits)
+        let unit = WaterUnit.fromString(measurementUnitsString)
         let netAmount = switch unit {
         case .ounces: WaterUnit.ounces.fromMilliliters(netAmountMl)
         case .millilitres: netAmountMl
@@ -93,7 +95,7 @@ struct WaterVGridItemView: View {
                 }
 
                 HStack {
-                    Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(WaterUnit.fromString(measurementUnits).shortName)")
+                    Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(WaterUnit.fromString(measurementUnitsString).shortName)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()

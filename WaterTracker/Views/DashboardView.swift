@@ -520,9 +520,8 @@ struct DashboardView: View {
 
     /// Saves a new drink entry to the model context and HealthKit
     func saveDrink(_ drink: Drink, _ amount: Double, date: Date) {
-        // Convert amount to millilitres based on current measurement unit
-        let unit = WaterUnit.fromString(measurementUnits)
-        let amountInMl = unit.toMilliliters(amount)
+        // Amount is already in milliliters from DrinkSelector
+        let amountInMl = amount
         
         // Get or create water progress for the day
         let dayDate = date.rounded()

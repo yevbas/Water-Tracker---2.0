@@ -21,7 +21,6 @@ struct DrinkSelector: View {
     @State var createDate = Date()
     @State var amount: String = ""
     @FocusState var isFocused: Bool
-    @State var formattedAmount: String = ""
     @State var drink: Drink = .water
     @EnvironmentObject private var rc: RevenueCatMonitor
     @State private var isShowingPaywall: Bool = false
@@ -54,26 +53,38 @@ struct DrinkSelector: View {
     }
     
     private var hydrationEffectText: String {
-        guard let amountValue = Double(amount) else { return "" }
+        // Replace comma with period for parsing
+        let normalizedAmount = amount.replacingOccurrences(of: ",", with: ".")
+        guard let amountValue = Double(normalizedAmount) else { return "" }
         let amountMl = measurementUnits.toMilliliters(amountValue)
         let netAmountMl = amountMl * drink.hydrationFactor
         let netAmount = measurementUnits.fromMilliliters(netAmountMl)
         let unitString = measurementUnits.shortName
         
+        // Format based on unit - integers for ml, decimals for oz
+        let netAmountFormatted = switch measurementUnits {
+        case .millilitres:
+            Int(netAmount.rounded()).formatted()
+        case .ounces:
+            netAmount.formatted(.number.precision(.fractionLength(0...1)))
+        }
+        
         if drink.hydrationFactor < 0 {
-            return String(localized: "Dehydrates \(abs(netAmount).formatted(.number.precision(.fractionLength(1)))) \(unitString)")
+            return String(localized: "Dehydrates \(abs(netAmount).formatted(.number.precision(.fractionLength(measurementUnits == .ounces ? 1 : 0)))) \(unitString)")
         } else if drink.hydrationFactor < 1.0 {
             if drink == .coffee {
-                return String(localized: "Mild diuretic: \(netAmount.formatted(.number.precision(.fractionLength(1)))) \(unitString) net")
+                return String(localized: "Mild diuretic: \(netAmountFormatted) \(unitString) net")
             }
-            return String(localized: "Net hydration: \(netAmount.formatted(.number.precision(.fractionLength(1)))) \(unitString)")
+            return String(localized: "Net hydration: \(netAmountFormatted) \(unitString)")
         } else {
             return String(localized: "Fully hydrating")
         }
     }
     
     private var caffeineContent: Double {
-        guard let amountValue = Double(amount) else { return 0 }
+        // Replace comma with period for parsing
+        let normalizedAmount = amount.replacingOccurrences(of: ",", with: ".")
+        guard let amountValue = Double(normalizedAmount) else { return 0 }
         let amountMl = measurementUnits.toMilliliters(amountValue)
         
         // Approximate caffeine content per 100ml for different drinks
@@ -136,15 +147,30 @@ struct DrinkSelector: View {
             case .ounces:
                 measurementUnits.fromMilliliters(defaultAmountMl)
             }
-            amount = String(Int(defaultAmount.rounded()))
+            
+            // Format based on unit - integers for ml, decimals for oz
+            amount = switch measurementUnits {
+            case .millilitres:
+                String(Int(defaultAmount.rounded()))
+            case .ounces:
+                String(format: "%.1f", defaultAmount)
+            }
             isFocused = true
         }
-        .onChange(of: amount, initial: true) { oldValue, newValue in
-            if let num = Double(newValue) {
-                if num >= 10000 {
-                    amount = "0"
+        .onChange(of: amount, initial: false) { oldValue, newValue in
+            // Validate input - replace comma with period for parsing
+            let normalizedValue = newValue.replacingOccurrences(of: ",", with: ".")
+            
+            // Check if it's a valid number
+            if !newValue.isEmpty {
+                if let num = Double(normalizedValue) {
+                    // Prevent values that are too large
+                    if num >= 10000 {
+                        amount = oldValue
+                    }
                 } else {
-                    formattedAmount = num.formatted()
+                    // Invalid number, revert to old value
+                    amount = oldValue
                 }
             }
         }
@@ -152,9 +178,12 @@ struct DrinkSelector: View {
 
     var addDrinkButton: some View {
         Button(action: {
-            if let amountValue = Double(amount) {
+            // Replace comma with period for parsing
+            let normalizedAmount = amount.replacingOccurrences(of: ",", with: ".")
+            if let amountValue = Double(normalizedAmount) {
                 // Convert to milliliters if needed
                 let amountInMl = measurementUnits.toMilliliters(amountValue)
+                
                 
                 if rc.userHasFullAccess || drink == .water {
                     onDrinkSelected(drink, amountInMl, createDate)
@@ -175,16 +204,16 @@ struct DrinkSelector: View {
 
     var amountInput: some View {
         HStack(spacing: 8) {
-            Text(formattedAmount)
+            Text(amount.isEmpty ? "0" : amount)
                 .font(.system(size: 84, weight: .black, design: .rounded))
                 .background {
                     TextField("", text: $amount)
                         .opacity(0)
                         .focused($isFocused)
-                        .keyboardType(.numberPad)
+                        .keyboardType(measurementUnits == .ounces ? .decimalPad : .numberPad)
                 }
                 .contentTransition(.numericText())
-                .animation(.smooth, value: formattedAmount)
+                .animation(.smooth, value: amount)
             Text(measurementUnits.shortName)
                 .font(.system(.largeTitle, design: .rounded, weight: .medium))
         }
