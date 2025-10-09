@@ -19,7 +19,7 @@ enum PortionSize: CaseIterable {
 struct DrinkSelector: View {
     @Environment(\.dismiss) var dismiss
     @State var createDate = Date()
-    @State var amount: String = "250"
+    @State var amount: String = ""
     @FocusState var isFocused: Bool
     @State var formattedAmount: String = ""
     @State var drink: Drink = .water
@@ -33,6 +33,9 @@ struct DrinkSelector: View {
     }
 
     var onDrinkSelected: (Drink, Double, Date) -> Void = { _, _, _  in }
+    
+    // Default amount in milliliters
+    private let defaultAmountMl: Double = 250
     
     // MARK: - Hydration Effect Helpers
     
@@ -126,6 +129,14 @@ struct DrinkSelector: View {
             .padding(.horizontal, 12)
         }
         .onAppear {
+            // Set default amount based on measurement unit
+            let defaultAmount = switch measurementUnits {
+            case .millilitres: 
+                defaultAmountMl
+            case .ounces:
+                measurementUnits.fromMilliliters(defaultAmountMl)
+            }
+            amount = String(Int(defaultAmount.rounded()))
             isFocused = true
         }
         .onChange(of: amount, initial: true) { oldValue, newValue in
@@ -141,9 +152,12 @@ struct DrinkSelector: View {
 
     var addDrinkButton: some View {
         Button(action: {
-            if let amount = Double(amount) {
+            if let amountValue = Double(amount) {
+                // Convert to milliliters if needed
+                let amountInMl = measurementUnits.toMilliliters(amountValue)
+                
                 if rc.userHasFullAccess || drink == .water {
-                    onDrinkSelected(drink, amount, createDate)
+                    onDrinkSelected(drink, amountInMl, createDate)
                     dismiss()
                 } else {
                     isShowingPaywall = true
