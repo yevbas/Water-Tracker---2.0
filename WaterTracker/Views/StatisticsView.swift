@@ -394,35 +394,37 @@ struct StatisticsView: View {
     }
     
     private func fetchWaterPortions() {
-        let endDate = Date()
-        let startDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate) ?? endDate
+        let endDate = Date().rounded()
+        let startDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate)?.rounded() ?? endDate
         
-        let fetchDescriptor = FetchDescriptor<WaterPortion>(
-            predicate: #Predicate { $0.dayDate >= startDate && $0.dayDate <= endDate },
-            sortBy: [.init(\WaterPortion.createDate, order: .reverse)]
+        let fetchDescriptor = FetchDescriptor<WaterProgress>(
+            predicate: #Predicate { $0.date >= startDate && $0.date <= endDate },
+            sortBy: [.init(\WaterProgress.date, order: .reverse)]
         )
         
         do {
-            waterPortions = try modelContext.fetch(fetchDescriptor)
+            let progressRecords = try modelContext.fetch(fetchDescriptor)
+            waterPortions = progressRecords.flatMap { $0.portions }
             calculateAndCacheStatistics()
         } catch {
-            print("Error fetching water portions: \(error)")
+            print("Error fetching water progress: \(error)")
             waterPortions = []
             cachedStatistics = nil
         }
     }
     
     private func calculateAndCacheStatistics() {
-        let endDate = Date()
-        let startDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate) ?? endDate
+        let endDate = Date().rounded()
+        let startDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: endDate)?.rounded() ?? endDate
         
-        // Filter portions to selected time range
+        // Filter portions to selected time range - checking through waterProgress relationship
         let filteredPortions = waterPortions.filter { portion in
-            portion.dayDate >= startDate && portion.dayDate <= endDate
+            guard let progressDate = portion.waterProgress?.date else { return false }
+            return progressDate >= startDate && progressDate <= endDate
         }
         
         // Calculate basic statistics
-        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
+        let groupedByDay = Dictionary(grouping: filteredPortions) { $0.waterProgress?.date ?? Date().rounded() }
         let dailyTotals = groupedByDay.mapValues { portions in
             portions.reduce(0) { total, portion in
                 // portion.amount is already in millilitres
@@ -483,10 +485,11 @@ struct StatisticsView: View {
                 let weekEnd = min(calendar.date(byAdding: .day, value: 6, to: currentDate) ?? currentDate, endDate)
                 
                 let weekPortions = filteredPortions.filter { portion in
-                    portion.dayDate >= currentDate && portion.dayDate <= weekEnd
+                    guard let progressDate = portion.waterProgress?.date else { return false }
+                    return progressDate >= currentDate && progressDate <= weekEnd
                 }
                 
-                let weekGroupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
+                let weekGroupedByDay = Dictionary(grouping: weekPortions) { $0.waterProgress?.date ?? Date().rounded() }
                 let weekDailyTotals = weekGroupedByDay.mapValues { portions in
                     portions.reduce(0) { total, portion in
                         // portion.amount is already in millilitres
@@ -547,7 +550,7 @@ struct StatisticsView: View {
         }()
         
         let bestStreak = {
-            let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
+            let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.waterProgress?.date ?? Date().rounded() }
             let allDailyTotals = allGroupedByDay.mapValues { portions in
                 portions.reduce(0) { total, portion in
                     // portion.amount is already in millilitres
@@ -577,7 +580,7 @@ struct StatisticsView: View {
             var streak = 0
             var checkDate = today
             
-            let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
+            let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.waterProgress?.date ?? Date().rounded() }
             
             while let dayTotal = allGroupedByDay[checkDate]?.reduce(0, { total, portion in
                 // portion.amount is already in millilitres
@@ -718,6 +721,6 @@ struct DetailRow: View {
 #Preview {
     NavigationStack {
         StatisticsView()
-            .modelContainer(for: [WaterPortion.self], inMemory: true)
+            .modelContainer(for: [WaterProgress.self, WaterPortion.self], inMemory: true)
     }
 }

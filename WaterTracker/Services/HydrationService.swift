@@ -28,8 +28,25 @@ final class HydrationService {
         
         // Convert amount to millilitres before storing
         let amountInMl = unit.toMilliliters(amount)
-        let portion = WaterPortion(amount: amountInMl, drink: drink, createDate: date, dayDate: date.rounded())
+        
+        // Get or create water progress for the day
+        let dayDate = date.rounded()
+        let fetchDescriptor = FetchDescriptor<WaterProgress>(
+            predicate: #Predicate { $0.date == dayDate }
+        )
+        
+        let waterProgress: WaterProgress
+        if let existingProgress = try? context.fetch(fetchDescriptor).first {
+            waterProgress = existingProgress
+        } else {
+            // Create new progress with a default goal (should be updated from settings)
+            waterProgress = WaterProgress(date: dayDate, goalMl: 2500)
+            context.insert(waterProgress)
+        }
+        
+        let portion = WaterPortion(amount: amountInMl, drink: drink, createDate: date, waterProgress: waterProgress)
         context.insert(portion)
+        waterProgress.portions.append(portion)
         try? context.save()
         
         // Save to HealthKit if HealthKit service is available

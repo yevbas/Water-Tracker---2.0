@@ -302,21 +302,22 @@ struct StatisticsCard: View {
     
     private func fetchWaterPortions() {
         let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate) ?? endDate // Only fetch last 7 days for statistics card
+        let endDate = Date().rounded()
+        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate)?.rounded() ?? endDate // Only fetch last 7 days for statistics card
         
-        let fetchDescriptor = FetchDescriptor<WaterPortion>(
-            predicate: #Predicate<WaterPortion> { portion in
-                portion.dayDate >= startDate && portion.dayDate <= endDate
+        let fetchDescriptor = FetchDescriptor<WaterProgress>(
+            predicate: #Predicate<WaterProgress> { progress in
+                progress.date >= startDate && progress.date <= endDate
             },
-            sortBy: [SortDescriptor(\.createDate, order: .reverse)]
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         
         do {
-            waterPortions = try modelContext.fetch(fetchDescriptor)
+            let progressRecords = try modelContext.fetch(fetchDescriptor)
+            waterPortions = progressRecords.flatMap { $0.portions }
             calculateAndCacheStatistics()
         } catch {
-            print("Error fetching water portions for statistics: \(error)")
+            print("Error fetching water progress for statistics: \(error)")
             waterPortions = []
             cachedStats = nil
         }
@@ -324,16 +325,17 @@ struct StatisticsCard: View {
     
     private func calculateAndCacheStatistics() {
         let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate) ?? endDate
+        let endDate = Date().rounded()
+        let startDate = calendar.date(byAdding: .day, value: -7, to: endDate)?.rounded() ?? endDate
         
-        // Filter to last 7 days
+        // Filter to last 7 days - checking through waterProgress relationship
         let weekPortions = waterPortions.filter { portion in
-            portion.dayDate >= startDate && portion.dayDate <= endDate
+            guard let progressDate = portion.waterProgress?.date else { return false }
+            return progressDate >= startDate && progressDate <= endDate
         }
         
         // Calculate weekly average
-        let groupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
+        let groupedByDay = Dictionary(grouping: weekPortions) { $0.waterProgress?.date ?? Date().rounded() }
         let dailyTotals = groupedByDay.mapValues { portions in
             portions.reduce(0) { total, portion in
                 // portion.amount is already in millilitres
@@ -354,7 +356,7 @@ struct StatisticsCard: View {
         
         // Calculate today's goal progress
         let today = Date().rounded()
-        let todayPortions = waterPortions.filter { $0.dayDate == today }
+        let todayPortions = waterPortions.filter { $0.waterProgress?.date == today }
         let todayTotal = todayPortions.reduce(0) { total, portion in
             // portion.amount is already in millilitres
             total + portion.amount
@@ -367,7 +369,7 @@ struct StatisticsCard: View {
             guard let date = calendar.date(byAdding: .day, value: -i, to: endDate) else { continue }
             let dayDate = date.rounded()
             
-            let dayPortions = waterPortions.filter { $0.dayDate == dayDate }
+            let dayPortions = waterPortions.filter { $0.waterProgress?.date == dayDate }
             let dayTotal = dayPortions.reduce(0) { total, portion in
                 // portion.amount is already in millilitres
                 total + portion.amount
@@ -480,7 +482,7 @@ struct StatisticsData {
         ScrollView {
             StatisticsCard()
                 .environmentObject(RevenueCatMonitor(state: .preview(false)))
-                .modelContainer(for: [WaterPortion.self], inMemory: true)
+                .modelContainer(for: [WaterProgress.self, WaterPortion.self], inMemory: true)
                 .padding()
         }
     }

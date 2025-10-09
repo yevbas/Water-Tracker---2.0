@@ -9,22 +9,59 @@ import SwiftData
 import Foundation
 
 @Model
+final class WaterProgress {
+    var date: Date // Always rounded to start of day
+    var goalMl: Double // Goal in milliliters
+    @Relationship(deleteRule: .cascade, inverse: \WaterPortion.waterProgress)
+    var portions: [WaterPortion]
+    
+    init(
+        date: Date,
+        goalMl: Double
+    ) {
+        self.date = date.rounded()
+        self.goalMl = goalMl
+        self.portions = []
+    }
+    
+    /// Total net hydration in ml (accounting for hydration factors)
+    var totalConsumedMl: Double {
+        portions.reduce(0) { sum, portion in
+            sum + (portion.amount * portion.drink.hydrationFactor)
+        }
+    }
+    
+    /// Total raw consumption in ml (not accounting for hydration factors)
+    var totalRawConsumedMl: Double {
+        portions.reduce(0) { sum, portion in
+            sum + portion.amount
+        }
+    }
+    
+    /// Progress percentage towards goal
+    var progressPercentage: Double {
+        guard goalMl > 0 else { return 0 }
+        return min(100, max(0, (totalConsumedMl / goalMl) * 100))
+    }
+}
+
+@Model
 final class WaterPortion {
     var amount: Double // Always stored in millilitres
     var drink: Drink
     var createDate: Date
-    var dayDate: Date
+    var waterProgress: WaterProgress?
 
     init(
         amount: Double,
         drink: Drink = .water,
         createDate: Date,
-        dayDate: Date
+        waterProgress: WaterProgress? = nil
     ) {
         self.amount = amount
         self.drink = drink
         self.createDate = createDate
-        self.dayDate = dayDate
+        self.waterProgress = waterProgress
     }
 }
 

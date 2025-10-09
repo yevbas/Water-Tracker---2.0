@@ -326,15 +326,30 @@ struct DebugSettingsCard: View {
                     // Random drink type
                     let randomDrink = drinks.randomElement() ?? .water
 
+                    // Get or create water progress for the day
+                    let dayDate = drinkTime.rounded()
+                    let fetchDescriptor = FetchDescriptor<WaterProgress>(
+                        predicate: #Predicate { $0.date == dayDate }
+                    )
+                    
+                    let waterProgress: WaterProgress
+                    if let existingProgress = try? modelContext.fetch(fetchDescriptor).first {
+                        waterProgress = existingProgress
+                    } else {
+                        waterProgress = WaterProgress(date: dayDate, goalMl: Double(waterGoalMl))
+                        modelContext.insert(waterProgress)
+                    }
+
                     // Create the water portion (amount is stored in millilitres)
                     let portion = WaterPortion(
                         amount: randomAmountInMl,
                         drink: randomDrink,
                         createDate: drinkTime,
-                        dayDate: drinkTime.rounded()
+                        waterProgress: waterProgress
                     )
 
                     modelContext.insert(portion)
+                    waterProgress.portions.append(portion)
                     totalPortionsCreated += 1
                 }
 
@@ -788,11 +803,12 @@ struct DebugSettingsCard: View {
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: WaterPortion.self, WeatherAnalysisCache.self, configurations: config)
+    let container = try! ModelContainer(for: WaterProgress.self, WaterPortion.self, WeatherAnalysisCache.self, configurations: config)
     
     return DebugSettingsCard()
         .modelContainer(container)
         .environmentObject(HealthKitService())
+        .environmentObject(RevenueCatMonitor(state: .preview(false)))
 }
 #endif
 

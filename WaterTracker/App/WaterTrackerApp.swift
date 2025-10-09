@@ -24,6 +24,7 @@ struct WaterTrackerApp: App {
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
+            WaterProgress.self,
             WaterPortion.self,
             WeatherAnalysisCache.self,
             SleepAnalysisCache.self,

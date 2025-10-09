@@ -132,9 +132,19 @@ struct WaterVGridItemView: View {
 }
 
 #Preview {
-//    NavigationStack {
-//        DashboardView()
-//            .modelContainer(for: WaterPortion.self, inMemory: true)
-//    }
-    WaterVGridItemView(waterPortion: .init(amount: 200, createDate: Date(), dayDate: Date().rounded()))
+    let container = try! ModelContainer(for: WaterProgress.self, WaterPortion.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let context = container.mainContext
+    
+    let progress = WaterProgress(date: Date().rounded(), goalMl: 2500)
+    context.insert(progress)
+    
+    let portion = WaterPortion(
+        amount: 200,
+        drink: .water,
+        createDate: Date(),
+        waterProgress: progress
+    )
+    context.insert(portion)
+    
+    return WaterVGridItemView(waterPortion: portion)
 }

@@ -708,20 +708,20 @@ class HealthKitService: ObservableObject {
     
     // MARK: - Bulk Data Synchronization
     
-    func syncAllHistoricalData(from portions: [WaterPortion], syncWater: Bool = true, syncCaffeine: Bool = true, syncAlcohol: Bool = true) async -> (success: Int, failed: Int, total: Int) {
+    func syncAllHistoricalData(from portionData: [(amount: Double, drink: Drink, createDate: Date)], syncWater: Bool = true, syncCaffeine: Bool = true, syncAlcohol: Bool = true) async -> (success: Int, failed: Int, total: Int) {
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit not available on device")
             return (0, 0, 0)
         }
         
-        print("🔄 Starting bulk sync of \(portions.count) water portions...")
+        print("🔄 Starting bulk sync of \(portionData.count) water portions...")
         
         var successCount = 0
         var failedCount = 0
-        let total = portions.count
+        let total = portionData.count
         
         // Group portions by date for better performance
-        let groupedPortions = Dictionary(grouping: portions) { portion in
+        let groupedPortions = Dictionary(grouping: portionData) { portion in
             Calendar.current.startOfDay(for: portion.createDate)
         }
         

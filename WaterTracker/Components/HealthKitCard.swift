@@ -821,18 +821,8 @@ struct HealthKitCard: View {
                     )
                 }
                 
-                // Convert back to WaterPortion objects for the sync
-                let portionsForSync = portionData.map { data in
-                    WaterPortion(
-                        amount: data.amount,
-                        drink: data.drink,
-                        createDate: data.createDate,
-                        dayDate: data.createDate.rounded()
-                    )
-                }
-                
                 let result = await healthKitService.syncAllHistoricalData(
-                    from: portionsForSync,
+                    from: portionData,
                     syncWater: syncWater,
                     syncCaffeine: syncCaffeine,
                     syncAlcohol: syncAlcohol

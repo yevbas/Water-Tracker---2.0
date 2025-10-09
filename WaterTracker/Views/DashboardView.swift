@@ -26,6 +26,7 @@ struct DashboardView: View {
 
     // MARK: - State Properties
 
+    @State var currentWaterProgress: WaterProgress?
     @State var waterPortions: [WaterPortion] = []
     @State var selectedDate: Date = Date().rounded()
     @State var editingWaterPortion: WaterPortion?
@@ -127,7 +128,13 @@ struct DashboardView: View {
             }
         }
         .onChange(of: selectedDate, initial: true) { _, newDate in
-            fetchWaterPortions(by: newDate ?? Date().rounded())
+            fetchOrCreateWaterProgress(for: newDate ?? Date().rounded())
+        }
+        .onChange(of: waterGoalMl) { _, newGoal in
+            if let progress = currentWaterProgress {
+                progress.goalMl = Double(newGoal)
+                try? modelContext.save()
+            }
         }
     }
 
@@ -398,26 +405,17 @@ struct DashboardView: View {
     // MARK: - Calculations
 
     private var progressPercent: Double {
-        let consumedMl = totalConsumedMl(for: selectedDate)
-        let goalMl = Double(waterGoalMl)
-        guard goalMl > 0 else { return 0 }
-        return min(100, max(0, (consumedMl / goalMl) * 100))
+        currentWaterProgress?.progressPercentage ?? 0
     }
 
     /// Total net hydration in ml (accounting for hydration factors)
     private func totalConsumedMl(for date: Date?) -> Double {
-        waterPortions.reduce(0) { sum, portion in
-            // portion.amount is already in millilitres
-            return sum + (portion.amount * portion.drink.hydrationFactor)
-        }
+        currentWaterProgress?.totalConsumedMl ?? 0
     }
 
     /// Total raw consumption in ml (not accounting for hydration factors)
     private func totalRawConsumedMl(for date: Date?) -> Double {
-        waterPortions.reduce(0) { sum, portion in
-            // portion.amount is already in millilitres
-            sum + portion.amount
-        }
+        currentWaterProgress?.totalRawConsumedMl ?? 0
     }
 
     /// Total dehydration effect in ml (from dehydrating drinks)
@@ -488,8 +486,9 @@ struct DashboardView: View {
     }
 
     private var goalDisplay: String {
+        let goalMl = currentWaterProgress?.goalMl ?? Double(waterGoalMl)
         let isOunces = measurementUnits == "fl_oz"
-        let amount = isOunces ? WaterUnit.ounces.fromMilliliters(Double(waterGoalMl)) : Double(waterGoalMl)
+        let amount = isOunces ? WaterUnit.ounces.fromMilliliters(goalMl) : goalMl
         let unit = isOunces ? "fl oz" : "ml"
 
         return "Goal \(Int(amount.rounded())) \(unit)"
@@ -525,20 +524,28 @@ struct DashboardView: View {
         let unit = WaterUnit.fromString(measurementUnits)
         let amountInMl = unit.toMilliliters(amount)
         
+        // Get or create water progress for the day
+        let dayDate = date.rounded()
+        let waterProgress = getOrCreateWaterProgress(for: dayDate)
+        
+        // Create and add water portion
         let waterPortion = WaterPortion(
             amount: amountInMl,
             drink: drink,
             createDate: date,
-            dayDate: date.rounded()
+            waterProgress: waterProgress
         )
+        
         modelContext.insert(waterPortion)
+        waterProgress.portions.append(waterPortion)
+        
         try? modelContext.save()
 
         Task {
             await saveToHealthKit(drink: drink, amountInMl: amountInMl)
         }
 
-        fetchWaterPortions(by: selectedDate ?? Date().rounded())
+        fetchOrCreateWaterProgress(for: selectedDate ?? Date().rounded())
     }
 
     /// Saves drink data to HealthKit based on drink type (amount is already in ml)
@@ -578,21 +585,59 @@ struct DashboardView: View {
     func remove(_ waterPortion: WaterPortion) {
         modelContext.delete(waterPortion)
         try? modelContext.save()
-        fetchWaterPortions(by: selectedDate ?? Date().rounded())
+        fetchOrCreateWaterProgress(for: selectedDate ?? Date().rounded())
     }
 
-    /// Fetches water portions for the selected date
-    func fetchWaterPortions(by selectedDate: Date) {
+    /// Gets or creates WaterProgress for a specific date
+    func getOrCreateWaterProgress(for date: Date) -> WaterProgress {
+        let dayDate = date.rounded()
+        
+        let fetchDescriptor = FetchDescriptor<WaterProgress>(
+            predicate: #Predicate { $0.date == dayDate }
+        )
+        
+        if let existingProgress = try? modelContext.fetch(fetchDescriptor).first {
+            return existingProgress
+        }
+        
+        // Create new progress with current goal
+        let newProgress = WaterProgress(
+            date: dayDate,
+            goalMl: Double(waterGoalMl)
+        )
+        modelContext.insert(newProgress)
+        try? modelContext.save()
+        
+        return newProgress
+    }
+
+    /// Fetches or creates water progress for the selected date
+    func fetchOrCreateWaterProgress(for selectedDate: Date) {
         let dayDate = selectedDate.rounded()
-        let fetchDescriptor = FetchDescriptor<WaterPortion>(
-            predicate: #Predicate { $0.dayDate == dayDate },
-            sortBy: [.init(\WaterPortion.createDate, order: .reverse)]
+        
+        let fetchDescriptor = FetchDescriptor<WaterProgress>(
+            predicate: #Predicate { $0.date == dayDate }
         )
 
         do {
-            waterPortions = try modelContext.fetch(fetchDescriptor)
+            if let progress = try modelContext.fetch(fetchDescriptor).first {
+                currentWaterProgress = progress
+                waterPortions = progress.portions.sorted(by: { $0.createDate > $1.createDate })
+            } else {
+                // Create new progress for this day
+                let newProgress = WaterProgress(
+                    date: dayDate,
+                    goalMl: Double(waterGoalMl)
+                )
+                modelContext.insert(newProgress)
+                try? modelContext.save()
+                
+                currentWaterProgress = newProgress
+                waterPortions = []
+            }
         } catch {
-            // Handle fetch errors silently
+            // Handle fetch errors
+            currentWaterProgress = nil
             waterPortions = []
         }
     }
@@ -610,7 +655,7 @@ struct ViewOffsetKey: PreferenceKey {
 #Preview {
     NavigationStack {
         DashboardView()
-            .modelContainer(for: [WaterPortion.self, WeatherAnalysisCache.self, SleepAnalysisCache.self], inMemory: true)
+            .modelContainer(for: [WaterProgress.self, WaterPortion.self, WeatherAnalysisCache.self, SleepAnalysisCache.self], inMemory: true)
             .environmentObject(RevenueCatMonitor(state: .preview(true)))
             .environmentObject(WeatherService())
             .environmentObject(SleepService())

@@ -80,7 +80,7 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
-        .modelContainer(for: [WaterPortion.self, WeatherAnalysisCache.self, SleepAnalysisCache.self], inMemory: true)
+        .modelContainer(for: [WaterProgress.self, WaterPortion.self, WeatherAnalysisCache.self, SleepAnalysisCache.self], inMemory: true)
         .environmentObject(RevenueCatMonitor(state: .preview(true)))
         .environmentObject(WeatherService())
         .environmentObject(SleepService())

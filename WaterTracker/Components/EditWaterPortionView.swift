@@ -142,16 +142,23 @@ struct EditWaterPortionView: View {
 }
 
 #Preview {
-    NavigationStack {
-        EditWaterPortionView(
-            waterPortion: .init(
-                amount: 2200,
-                drink: .coffee,
-                createDate: Date(),
-                dayDate: Date().rounded()
-            )
-        )
-        .environmentObject(RevenueCatMonitor(state: .preview(false)))
+    let container = try! ModelContainer(for: WaterProgress.self, WaterPortion.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let context = container.mainContext
+    
+    let progress = WaterProgress(date: Date().rounded(), goalMl: 2500)
+    context.insert(progress)
+    
+    let portion = WaterPortion(
+        amount: 2200,
+        drink: .coffee,
+        createDate: Date(),
+        waterProgress: progress
+    )
+    context.insert(portion)
+    
+    return NavigationStack {
+        EditWaterPortionView(waterPortion: portion)
+            .environmentObject(RevenueCatMonitor(state: .preview(false)))
     }
-    .modelContainer(for: WaterPortion.self, inMemory: true)
+    .modelContainer(container)
 }

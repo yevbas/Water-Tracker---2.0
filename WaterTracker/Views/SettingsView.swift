@@ -346,8 +346,6 @@ struct SettingsView: View {
                     .fill(.blue.opacity(0.05))
             )
             .onChange(of: measurementUnits) { oldValue, newValue in
-                // No need to convert existing data - all amounts are stored in millilitres
-                // Display conversion happens automatically via the measurement_units setting
                 NotificationsManager.shared.registerCategories()
             }
         }
@@ -628,9 +626,6 @@ struct SettingsView: View {
             return String(localized: "\(waterGoalMl) ml")
         }
     }
-
-    // NOTE: Unit conversion is no longer needed as all amounts are stored in millilitres
-    // The display unit is controlled by the measurement_units AppStorage setting
 
 }
 

@@ -36,7 +36,7 @@ struct ConfigureView: View {
 }
 
 #Preview("ConfigureView") {
-    let schema = Schema([WaterPortion.self])
+    let schema = Schema([WaterProgress.self, WaterPortion.self])
     let container = try! ModelContainer(for: schema, configurations: [.init(schema: schema, isStoredInMemoryOnly: true)])
     return ConfigureView(container: container, healthKitService: nil) {}
 }
