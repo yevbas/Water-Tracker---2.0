@@ -64,10 +64,10 @@ struct StatisticsView: View {
                 
                 Spacer(minLength: 100)
             }
-            .padding()
+            .padding(.horizontal, 16)
         }
         .navigationTitle("Statistics")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if cachedStatistics == nil || lastFetchDate == nil {
                 fetchWaterPortions()
