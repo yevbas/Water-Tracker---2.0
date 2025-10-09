@@ -131,6 +131,7 @@ struct WeatherTutorialView: View {
         }
         .navigationTitle("Weather Tutorial")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

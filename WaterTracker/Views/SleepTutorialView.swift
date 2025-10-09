@@ -131,6 +131,7 @@ struct SleepTutorialView: View {
         }
         .navigationTitle("Sleep Tutorial")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

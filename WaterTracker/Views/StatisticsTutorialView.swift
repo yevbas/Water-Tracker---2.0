@@ -132,6 +132,7 @@ struct StatisticsTutorialView: View {
         }
         .navigationTitle("Statistics Tutorial")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

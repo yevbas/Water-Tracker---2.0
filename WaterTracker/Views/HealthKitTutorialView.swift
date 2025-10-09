@@ -131,6 +131,7 @@ struct HealthKitTutorialView: View {
         }
         .navigationTitle("HealthKit Tutorial")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
