@@ -383,15 +383,6 @@ struct StatisticsView: View {
     }
     
     // MARK: - Helper Functions
-    
-    private func convertToMl(amount: Double, unit: WaterUnit) -> Double {
-        switch unit {
-        case .millilitres:
-            return amount
-        case .ounces:
-            return unit.toMilliliters(amount)
-        }
-    }
 
     private func formatAmount(_ amount: Double) -> String {
         if measurementUnits == "fl_oz" {
@@ -434,7 +425,8 @@ struct StatisticsView: View {
         let groupedByDay = Dictionary(grouping: filteredPortions) { $0.dayDate }
         let dailyTotals = groupedByDay.mapValues { portions in
             portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
         }
         
@@ -442,7 +434,8 @@ struct StatisticsView: View {
         
         let averageDrinkSize = filteredPortions.isEmpty ? 0 : {
             let totalAmount = filteredPortions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             return totalAmount / Double(filteredPortions.count)
         }()
@@ -456,13 +449,15 @@ struct StatisticsView: View {
         }()
         
         let totalIntakeInRange = filteredPortions.reduce(0) { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
+            // portion.amount is already in millilitres
+            total + portion.amount
         }
         
         // Calculate chart data
         let dailyIntakeData = groupedByDay.map { date, portions in
             let totalAmount = portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             return DailyIntakeData(date: date, amount: totalAmount)
         }.sorted { $0.date < $1.date }
@@ -471,7 +466,8 @@ struct StatisticsView: View {
             let groupedByDrink = Dictionary(grouping: filteredPortions) { $0.drink }
             return groupedByDrink.map { drink, portions in
                 let totalAmount = portions.reduce(0) { total, portion in
-                    total + convertToMl(amount: portion.amount, unit: portion.unit)
+                    // portion.amount is already in millilitres
+                    total + portion.amount
                 }
                 return DrinkTypeData(drink: drink, amount: totalAmount)
             }.sorted { $0.amount > $1.amount }
@@ -493,7 +489,8 @@ struct StatisticsView: View {
                 let weekGroupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
                 let weekDailyTotals = weekGroupedByDay.mapValues { portions in
                     portions.reduce(0) { total, portion in
-                        total + convertToMl(amount: portion.amount, unit: portion.unit)
+                        // portion.amount is already in millilitres
+                        total + portion.amount
                     }
                 }
                 
@@ -510,7 +507,8 @@ struct StatisticsView: View {
         
         let goalProgressData = groupedByDay.map { date, portions in
             let totalAmount = portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             let progressPercentage = (totalAmount / Double(waterGoalMl)) * 100
             return GoalProgressData(date: date, progressPercentage: min(progressPercentage, 150))
@@ -552,7 +550,8 @@ struct StatisticsView: View {
             let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
             let allDailyTotals = allGroupedByDay.mapValues { portions in
                 portions.reduce(0) { total, portion in
-                    total + convertToMl(amount: portion.amount, unit: portion.unit)
+                    // portion.amount is already in millilitres
+                    total + portion.amount
                 }
             }
             
@@ -581,7 +580,8 @@ struct StatisticsView: View {
             let allGroupedByDay = Dictionary(grouping: waterPortions) { $0.dayDate }
             
             while let dayTotal = allGroupedByDay[checkDate]?.reduce(0, { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }), dayTotal >= Double(waterGoalMl) {
                 streak += 1
                 checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate

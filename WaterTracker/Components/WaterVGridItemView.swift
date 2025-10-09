@@ -86,7 +86,7 @@ struct WaterVGridItemView: View {
                 }
 
                 HStack {
-                    Text("\(amount.formatted()) \(measurementUnits)")
+                    Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(measurementUnits)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()

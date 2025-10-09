@@ -346,7 +346,8 @@ struct SettingsView: View {
                     .fill(.blue.opacity(0.05))
             )
             .onChange(of: measurementUnits) { oldValue, newValue in
-                convertAllPortions(from: oldValue, to: newValue)
+                // No need to convert existing data - all amounts are stored in millilitres
+                // Display conversion happens automatically via the measurement_units setting
                 NotificationsManager.shared.registerCategories()
             }
         }
@@ -628,21 +629,8 @@ struct SettingsView: View {
         }
     }
 
-    private func convertAllPortions(from old: WaterUnit, to new: WaterUnit) {
-        guard old != new else { return }
-        isConvertingUnits = true
-        // Perform on main actor to keep SwiftData context safe
-        Task { @MainActor in
-            for portion in portions {
-                if portion.unit == old {
-                    portion.amount = old.convertTo(new, amount: portion.amount)
-                    portion.unit = new
-                }
-            }
-            try? modelContext.save()
-            isConvertingUnits = false
-        }
-    }
+    // NOTE: Unit conversion is no longer needed as all amounts are stored in millilitres
+    // The display unit is controlled by the measurement_units AppStorage setting
 
 }
 

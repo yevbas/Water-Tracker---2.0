@@ -12,10 +12,10 @@ struct EditWaterPortionView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @State var waterPortion: WaterPortion
+    @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
     
-    // Store original values for HealthKit updates
+    // Store original values for HealthKit updates (amount is in millilitres)
     @State private var originalAmount: Double
-    @State private var originalUnit: WaterUnit
     @State private var originalDrink: Drink
     @State private var originalDate: Date
 
@@ -25,20 +25,31 @@ struct EditWaterPortionView: View {
     init(waterPortion: WaterPortion) {
         self._waterPortion = State(initialValue: waterPortion)
         self._originalAmount = State(initialValue: waterPortion.amount)
-        self._originalUnit = State(initialValue: waterPortion.unit)
         self._originalDrink = State(initialValue: waterPortion.drink)
         self._originalDate = State(initialValue: waterPortion.createDate)
     }
 
     var body: some View {
+        let unit = WaterUnit.fromString(measurementUnitsString)
+        let displayAmount = unit.fromMilliliters(waterPortion.amount)
+        
         DrinkSelector(
             createDate: waterPortion.createDate,
-            amount: waterPortion.amount.description,
+            amount: String(format: "%.1f", displayAmount),
             drink: waterPortion.drink
         ) { newDrink, newAmount, newTime in
             waterPortion.drink = newDrink
-            waterPortion.amount = newAmount
             waterPortion.createDate = newTime
+            
+            // Only convert and update amount if it actually changed
+            let currentUnit = WaterUnit.fromString(measurementUnitsString)
+            let newAmountInMl = currentUnit.toMilliliters(newAmount)
+            
+            // Only update if the amount actually changed (with tolerance for precision errors)
+            // Use a larger tolerance to account for floating point precision issues
+            if abs(waterPortion.amount - newAmountInMl) > 1.0 {
+                waterPortion.amount = newAmountInMl
+            }
 
             saveChanges()
         }
@@ -57,9 +68,8 @@ struct EditWaterPortionView: View {
     }
     
     private func updateHealthKitRecords() async {
-        // Check if any values have changed
+        // Check if any values have changed (amounts are in millilitres)
         let hasChanges = originalAmount != waterPortion.amount ||
-                        originalUnit != waterPortion.unit ||
                         originalDrink != waterPortion.drink ||
                         originalDate != waterPortion.createDate
         
@@ -85,12 +95,13 @@ struct EditWaterPortionView: View {
             let oldWaterAmount = originalAmount * originalDrink.hydrationFactor
             let newWaterAmount = waterPortion.amount * waterPortion.drink.hydrationFactor
             
-            if oldWaterAmount != newWaterAmount || originalUnit != waterPortion.unit || originalDate != waterPortion.createDate {
+            if oldWaterAmount != newWaterAmount || originalDate != waterPortion.createDate {
+                // Both amounts are in millilitres, so we pass .millilitres as unit
                 await healthKitService.updateWaterIntakeRecord(
                     oldAmount: oldWaterAmount,
-                    oldUnit: originalUnit,
+                    oldUnit: .millilitres,
                     newAmount: newWaterAmount,
-                    newUnit: waterPortion.unit,
+                    newUnit: .millilitres,
                     oldDate: originalDate,
                     newDate: waterPortion.createDate
                 )
@@ -99,11 +110,12 @@ struct EditWaterPortionView: View {
         
         // Update caffeine intake if the drink contains caffeine
         if originalDrink.containsCaffeine || waterPortion.drink.containsCaffeine {
+            // Both amounts are in millilitres, so we pass .millilitres as unit
             await healthKitService.updateCaffeineIntakeRecord(
                 oldAmount: originalAmount,
-                oldUnit: originalUnit,
+                oldUnit: .millilitres,
                 newAmount: waterPortion.amount,
-                newUnit: waterPortion.unit,
+                newUnit: .millilitres,
                 oldDate: originalDate,
                 newDate: waterPortion.createDate
             )
@@ -111,12 +123,13 @@ struct EditWaterPortionView: View {
         
         // Update alcohol intake if the drink contains alcohol
         if originalDrink.containsAlcohol || waterPortion.drink.containsAlcohol {
+            // Both amounts are in millilitres, so we pass .millilitres as unit
             await healthKitService.updateAlcoholIntakeRecord(
                 oldAmount: originalAmount,
-                oldUnit: originalUnit,
+                oldUnit: .millilitres,
                 oldAlcoholType: originalDrink,
                 newAmount: waterPortion.amount,
-                newUnit: waterPortion.unit,
+                newUnit: .millilitres,
                 newAlcoholType: waterPortion.drink,
                 oldDate: originalDate,
                 newDate: waterPortion.createDate

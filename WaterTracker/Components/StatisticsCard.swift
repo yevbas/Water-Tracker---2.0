@@ -208,10 +208,6 @@ struct StatisticsCard: View {
     
     // MARK: - Helper Functions
     
-    private func convertToMl(amount: Double, unit: WaterUnit) -> Double {
-        return unit.toMilliliters(amount)
-    }
-    
     private var hydrationBreakdownSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -340,7 +336,8 @@ struct StatisticsCard: View {
         let groupedByDay = Dictionary(grouping: weekPortions) { $0.dayDate }
         let dailyTotals = groupedByDay.mapValues { portions in
             portions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
         }
         
@@ -349,7 +346,8 @@ struct StatisticsCard: View {
         // Calculate average drink size
         let averageDrinkSize = weekPortions.isEmpty ? 0 : {
             let totalAmount = weekPortions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             return totalAmount / Double(weekPortions.count)
         }()
@@ -358,7 +356,8 @@ struct StatisticsCard: View {
         let today = Date().rounded()
         let todayPortions = waterPortions.filter { $0.dayDate == today }
         let todayTotal = todayPortions.reduce(0) { total, portion in
-            total + convertToMl(amount: portion.amount, unit: portion.unit)
+            // portion.amount is already in millilitres
+            total + portion.amount
         }
         let todayGoalProgress = (todayTotal / Double(waterGoalMl)) * 100
         
@@ -370,7 +369,8 @@ struct StatisticsCard: View {
             
             let dayPortions = waterPortions.filter { $0.dayDate == dayDate }
             let dayTotal = dayPortions.reduce(0) { total, portion in
-                total + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             
             let formatter = DateFormatter()
@@ -383,14 +383,14 @@ struct StatisticsCard: View {
         
         // Calculate hydration amounts
         let netHydrationAmount = waterPortions.reduce(0) { sum, portion in
-            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
-            return sum + (amountInMl * portion.drink.hydrationFactor)
+            // portion.amount is already in millilitres
+            return sum + (portion.amount * portion.drink.hydrationFactor)
         }
         
         let dehydrationAmount = waterPortions.reduce(0) { sum, portion in
-            let amountInMl = convertToMl(amount: portion.amount, unit: portion.unit)
+            // portion.amount is already in millilitres
             if portion.drink.hydrationFactor < 0 {
-                return sum + (amountInMl * abs(portion.drink.hydrationFactor))
+                return sum + (portion.amount * abs(portion.drink.hydrationFactor))
             }
             return sum
         }
@@ -399,7 +399,8 @@ struct StatisticsCard: View {
         let breakdown = Dictionary(grouping: waterPortions) { $0.drink.hydrationCategory }
         let categoryBreakdown = breakdown.compactMap { category, portions in
             let totalAmount = portions.reduce(0) { sum, portion in
-                sum + convertToMl(amount: portion.amount, unit: portion.unit)
+                // portion.amount is already in millilitres
+                sum + portion.amount
             }
             
             let color: Color = switch category {

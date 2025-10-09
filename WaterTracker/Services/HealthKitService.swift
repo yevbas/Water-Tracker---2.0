@@ -732,7 +732,7 @@ class HealthKitService: ObservableObject {
                 do {
                     var syncTasks: [Task<Bool, Never>] = []
                     
-                    // Sync water intake for hydrating drinks
+                    // Sync water intake for hydrating drinks (amount is in millilitres)
                     if syncWater && (portion.drink.hydrationCategory == .fullyHydrating || 
                        portion.drink.hydrationCategory == .mildDiuretic || 
                        portion.drink.hydrationCategory == .partiallyHydrating) {
@@ -740,31 +740,31 @@ class HealthKitService: ObservableObject {
                         let waterTask = Task {
                             await saveWaterIntake(
                                 amount: portion.amount * portion.drink.hydrationFactor,
-                                unit: portion.unit,
+                                unit: .millilitres,
                                 date: portion.createDate
                             )
                         }
                         syncTasks.append(waterTask)
                     }
                     
-                    // Sync caffeine intake for caffeinated drinks
+                    // Sync caffeine intake for caffeinated drinks (amount is in millilitres)
                     if syncCaffeine && portion.drink.containsCaffeine {
                         let caffeineTask = Task {
                             await saveCaffeineIntake(
                                 amount: portion.amount,
-                                unit: portion.unit,
+                                unit: .millilitres,
                                 date: portion.createDate
                             )
                         }
                         syncTasks.append(caffeineTask)
                     }
                     
-                    // Sync alcohol intake for alcoholic drinks
+                    // Sync alcohol intake for alcoholic drinks (amount is in millilitres)
                     if syncAlcohol && portion.drink.containsAlcohol {
                         let alcoholTask = Task {
                             await saveAlcoholIntake(
                                 amount: portion.amount,
-                                unit: portion.unit,
+                                unit: .millilitres,
                                 alcoholType: portion.drink,
                                 date: portion.createDate
                             )

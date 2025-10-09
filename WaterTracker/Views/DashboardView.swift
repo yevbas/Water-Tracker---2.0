@@ -404,37 +404,28 @@ struct DashboardView: View {
         return min(100, max(0, (consumedMl / goalMl) * 100))
     }
 
-    /// Converts a water portion amount to millilitres
-    private func convertToMl(_ portion: WaterPortion) -> Double {
-        switch portion.unit {
-        case .millilitres:
-            return portion.amount
-        case .ounces:
-            return portion.unit.toMilliliters(portion.amount)
-        }
-    }
-
     /// Total net hydration in ml (accounting for hydration factors)
     private func totalConsumedMl(for date: Date?) -> Double {
         waterPortions.reduce(0) { sum, portion in
-            let amountInMl = convertToMl(portion)
-            return sum + (amountInMl * portion.drink.hydrationFactor)
+            // portion.amount is already in millilitres
+            return sum + (portion.amount * portion.drink.hydrationFactor)
         }
     }
 
     /// Total raw consumption in ml (not accounting for hydration factors)
     private func totalRawConsumedMl(for date: Date?) -> Double {
         waterPortions.reduce(0) { sum, portion in
-            sum + convertToMl(portion)
+            // portion.amount is already in millilitres
+            sum + portion.amount
         }
     }
 
     /// Total dehydration effect in ml (from dehydrating drinks)
     private func totalDehydrationMl(for date: Date?) -> Double {
         waterPortions.reduce(0) { sum, portion in
-            let amountInMl = convertToMl(portion)
+            // portion.amount is already in millilitres
             if portion.drink.hydrationFactor < 0 {
-                return sum + (amountInMl * abs(portion.drink.hydrationFactor))
+                return sum + (portion.amount * abs(portion.drink.hydrationFactor))
             }
             return sum
         }
@@ -445,10 +436,10 @@ struct DashboardView: View {
         waterPortions.reduce(0) { sum, portion in
             guard portion.drink.containsCaffeine else { return sum }
 
-            let amountInMl = convertToMl(portion)
+            // portion.amount is already in millilitres
             let caffeinePer100ml = caffeineContent(for: portion.drink)
 
-            return sum + (amountInMl / 100.0) * caffeinePer100ml
+            return sum + (portion.amount / 100.0) * caffeinePer100ml
         }
     }
 
@@ -530,9 +521,12 @@ struct DashboardView: View {
 
     /// Saves a new drink entry to the model context and HealthKit
     func saveDrink(_ drink: Drink, _ amount: Double, date: Date) {
+        // Convert amount to millilitres based on current measurement unit
+        let unit = WaterUnit.fromString(measurementUnits)
+        let amountInMl = unit.toMilliliters(amount)
+        
         let waterPortion = WaterPortion(
-            amount: amount,
-            unit: WaterUnit.fromString(measurementUnits),
+            amount: amountInMl,
             drink: drink,
             createDate: date,
             dayDate: date.rounded()
@@ -541,20 +535,20 @@ struct DashboardView: View {
         try? modelContext.save()
 
         Task {
-            await saveToHealthKit(drink: drink, amount: amount)
+            await saveToHealthKit(drink: drink, amountInMl: amountInMl)
         }
 
         fetchWaterPortions(by: selectedDate ?? Date().rounded())
     }
 
-    /// Saves drink data to HealthKit based on drink type
-    private func saveToHealthKit(drink: Drink, amount: Double) async {
+    /// Saves drink data to HealthKit based on drink type (amount is already in ml)
+    private func saveToHealthKit(drink: Drink, amountInMl: Double) async {
         // Save water intake for hydrating drinks
         if drink.hydrationCategory == .fullyHydrating ||
            drink.hydrationCategory == .mildDiuretic ||
            drink.hydrationCategory == .partiallyHydrating {
             await healthKitService.saveWaterIntake(
-                amount: amount * drink.hydrationFactor,
+                amount: amountInMl * drink.hydrationFactor,
                 unit: .millilitres,
                 date: Date()
             )
@@ -563,7 +557,7 @@ struct DashboardView: View {
         // Save caffeine intake for caffeinated drinks
         if drink.containsCaffeine {
             await healthKitService.saveCaffeineIntake(
-                amount: amount,
+                amount: amountInMl,
                 unit: .millilitres,
                 date: Date()
             )
@@ -572,7 +566,7 @@ struct DashboardView: View {
         // Save alcohol intake for alcoholic drinks
         if drink.containsAlcohol {
             await healthKitService.saveAlcoholIntake(
-                amount: amount,
+                amount: amountInMl,
                 unit: .millilitres,
                 alcoholType: drink,
                 date: Date()

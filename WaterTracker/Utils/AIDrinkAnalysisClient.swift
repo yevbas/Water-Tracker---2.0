@@ -111,7 +111,8 @@ final class AIDrinkAnalysisClient: ObservableObject {
         
         // Calculate water intake for context
         let totalWaterMl = waterData.reduce(0) { total, portion in
-            total + Int(portion.amount * portion.unit.conversionFactor)
+            // portion.amount is already in millilitres
+            total + Int(portion.amount)
         }
         let avgDailyWater = totalWaterMl / max(1, Set(waterData.map { Calendar.current.startOfDay(for: $0.createDate) }).count)
         

@@ -10,21 +10,18 @@ import Foundation
 
 @Model
 final class WaterPortion {
-    var amount: Double
-    var unit: WaterUnit
+    var amount: Double // Always stored in millilitres
     var drink: Drink
     var createDate: Date
     var dayDate: Date
 
     init(
         amount: Double,
-        unit: WaterUnit = .millilitres,
         drink: Drink = .water,
         createDate: Date,
         dayDate: Date
     ) {
         self.amount = amount
-        self.unit = unit
         self.drink = drink
         self.createDate = createDate
         self.dayDate = dayDate

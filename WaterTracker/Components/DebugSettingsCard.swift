@@ -321,15 +321,14 @@ struct DebugSettingsCard: View {
                     // Random amount based on current goal (between 10% and 40% of daily goal)
                     let minAmount = Double(waterGoalMl) * 0.10
                     let maxAmount = Double(waterGoalMl) * 0.40
-                    let randomAmount = Double.random(in: minAmount...maxAmount).rounded()
+                    let randomAmountInMl = Double.random(in: minAmount...maxAmount).rounded()
 
                     // Random drink type
                     let randomDrink = drinks.randomElement() ?? .water
 
-                    // Create the water portion
+                    // Create the water portion (amount is stored in millilitres)
                     let portion = WaterPortion(
-                        amount: randomAmount,
-                        unit: measurementUnits,
+                        amount: randomAmountInMl,
                         drink: randomDrink,
                         createDate: drinkTime,
                         dayDate: drinkTime.rounded()

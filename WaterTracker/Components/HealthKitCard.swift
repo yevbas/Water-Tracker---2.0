@@ -815,8 +815,7 @@ struct HealthKitCard: View {
                 // Create a simple array of data to avoid SwiftData reference issues
                 let portionData = allPortions.map { portion in
                     (
-                        amount: portion.amount,
-                        unit: portion.unit,
+                        amount: portion.amount, // Already in millilitres
                         drink: portion.drink,
                         createDate: portion.createDate
                     )
@@ -826,7 +825,6 @@ struct HealthKitCard: View {
                 let portionsForSync = portionData.map { data in
                     WaterPortion(
                         amount: data.amount,
-                        unit: data.unit,
                         drink: data.drink,
                         createDate: data.createDate,
                         dayDate: data.createDate.rounded()

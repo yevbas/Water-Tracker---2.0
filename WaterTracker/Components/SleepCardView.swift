@@ -878,7 +878,8 @@ struct SleepCardView: View {
         }
         
         let totalDailyIntake = dayWaterData.reduce(0) { total, portion in
-            total + (portion.amount * portion.unit.conversionFactor) // Convert to ml
+            // portion.amount is already in millilitres
+            total + portion.amount
         }
         
         // Handle edge case: minimal water intake
@@ -940,7 +941,8 @@ struct SleepCardView: View {
         return dayWaterData.filter { portion in
             portion.createDate >= eveningStart && portion.createDate <= bedTime
         }.reduce(0) { total, portion in
-            total + (portion.amount * portion.unit.conversionFactor)
+            // portion.amount is already in millilitres
+            total + portion.amount
         }
     }
     
@@ -1005,7 +1007,8 @@ struct SleepCardView: View {
         
         if !lateCaffeineIntake.isEmpty {
             let lateCaffeineAmount = lateCaffeineIntake.reduce(0) { total, portion in
-                total + (portion.amount * portion.unit.conversionFactor)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             
             // More caffeine = higher risk
@@ -1153,7 +1156,8 @@ struct SleepCardView: View {
         
         if !lateCaffeineIntake.isEmpty {
             let lateCaffeineAmount = lateCaffeineIntake.reduce(0) { total, portion in
-                total + (portion.amount * portion.unit.conversionFactor)
+                // portion.amount is already in millilitres
+                total + portion.amount
             }
             
             let latestCaffeineTime = lateCaffeineIntake.map { $0.createDate }.max()
