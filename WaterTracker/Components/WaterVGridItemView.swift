@@ -39,14 +39,21 @@ struct WaterVGridItemView: View {
     }
     
     private var hydrationEffectText: String {
-        let netAmount = waterPortion.amount * waterPortion.drink.hydrationFactor
+        let netAmountMl = waterPortion.amount * waterPortion.drink.hydrationFactor
+        let unit = WaterUnit.fromString(measurementUnits)
+        let netAmount = switch unit {
+        case .ounces: WaterUnit.ounces.fromMilliliters(netAmountMl)
+        case .millilitres: netAmountMl
+        }
+        let unitString = unit.shortName
+        
         if waterPortion.drink.hydrationFactor < 0 {
-            return String(localized: "Dehydrates \(abs(netAmount).formatted()) ml")
+            return String(localized: "Dehydrates \(abs(netAmount).formatted(.number.precision(.fractionLength(1)))) \(unitString)")
         } else if waterPortion.drink.hydrationFactor < 1.0 {
             if waterPortion.drink == .coffee {
-                return String(localized: "Mild diuretic: \(netAmount.formatted()) ml net")
+                return String(localized: "Mild diuretic: \(netAmount.formatted(.number.precision(.fractionLength(1)))) \(unitString) net")
             }
-            return String(localized: "Net hydration: \(netAmount.formatted()) ml")
+            return String(localized: "Net hydration: \(netAmount.formatted(.number.precision(.fractionLength(1)))) \(unitString)")
         } else {
             return String(localized: "Fully hydrating")
         }
@@ -86,7 +93,7 @@ struct WaterVGridItemView: View {
                 }
 
                 HStack {
-                    Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(measurementUnits)")
+                    Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(WaterUnit.fromString(measurementUnits).shortName)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
