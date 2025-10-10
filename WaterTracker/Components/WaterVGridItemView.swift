@@ -12,6 +12,9 @@ import SwiftData
 
 struct WaterVGridItemView: View {
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
+    @AppStorage("show_calories") private var showCalories: Bool = true
+    @AppStorage("show_sugars") private var showSugars: Bool = true
+    @AppStorage("show_caffeine") private var showCaffeine: Bool = true
 
     var waterPortion: WaterPortion
 
@@ -135,7 +138,7 @@ struct WaterVGridItemView: View {
                         }
                     }
 
-                    if waterPortion.drink.containsCaffeine && caffeineContent > 0 {
+                    if showCaffeine && waterPortion.drink.containsCaffeine && caffeineContent > 0 {
                         HStack(spacing: 4) {
                             Image(systemName: "bolt.fill")
                                 .font(.caption2)
@@ -149,7 +152,7 @@ struct WaterVGridItemView: View {
                     
                     if waterPortion.drink.hasNutritionalInfo {
                         HStack(spacing: 6) {
-                            if calorieContent > 0 {
+                            if showCalories && calorieContent > 0 {
                                 HStack(spacing: 4) {
                                     Image(systemName: "flame.fill")
                                         .font(.caption2)
@@ -160,7 +163,7 @@ struct WaterVGridItemView: View {
                                 }
                             }
                             
-                            if sugarContent > 0 {
+                            if showSugars && sugarContent > 0 {
                                 HStack(spacing: 4) {
                                     Image(systemName: "cube.fill")
                                         .font(.caption2)

@@ -21,6 +21,9 @@ struct SettingsView: View {
     @AppStorage("show_weather_card") private var showWeatherCard: Bool = true
     @AppStorage("show_sleep_card") private var showSleepCard: Bool = true
     @AppStorage("show_statistics_card") private var showStatisticsCard: Bool = true
+    @AppStorage("show_calories") private var showCalories: Bool = true
+    @AppStorage("show_sugars") private var showSugars: Bool = true
+    @AppStorage("show_caffeine") private var showCaffeine: Bool = true
 
     private var measurementUnits: WaterUnit {
         get { WaterUnit.fromString(measurementUnitsString) }
@@ -45,6 +48,7 @@ struct SettingsView: View {
                 }
                 hydrationSettingsCard
                 dashboardSettingsCard
+                displayPreferencesCard
                 HealthKitCard()
                 TutorialSettingsCard()
                 generalSettingsCard
@@ -476,6 +480,136 @@ struct SettingsView: View {
             }
             
             Text("Shows weekly trends and detailed analytics")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var displayPreferencesCard: some View {
+        VStack(spacing: 12) {
+            displayPreferencesHeader
+            
+            VStack(spacing: 20) {
+                caloriesToggleSection
+                
+                Divider()
+                    .background(.orange.opacity(0.2))
+                
+                sugarsToggleSection
+                
+                Divider()
+                    .background(.orange.opacity(0.2))
+                
+                caffeineToggleSection
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .orange.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
+    }
+    
+    private var displayPreferencesHeader: some View {
+        HStack {
+            Image(systemName: "eye.fill")
+                .foregroundStyle(.white)
+                .font(.title2)
+                .frame(width: 40, height: 40)
+                .background(
+                    LinearGradient(
+                        colors: [.orange, .red],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(Circle())
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Display Preferences")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                Text("Control nutritional info visibility")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+    }
+    
+    private var caloriesToggleSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: "flame.fill")
+                        .foregroundStyle(.orange)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 20, height: 20)
+                    Text("Calories")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Toggle("", isOn: $showCalories)
+                    .toggleStyle(SwitchToggleStyle(tint: .orange))
+            }
+            
+            Text("Show calorie information for drinks")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    private var sugarsToggleSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: "cube.fill")
+                        .foregroundStyle(.pink)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 20, height: 20)
+                    Text("Sugars")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Toggle("", isOn: $showSugars)
+                    .toggleStyle(SwitchToggleStyle(tint: .pink))
+            }
+            
+            Text("Show sugar content for drinks")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    private var caffeineToggleSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundStyle(.brown)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 20, height: 20)
+                    Text("Caffeine")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                Spacer()
+                Toggle("", isOn: $showCaffeine)
+                    .toggleStyle(SwitchToggleStyle(tint: .brown))
+            }
+            
+            Text("Show caffeine information for drinks")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

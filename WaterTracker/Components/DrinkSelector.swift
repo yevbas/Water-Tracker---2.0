@@ -25,6 +25,9 @@ struct DrinkSelector: View {
     @EnvironmentObject private var rc: RevenueCatMonitor
     @State private var isShowingPaywall: Bool = false
     @AppStorage("measurement_units") private var measurementUnitsString: String = "ml"
+    @AppStorage("show_calories") private var showCalories: Bool = true
+    @AppStorage("show_sugars") private var showSugars: Bool = true
+    @AppStorage("show_caffeine") private var showCaffeine: Bool = true
     
     private var measurementUnits: WaterUnit {
         get { WaterUnit.fromString(measurementUnitsString) }
@@ -156,7 +159,7 @@ struct DrinkSelector: View {
                 }
             
             // Hydration effect info
-            if drink.hydrationFactor != 1.0 || drink.containsCaffeine || drink.hasNutritionalInfo {
+            if drink.hydrationFactor != 1.0 || (showCaffeine && drink.containsCaffeine) || ((showCalories || showSugars) && drink.hasNutritionalInfo) {
                 hydrationInfoView
             }
             
@@ -268,7 +271,7 @@ struct DrinkSelector: View {
                 }
             }
             
-            if drink.containsCaffeine && caffeineContent > 0 {
+            if showCaffeine && drink.containsCaffeine && caffeineContent > 0 {
                 HStack(spacing: 6) {
                     Image(systemName: "bolt.fill")
                         .font(.caption)
@@ -285,9 +288,9 @@ struct DrinkSelector: View {
                 }
             }
             
-            if drink.hasNutritionalInfo {
+            if drink.hasNutritionalInfo && (showCalories || showSugars) {
                 HStack(spacing: 10) {
-                    if calorieContent > 0 {
+                    if showCalories && calorieContent > 0 {
                         HStack(spacing: 6) {
                             Image(systemName: "flame.fill")
                                 .font(.caption)
@@ -304,7 +307,7 @@ struct DrinkSelector: View {
                         }
                     }
                     
-                    if sugarContent > 0 {
+                    if showSugars && sugarContent > 0 {
                         HStack(spacing: 6) {
                             Image(systemName: "cube.fill")
                                 .font(.caption)

@@ -23,6 +23,9 @@ struct DashboardView: View {
     @AppStorage("show_weather_card") private var showWeatherCard: Bool = true
     @AppStorage("show_sleep_card") private var showSleepCard: Bool = true
     @AppStorage("show_statistics_card") private var showStatisticsCard: Bool = true
+    @AppStorage("show_calories") private var showCalories: Bool = true
+    @AppStorage("show_sugars") private var showSugars: Bool = true
+    @AppStorage("show_caffeine") private var showCaffeine: Bool = true
 
     // MARK: - State Properties
 
@@ -347,25 +350,26 @@ struct DashboardView: View {
     }
 
     private var hydrationDetailsStack: some View {
-        VStack(spacing: isHeaderCollapsed ? 1 : 2) {
-            Text(netHydrationDisplay)
+        VStack(spacing: 4) {
+            Text(isHeaderCollapsed ? netHydrationCollapsedDisplay : netHydrationDisplay)
                 .font(isHeaderCollapsed
-                    ? .caption2.weight(.semibold)
-                    : .subheadline.weight(.semibold))
+                      ? .caption2.weight(.semibold)
+                      : .subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
             HStack(spacing: 4) {
                 if totalDehydrationMl(for: selectedDate) > 0 {
                     dehydrationBadge
                 }
-                if totalCaffeineMg(for: selectedDate) > 0 {
+                if showCaffeine && totalCaffeineMg(for: selectedDate) > 0 {
                     caffeineBadge
                 }
             }
             HStack(spacing: 4) {
-                if totalCalories(for: selectedDate) > 0 {
+                if showCalories && totalCalories(for: selectedDate) > 0 {
                     caloriesBadge
                 }
-                if totalSugars(for: selectedDate) > 0 {
+                if showSugars && totalSugars(for: selectedDate) > 0 {
                     sugarsBadge
                 }
             }
@@ -543,6 +547,18 @@ struct DashboardView: View {
         let unit = isOunces ? "fl oz" : "ml"
 
         return "\(Int(netAmount.rounded())) \(unit) net (\(Int(rawAmount.rounded())) consumed)"
+    }
+
+    private var netHydrationCollapsedDisplay: String {
+        let netHydrationMl = totalConsumedMl(for: selectedDate)
+        let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
+
+        let isOunces = measurementUnits == "fl_oz"
+        let netAmount = isOunces ? WaterUnit.ounces.fromMilliliters(netHydrationMl) : netHydrationMl
+        let rawAmount = isOunces ? WaterUnit.ounces.fromMilliliters(rawConsumedMl) : rawConsumedMl
+        let unit = isOunces ? "fl oz" : "ml"
+
+        return "\(Int(netAmount.rounded())) | \(Int(rawAmount.rounded()))"
     }
 
     private var dehydrationDisplay: String {
