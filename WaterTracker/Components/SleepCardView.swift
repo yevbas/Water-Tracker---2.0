@@ -26,6 +26,11 @@ struct SleepCardView: View {
     @State private var isRefreshingSleep = false
     @State private var currentAIComment = ""
     @State private var isPresentedPaywall = false
+    
+    // Cached computed values to prevent re-calculation during scrolling
+    @State private var cachedHydrationMetrics: HydrationMetrics?
+    @State private var cachedHistoricalData: [SleepAnalysisCache] = []
+    @State private var cachedDataCompleteness: DataCompleteness = .minimal
 
     private var cachedAnalysis: SleepAnalysisCache? {
         let selectedRoundedDate = selectedDate.rounded()
@@ -54,38 +59,26 @@ struct SleepCardView: View {
         cachedAnalysis?.date
     }
     
-    // Calculate hydration metrics based on research - fetches water data internally
+    // Use cached hydration metrics instead of recalculating on every render
     private var hydrationMetrics: HydrationMetrics {
-        calculateHydrationMetrics()
+        cachedHydrationMetrics ?? HydrationMetrics(
+            eveningIntakePercentage: 0,
+            eveningIntakeStatus: .optimal,
+            dailyHydrationScore: 0,
+            hydrationStatus: .critical,
+            nocturiaRisk: .low,
+            insights: []
+        )
     }
     
-    // Get historical sleep data for confidence calculation
+    // Use cached historical data instead of filtering on every access
     private var historicalSleepData: [SleepAnalysisCache] {
-        let calendar = Calendar.current
-        let lookbackDate = calendar.date(
-            byAdding: .day,
-            value: -CardViewConstants.Sleep.historicalDataLookbackDays,
-            to: selectedDate
-        ) ?? selectedDate
-        
-        return allSleepAnalyses.filter { analysis in
-            analysis.date >= lookbackDate && analysis.date <= selectedDate
-        }.sorted { $0.date < $1.date }
+        cachedHistoricalData
     }
     
-    // Data completeness assessment
+    // Use cached data completeness value
     private var dataCompleteness: DataCompleteness {
-        let validNights = historicalSleepData.count
-        
-        if validNights >= CardViewConstants.Sleep.robustDataNights {
-            return .robust
-        } else if validNights >= CardViewConstants.Sleep.goodDataNights {
-            return .good
-        } else if validNights >= CardViewConstants.Sleep.moderateDataNights {
-            return .moderate
-        } else {
-            return .minimal
-        }
+        cachedDataCompleteness
     }
 
     var body: some View {
@@ -246,14 +239,65 @@ struct SleepCardView: View {
         }
         .background(Color(.systemBackground))
         .cornerRadius(CardViewConstants.Layout.cardCornerRadius)
+        .compositingGroup() // Optimize rendering performance before shadow
         .shadow(
             color: .black.opacity(CardViewConstants.Layout.shadowOpacity),
             radius: CardViewConstants.Layout.shadowRadius,
             x: 0,
             y: 1
         )
+        .id("sleep-card-\(selectedDate.timeIntervalSince1970)") // Prevent unnecessary re-renders
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()
+        }
+        .task(id: selectedDate) {
+            // Calculate expensive values when view appears or date changes
+            // Using .task instead of .onAppear for better async performance
+            updateCachedValues()
+        }
+        .onChange(of: allSleepAnalyses.count) { _, _ in
+            // Recalculate when sleep data changes
+            updateCachedValues()
+        }
+        .onChange(of: isExpanded) { _, newValue in
+            // Calculate hydration metrics when expanded
+            if newValue && cachedHydrationMetrics == nil {
+                cachedHydrationMetrics = calculateHydrationMetrics()
+            }
+        }
+    }
+
+    // MARK: - Cache Update
+    
+    private func updateCachedValues() {
+        // Update historical sleep data cache
+        let calendar = Calendar.current
+        let lookbackDate = calendar.date(
+            byAdding: .day,
+            value: -CardViewConstants.Sleep.historicalDataLookbackDays,
+            to: selectedDate
+        ) ?? selectedDate
+        
+        cachedHistoricalData = allSleepAnalyses.filter { analysis in
+            analysis.date >= lookbackDate && analysis.date <= selectedDate
+        }.sorted { $0.date < $1.date }
+        
+        // Update data completeness cache
+        let validNights = cachedHistoricalData.count
+        if validNights >= CardViewConstants.Sleep.robustDataNights {
+            cachedDataCompleteness = .robust
+        } else if validNights >= CardViewConstants.Sleep.goodDataNights {
+            cachedDataCompleteness = .good
+        } else if validNights >= CardViewConstants.Sleep.moderateDataNights {
+            cachedDataCompleteness = .moderate
+        } else {
+            cachedDataCompleteness = .minimal
+        }
+        
+        // Update hydration metrics cache (only when expanded or will be shown)
+        // This is the most expensive operation, so we calculate it lazily
+        if isExpanded || sleepRecommendation != nil {
+            cachedHydrationMetrics = calculateHydrationMetrics()
         }
     }
 
