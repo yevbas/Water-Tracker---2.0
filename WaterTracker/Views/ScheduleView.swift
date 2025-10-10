@@ -52,11 +52,19 @@ struct ScheduleView: View {
         }
         .navigationTitle("Water Reminders")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .topBarLeading) {
                 Button {
                     isShowingAutoSchedule = true
                 } label: {
                     Image(systemName: "wand.and.stars")
+                        .font(.system(size: 16, weight: .medium))
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await handleAddTapped() }
+                } label: {
+                    Image(systemName: "plus")
                         .font(.system(size: 16, weight: .medium))
                 }
             }
@@ -104,9 +112,6 @@ struct ScheduleView: View {
                 }
             }
             Spacer()
-            addButton
-                .padding(.horizontal)
-                .padding(.bottom, 8)
         }
     }
 
@@ -271,15 +276,6 @@ struct ScheduleView: View {
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
 
-    private var addButton: some View {
-        PrimaryButton(
-            title: String(localized: "Add Reminder"),
-            systemImage: "plus",
-            colors: [.blue, .cyan]
-        ) {
-            Task { await handleAddTapped() }
-        }
-    }
 
     private var addReminderSheet: some View {
         NavigationStack {
