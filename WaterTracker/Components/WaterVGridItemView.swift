@@ -81,6 +81,30 @@ struct WaterVGridItemView: View {
         }
         return ""
     }
+    
+    private var calorieContent: Double {
+        return (waterPortion.amount / 100.0) * waterPortion.drink.caloriesPer100ml
+    }
+    
+    private var sugarContent: Double {
+        return (waterPortion.amount / 100.0) * waterPortion.drink.sugarsPer100ml
+    }
+    
+    private var calorieDisplay: String {
+        let calories = calorieContent
+        if calories > 0 {
+            return String(localized: "\(Int(calories.rounded())) cal")
+        }
+        return ""
+    }
+    
+    private var sugarDisplay: String {
+        let sugars = sugarContent
+        if sugars > 0 {
+            return String(localized: "\(sugars.formatted(.number.precision(.fractionLength(0...1))))g sugar")
+        }
+        return ""
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -119,6 +143,33 @@ struct WaterVGridItemView: View {
                             Text(caffeineDisplay)
                                 .font(.caption)
                                 .foregroundStyle(.brown)
+                            Spacer()
+                        }
+                    }
+                    
+                    if waterPortion.drink.hasNutritionalInfo {
+                        HStack(spacing: 6) {
+                            if calorieContent > 0 {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "flame.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                    Text(calorieDisplay)
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                            
+                            if sugarContent > 0 {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "cube.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.pink)
+                                    Text(sugarDisplay)
+                                        .font(.caption)
+                                        .foregroundStyle(.pink)
+                                }
+                            }
                             Spacer()
                         }
                     }

@@ -106,9 +106,39 @@ struct DrinkSelector: View {
         }
         return ""
     }
+    
+    private var calorieContent: Double {
+        let normalizedAmount = amount.replacingOccurrences(of: ",", with: ".")
+        guard let amountValue = Double(normalizedAmount) else { return 0 }
+        let amountMl = measurementUnits.toMilliliters(amountValue)
+        return (amountMl / 100.0) * drink.caloriesPer100ml
+    }
+    
+    private var sugarContent: Double {
+        let normalizedAmount = amount.replacingOccurrences(of: ",", with: ".")
+        guard let amountValue = Double(normalizedAmount) else { return 0 }
+        let amountMl = measurementUnits.toMilliliters(amountValue)
+        return (amountMl / 100.0) * drink.sugarsPer100ml
+    }
+    
+    private var calorieDisplay: String {
+        let calories = calorieContent
+        if calories > 0 {
+            return String(localized: "\(Int(calories.rounded())) cal")
+        }
+        return ""
+    }
+    
+    private var sugarDisplay: String {
+        let sugars = sugarContent
+        if sugars > 0 {
+            return String(localized: "\(sugars.formatted(.number.precision(.fractionLength(0...1))))g sugar")
+        }
+        return ""
+    }
 
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
             if !rc.userHasFullAccess {
                 buildAdBannerView(.createScreen)
                     .padding()
@@ -126,9 +156,8 @@ struct DrinkSelector: View {
                 }
             
             // Hydration effect info
-            if drink.hydrationFactor != 1.0 || drink.containsCaffeine {
+            if drink.hydrationFactor != 1.0 || drink.containsCaffeine || drink.hasNutritionalInfo {
                 hydrationInfoView
-                    .padding(.top, 8)
             }
             
             Spacer()
@@ -221,7 +250,7 @@ struct DrinkSelector: View {
     }
     
     var hydrationInfoView: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             if drink.hydrationFactor != 1.0 {
                 HStack(spacing: 6) {
                     Image(systemName: "drop.fill")
@@ -253,6 +282,44 @@ struct DrinkSelector: View {
                 .background {
                     Capsule()
                         .fill(.brown.opacity(0.15))
+                }
+            }
+            
+            if drink.hasNutritionalInfo {
+                HStack(spacing: 10) {
+                    if calorieContent > 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "flame.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            Text(calorieDisplay)
+                                .font(.callout)
+                                .foregroundStyle(.orange)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background {
+                            Capsule()
+                                .fill(.orange.opacity(0.15))
+                        }
+                    }
+                    
+                    if sugarContent > 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "cube.fill")
+                                .font(.caption)
+                                .foregroundStyle(.pink)
+                            Text(sugarDisplay)
+                                .font(.callout)
+                                .foregroundStyle(.pink)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background {
+                            Capsule()
+                                .fill(.pink.opacity(0.15))
+                        }
+                    }
                 }
             }
         }

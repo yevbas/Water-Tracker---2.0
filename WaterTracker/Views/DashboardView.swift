@@ -223,9 +223,12 @@ struct DashboardView: View {
                     foregroundColors: [.blue.opacity(0.55), .blue]
                 )
                 .overlay {
-                    if !isHeaderCollapsed {
-                        circleInformationView
-                            .transition(.move(edge: .leading).combined(with: .blurReplace))
+                    VStack {
+                        percentageText
+                        if !isHeaderCollapsed {
+                            circleInformationView
+                                .transition(.move(edge: .leading).combined(with: .blurReplace))
+                        }
                     }
                 }
                 .padding(.horizontal, isHeaderCollapsed ? 0 : 16)
@@ -323,7 +326,6 @@ struct DashboardView: View {
 
     var circleInformationView: some View {
         VStack(spacing: isHeaderCollapsed ? 3 : 6) {
-            percentageText
             hydrationDetailsStack
             goalText
         }
@@ -351,13 +353,21 @@ struct DashboardView: View {
                     ? .caption2.weight(.semibold)
                     : .subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
-
-            if totalDehydrationMl(for: selectedDate) > 0 {
-                dehydrationBadge
+            HStack(spacing: 4) {
+                if totalDehydrationMl(for: selectedDate) > 0 {
+                    dehydrationBadge
+                }
+                if totalCaffeineMg(for: selectedDate) > 0 {
+                    caffeineBadge
+                }
             }
-
-            if totalCaffeineMg(for: selectedDate) > 0 {
-                caffeineBadge
+            HStack(spacing: 4) {
+                if totalCalories(for: selectedDate) > 0 {
+                    caloriesBadge
+                }
+                if totalSugars(for: selectedDate) > 0 {
+                    sugarsBadge
+                }
             }
         }
     }
@@ -384,7 +394,7 @@ struct DashboardView: View {
             Image(systemName: "bolt.fill")
                 .font(.caption2)
                 .foregroundStyle(.brown)
-            Text("\(Int(totalCaffeineMg(for: selectedDate).rounded())) mg caffeine")
+            Text("\(Int(totalCaffeineMg(for: selectedDate).rounded()))mg")
                 .font(.caption2)
                 .foregroundStyle(.brown)
         }
@@ -393,6 +403,40 @@ struct DashboardView: View {
         .background(
             RoundedRectangle(cornerRadius: isHeaderCollapsed ? 4 : 6)
                 .fill(.brown.opacity(0.1))
+        )
+    }
+    
+    private var caloriesBadge: some View {
+        HStack(spacing: isHeaderCollapsed ? 3 : 4) {
+            Image(systemName: "flame.fill")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+            Text("\(Int(totalCalories(for: selectedDate).rounded()))")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+        }
+        .padding(.horizontal, isHeaderCollapsed ? 6 : 8)
+        .padding(.vertical, isHeaderCollapsed ? 1 : 2)
+        .background(
+            RoundedRectangle(cornerRadius: isHeaderCollapsed ? 4 : 6)
+                .fill(.orange.opacity(0.1))
+        )
+    }
+    
+    private var sugarsBadge: some View {
+        HStack(spacing: isHeaderCollapsed ? 3 : 4) {
+            Image(systemName: "cube.fill")
+                .font(.caption2)
+                .foregroundStyle(.pink)
+            Text("\(totalSugars(for: selectedDate).formatted(.number.precision(.fractionLength(0...1))))g")
+                .font(.caption2)
+                .foregroundStyle(.pink)
+        }
+        .padding(.horizontal, isHeaderCollapsed ? 6 : 8)
+        .padding(.vertical, isHeaderCollapsed ? 1 : 2)
+        .background(
+            RoundedRectangle(cornerRadius: isHeaderCollapsed ? 4 : 6)
+                .fill(.pink.opacity(0.1))
         )
     }
 
@@ -422,9 +466,21 @@ struct DashboardView: View {
     private func totalDehydrationMl(for date: Date?) -> Double {
         waterPortions.reduce(0) { sum, portion in
             // portion.amount is already in millilitres
-            if portion.drink.hydrationFactor < 0 {
-                return sum + (portion.amount * abs(portion.drink.hydrationFactor))
+            let hydrationFactor = portion.drink.hydrationFactor
+            
+            // For drinks with negative hydration factor, calculate actual dehydration
+            if hydrationFactor < 0 {
+                // Negative factor means it dehydrates: e.g., 200ml * |-0.1| = 20ml dehydration
+                return sum + (portion.amount * abs(hydrationFactor))
             }
+            
+            // For alcoholic drinks with low positive hydration (like beer at 0.1)
+            // show the "hydration loss" compared to water
+            if portion.drink.containsAlcohol && hydrationFactor < 1.0 && hydrationFactor >= 0 {
+                // e.g., 500ml beer at 0.1 factor: you lose 500 * (1.0 - 0.1) = 450ml potential hydration
+                return sum + (portion.amount * (1.0 - hydrationFactor))
+            }
+            
             return sum
         }
     }
@@ -456,6 +512,20 @@ struct DashboardView: View {
             return 0.0
         }
     }
+    
+    /// Total calories consumed
+    private func totalCalories(for date: Date?) -> Double {
+        waterPortions.reduce(0) { sum, portion in
+            return sum + (portion.amount / 100.0) * portion.drink.caloriesPer100ml
+        }
+    }
+    
+    /// Total sugars consumed in grams
+    private func totalSugars(for date: Date?) -> Double {
+        waterPortions.reduce(0) { sum, portion in
+            return sum + (portion.amount / 100.0) * portion.drink.sugarsPer100ml
+        }
+    }
 
     // MARK: - Display Strings
 
@@ -482,7 +552,7 @@ struct DashboardView: View {
         let amount = isOunces ? WaterUnit.ounces.fromMilliliters(dehydrationMl) : dehydrationMl
         let unit = isOunces ? "fl oz" : "ml"
 
-        return "\(Int(amount.rounded())) \(unit) dehydrated"
+        return "- \(Int(amount.rounded()))\(unit)"
     }
 
     private var goalDisplay: String {
@@ -491,7 +561,7 @@ struct DashboardView: View {
         let amount = isOunces ? WaterUnit.ounces.fromMilliliters(goalMl) : goalMl
         let unit = isOunces ? "fl oz" : "ml"
 
-        return "Goal \(Int(amount.rounded())) \(unit)"
+        return "Goal \(Int(amount.rounded()))\(unit)"
     }
 
     // MARK: - Add Drink Button

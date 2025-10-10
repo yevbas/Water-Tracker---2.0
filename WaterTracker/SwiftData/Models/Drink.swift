@@ -205,6 +205,101 @@ enum Drink: String, Codable, Equatable, Hashable, CaseIterable {
             return false
         }
     }
+    
+    /// Calories per 100ml for the drink
+    var caloriesPer100ml: Double {
+        switch self {
+        // Zero or negligible calories
+        case .water, .sparklingWater, .tea, .coffee:
+            return 0
+        // Milks
+        case .milk:
+            return 64 // Whole milk
+        case .almondMilk:
+            return 17 // Unsweetened
+        case .oatMilk:
+            return 47
+        case .soyMilk:
+            return 33
+        case .coconutMilk:
+            return 230 // Canned, full fat
+        case .coffeeWithMilk:
+            return 12 // With a splash of milk
+        case .broth:
+            return 15
+        // Sugary drinks
+        case .juice:
+            return 45
+        case .soda:
+            return 42
+        case .sportsdrink:
+            return 25
+        case .smoothie:
+            return 60
+        // Alcoholic drinks
+        case .wine:
+            return 85
+        case .champagne:
+            return 80
+        case .beer:
+            return 43
+        case .strongAlcohol:
+            return 250 // 40% ABV spirits
+        case .energyShot:
+            return 130
+        case .other:
+            return 0
+        }
+    }
+    
+    /// Sugars per 100ml for the drink (in grams)
+    var sugarsPer100ml: Double {
+        switch self {
+        // Zero or negligible sugars
+        case .water, .sparklingWater, .tea, .coffee, .broth:
+            return 0
+        // Milks
+        case .milk:
+            return 5 // Lactose
+        case .almondMilk:
+            return 0 // Unsweetened
+        case .oatMilk:
+            return 4
+        case .soyMilk:
+            return 1
+        case .coconutMilk:
+            return 3
+        case .coffeeWithMilk:
+            return 1
+        // Sugary drinks
+        case .juice:
+            return 10
+        case .soda:
+            return 10.6
+        case .sportsdrink:
+            return 6
+        case .smoothie:
+            return 12
+        // Alcoholic drinks
+        case .wine:
+            return 0.6 // Dry wine
+        case .champagne:
+            return 1.5
+        case .beer:
+            return 0 // Negligible
+        case .strongAlcohol:
+            return 0 // Pure spirits
+        case .energyShot:
+            return 27
+        case .other:
+            return 0
+        }
+    }
+    
+    /// Whether this drink has significant calories or sugars (for display purposes)
+    var hasNutritionalInfo: Bool {
+        return caloriesPer100ml > 0 || sugarsPer100ml > 0
+    }
 }
 
 /// Categories for drink hydration effects
