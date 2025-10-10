@@ -18,6 +18,7 @@ struct ScheduleView: View {
     @State private var loading: Bool = false
     @State private var isShowingPaywall: Bool = false
     @State private var showingDuplicateAlert: Bool = false
+    @State private var isShowingAutoSchedule: Bool = false
 
     struct Reminder: Identifiable, Hashable {
         let id: String
@@ -50,12 +51,28 @@ struct ScheduleView: View {
             }
         }
         .navigationTitle("Water Reminders")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isShowingAutoSchedule = true
+                } label: {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 16, weight: .medium))
+                }
+            }
+        }
         .task { await loadReminders() }
         .onReceive(notifications.$authorizationStatus) { _ in
             Task { await loadReminders() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .applyGeneratedSchedule)) { notification in
+            if let times = notification.userInfo?["times"] as? [ScheduleTime] {
+                Task { await applyGeneratedSchedule(times) }
+            }
+        }
         .sheet(isPresented: $isPresentingAdd) { addReminderSheet }
         .sheet(isPresented: $isShowingPaywall) { PaywallView() }
+        .sheet(isPresented: $isShowingAutoSchedule) { AutoScheduleGeneratorView() }
         .alert("Reminder Already Exists", isPresented: $showingDuplicateAlert) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -370,6 +387,34 @@ struct ScheduleView: View {
         await MainActor.run {
             self.reminders = mapped
             self.loading = false
+        }
+    }
+    
+    private func applyGeneratedSchedule(_ times: [ScheduleTime]) async {
+        for time in times {
+            // Check if a reminder already exists for this time
+            if reminderExistsForTime(hour: time.hour, minute: time.minute) {
+                continue // Skip duplicates
+            }
+            
+            do {
+                let newId = UUID().uuidString
+                let id = try await notifications.scheduleDailyReminder(
+                    id: newId,
+                    hour: time.hour,
+                    minute: time.minute
+                )
+                await MainActor.run {
+                    reminders.append(.init(id: id, hour: time.hour, minute: time.minute))
+                }
+            } catch {
+                print("Failed to schedule reminder: \(error)")
+            }
+        }
+        
+        // Sort reminders after adding new ones
+        await MainActor.run {
+            reminders.sort(by: { $0.hour * 60 + $0.minute < $1.hour * 60 + $1.minute })
         }
     }
 
