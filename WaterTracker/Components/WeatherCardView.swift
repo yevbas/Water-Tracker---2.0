@@ -29,8 +29,8 @@ struct WeatherCardView: View {
     @State private var isRefreshingWeather = false
     @State private var currentAIComment = ""
     @State private var errorMessage: String?
-
     @State private var isPresentedPaywall = false
+    @State private var aiGenerationFailedOnce = false
 
     private var cachedAnalysis: WeatherAnalysisCache? {
         // Use rounded date for identification
@@ -76,7 +76,8 @@ struct WeatherCardView: View {
                 }
                 
                 // Generate AI comment when expanding if we have weather data but no AI comment
-                if isExpanded && weatherRecommendation != nil && aiComment.isEmpty {
+                // Only try if we haven't failed before
+                if isExpanded && weatherRecommendation != nil && aiComment.isEmpty && !aiGenerationFailedOnce {
                     generateAIComment()
                 }
             }) {
@@ -106,7 +107,8 @@ struct WeatherCardView: View {
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         } else if let recommendation = weatherRecommendation {
-                            Text("\(Int(recommendation.currentTemperature))°C • \(recommendation.condition.description)")
+                            let tempFormatter = TemperatureFormatter(unit: UserPreferencesHelper.getTemperatureUnit())
+                            Text("\(tempFormatter.format(recommendation.currentTemperature)) • \(recommendation.condition.description)")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         } else if errorMessage != nil {
@@ -169,8 +171,13 @@ struct WeatherCardView: View {
             }
         }
         .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .cornerRadius(CardViewConstants.Layout.cardCornerRadius)
+        .shadow(
+            color: .black.opacity(CardViewConstants.Layout.shadowOpacity),
+            radius: CardViewConstants.Layout.shadowRadius,
+            x: 0,
+            y: 1
+        )
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()
         }
@@ -416,11 +423,13 @@ struct WeatherCardView: View {
     }
 
     private func weatherStatsGrid(_ recommendation: WeatherRecommendation) -> some View {
-        HStack(spacing: 12) {
+        let tempFormatter = TemperatureFormatter(unit: UserPreferencesHelper.getTemperatureUnit())
+        
+        return HStack(spacing: CardViewConstants.Layout.innerSpacing) {
             weatherStatItem(
                 icon: "thermometer",
                 label: String(localized: "High"),
-                value: "\(Int(recommendation.maxTemperature))°C"
+                value: tempFormatter.format(recommendation.maxTemperature)
             )
 
             weatherStatItem(
@@ -610,10 +619,13 @@ struct WeatherCardView: View {
     }
 
     private func formatWaterAmount(_ ml: Int) -> String {
-        if measurementUnits == "fl_oz" {
-            let oz = WaterUnit.ounces.fromMilliliters(Double(ml))
+        let unit = UserPreferencesHelper.getMeasurementUnit()
+        
+        switch unit {
+        case .ounces:
+            let oz = unit.fromMilliliters(Double(ml))
             return String(localized: "\(Int(oz.rounded())) fl oz")
-        } else {
+        case .millilitres:
             return String(localized: "\(ml) ml")
         }
     }
@@ -669,6 +681,7 @@ struct WeatherCardView: View {
         }
     }
     
+    @MainActor
     private func cleanOldWeatherData() async {
         let currentRoundedDate = Date().rounded()
         
@@ -685,9 +698,7 @@ struct WeatherCardView: View {
                 modelContext.delete(cache)
             }
         } catch {
-            await MainActor.run {
-                errorMessage = String(localized: "Failed to clean old weather data")
-            }
+            errorMessage = CardViewConstants.ErrorMessages.fetchFailed
         }
     }
     
@@ -714,7 +725,8 @@ struct WeatherCardView: View {
             } catch {
                 await MainActor.run {
                     isGeneratingAIComment = false
-                    errorMessage = String(localized: "Failed to generate AI insight")
+                    aiGenerationFailedOnce = true
+                    errorMessage = CardViewConstants.ErrorMessages.aiGenerationFailed
                 }
             }
         }

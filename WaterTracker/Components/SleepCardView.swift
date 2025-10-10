@@ -20,7 +20,6 @@ struct SleepCardView: View {
     @EnvironmentObject private var revenueCatMonitor: RevenueCatMonitor
 
     @Query private var allSleepAnalyses: [SleepAnalysisCache]
-    @State private var allWaterPortions: [WaterPortion] = []
 
     @State private var isExpanded = false
     @State private var isGeneratingAIComment = false
@@ -55,20 +54,14 @@ struct SleepCardView: View {
         cachedAnalysis?.date
     }
 
-    // Get water data for the selected day
+    // Get water data for the selected day - only fetched when needed
     private var dayWaterData: [WaterPortion] {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? selectedDate
-        
-        return allWaterPortions.filter { portion in
-            portion.createDate >= startOfDay && portion.createDate < endOfDay
-        }.sorted { $0.createDate < $1.createDate }
+        fetchWaterPortionsForDay(selectedDate)
     }
     
-    // Get water data for the last week to compare with sleep
+    // Get water data for the last week to compare with sleep - only fetched when needed
     private var lastWeekWaterData: [WaterPortion] {
-        return fetchLastWeekWaterPortions()
+        fetchWaterPortionsForWeek(selectedDate)
     }
     
     // Calculate hydration metrics based on research
@@ -79,10 +72,14 @@ struct SleepCardView: View {
     // Get historical sleep data for confidence calculation
     private var historicalSleepData: [SleepAnalysisCache] {
         let calendar = Calendar.current
-        let monthAgo = calendar.date(byAdding: .day, value: -60, to: selectedDate) ?? selectedDate
+        let lookbackDate = calendar.date(
+            byAdding: .day,
+            value: -CardViewConstants.Sleep.historicalDataLookbackDays,
+            to: selectedDate
+        ) ?? selectedDate
         
         return allSleepAnalyses.filter { analysis in
-            analysis.date >= monthAgo && analysis.date <= selectedDate
+            analysis.date >= lookbackDate && analysis.date <= selectedDate
         }.sorted { $0.date < $1.date }
     }
     
@@ -90,11 +87,11 @@ struct SleepCardView: View {
     private var dataCompleteness: DataCompleteness {
         let validNights = historicalSleepData.count
         
-        if validNights >= 45 {
+        if validNights >= CardViewConstants.Sleep.robustDataNights {
             return .robust
-        } else if validNights >= 21 {
+        } else if validNights >= CardViewConstants.Sleep.goodDataNights {
             return .good
-        } else if validNights >= 7 {
+        } else if validNights >= CardViewConstants.Sleep.moderateDataNights {
             return .moderate
         } else {
             return .minimal
@@ -205,7 +202,7 @@ struct SleepCardView: View {
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
                     }
                 }
-                .padding(16)
+                .padding(CardViewConstants.Layout.cardPadding)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -258,14 +255,13 @@ struct SleepCardView: View {
             }
         }
         .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        .onAppear {
-            fetchWaterPortions()
-        }
-        .onChange(of: selectedDate) { _, _ in
-            fetchWaterPortions()
-        }
+        .cornerRadius(CardViewConstants.Layout.cardCornerRadius)
+        .shadow(
+            color: .black.opacity(CardViewConstants.Layout.shadowOpacity),
+            radius: CardViewConstants.Layout.shadowRadius,
+            x: 0,
+            y: 1
+        )
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()
         }
@@ -883,14 +879,14 @@ struct SleepCardView: View {
         }
         
         // Handle edge case: minimal water intake
-        guard totalDailyIntake >= 100 else { // Less than 100ml seems like incomplete data
+        guard totalDailyIntake >= CardViewConstants.Sleep.minimumValidIntakeMl else {
             return HydrationMetrics(
                 eveningIntakePercentage: 0,
                 eveningIntakeStatus: .optimal,
                 dailyHydrationScore: 0,
                 hydrationStatus: .critical,
                 nocturiaRisk: .low,
-                insights: ["Very low water intake recorded (\(Int(totalDailyIntake))ml). Make sure to log all your drinks for accurate analysis."]
+                insights: [String(localized: "Very low water intake recorded (\(Int(totalDailyIntake))ml). Make sure to log all your drinks for accurate analysis.")]
             )
         }
         
@@ -925,9 +921,14 @@ struct SleepCardView: View {
     
     private func calculateEveningIntake() -> Double {
         guard let bedTime = sleepRecommendation?.bedTime else {
-            // Fallback: assume bedtime is 22:00 if no sleep data
+            // Fallback: use default bedtime if no sleep data
             let calendar = Calendar.current
-            let assumedBedtime = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: selectedDate) ?? selectedDate
+            let assumedBedtime = calendar.date(
+                bySettingHour: CardViewConstants.Sleep.defaultBedtimeHour,
+                minute: 0,
+                second: 0,
+                of: selectedDate
+            ) ?? selectedDate
             return calculateEveningIntakeForBedtime(assumedBedtime)
         }
         
@@ -936,7 +937,11 @@ struct SleepCardView: View {
     
     private func calculateEveningIntakeForBedtime(_ bedTime: Date) -> Double {
         let calendar = Calendar.current
-        let eveningStart = calendar.date(byAdding: .hour, value: -3, to: bedTime) ?? bedTime
+        let eveningStart = calendar.date(
+            byAdding: .hour,
+            value: -CardViewConstants.Sleep.eveningIntakeWindowHours,
+            to: bedTime
+        ) ?? bedTime
         
         return dayWaterData.filter { portion in
             portion.createDate >= eveningStart && portion.createDate <= bedTime
@@ -947,9 +952,8 @@ struct SleepCardView: View {
     }
     
     private func calculatePersonalizedTarget() -> Double {
-        // This should ideally come from user settings or HealthKit data
-        // For now, use a standard 2000ml target, but this should be personalized
-        return 2000.0
+        // Get user's actual daily water goal from settings
+        return UserPreferencesHelper.getDailyWaterGoalMl()
     }
     
     private func calculateNocturiaRisk(eveningPercentage: Double, totalIntake: Double) -> NocturiaRisk {
@@ -957,21 +961,21 @@ struct SleepCardView: View {
         var riskScore = 0
         
         // Evening intake percentage (0-40 points)
-        if eveningPercentage >= 0.35 {
-            riskScore += 40 // Very high evening intake
-        } else if eveningPercentage >= 0.25 {
-            riskScore += 25 // High evening intake
-        } else if eveningPercentage >= 0.20 {
-            riskScore += 15 // Moderate evening intake
+        if eveningPercentage >= CardViewConstants.Sleep.veryHighEveningIntakePercentage {
+            riskScore += CardViewConstants.Sleep.veryHighEveningRiskPoints
+        } else if eveningPercentage >= CardViewConstants.Sleep.highEveningIntakePercentage {
+            riskScore += CardViewConstants.Sleep.highEveningRiskPoints
+        } else if eveningPercentage >= CardViewConstants.Sleep.moderateEveningIntakePercentage {
+            riskScore += CardViewConstants.Sleep.moderateEveningRiskPoints
         } else {
-            riskScore += 5 // Low evening intake
+            riskScore += CardViewConstants.Sleep.lowEveningRiskPoints
         }
         
         // Total daily intake (0-20 points)
-        if totalIntake > 3000 {
-            riskScore += 20 // Very high total intake
-        } else if totalIntake > 2500 {
-            riskScore += 10 // High total intake
+        if totalIntake > CardViewConstants.Sleep.veryHighTotalIntakeMl {
+            riskScore += CardViewConstants.Sleep.veryHighIntakeRiskPoints
+        } else if totalIntake > CardViewConstants.Sleep.highTotalIntakeMl {
+            riskScore += CardViewConstants.Sleep.highIntakeRiskPoints
         }
         
         // Caffeine factors (0-15 points)
@@ -980,16 +984,15 @@ struct SleepCardView: View {
         
         // Alcohol factors (0-10 points) 
         // Note: Alcohol is diuretic but also sedating, complex relationship
-        // For now, any alcohol increases risk slightly
         let alcoholRisk = calculateAlcoholRisk()
         riskScore += alcoholRisk
         
         // Age factor (if available from HealthKit)
         // Age >= 55: +10 points - would need HealthKit integration
         
-        if riskScore >= 35 {
+        if riskScore >= CardViewConstants.Sleep.highNocturiaRiskThreshold {
             return .high
-        } else if riskScore >= 20 {
+        } else if riskScore >= CardViewConstants.Sleep.moderateNocturiaRiskThreshold {
             return .moderate
         } else {
             return .low
@@ -998,11 +1001,16 @@ struct SleepCardView: View {
     
     private func calculateCaffeineRisk() -> Int {
         let calendar = Calendar.current
-        let afternoon = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: selectedDate) ?? selectedDate
+        let afternoon = calendar.date(
+            bySettingHour: CardViewConstants.Sleep.afternoonCaffeineHour,
+            minute: 0,
+            second: 0,
+            of: selectedDate
+        ) ?? selectedDate
         
-        // Find coffee/tea intake after 3 PM
+        // Find caffeine intake after afternoon cutoff using the drink's containsCaffeine property
         let lateCaffeineIntake = dayWaterData.filter { portion in
-            (portion.drink == .coffee || portion.drink == .tea) && portion.createDate >= afternoon
+            portion.drink.containsCaffeine && portion.createDate >= afternoon
         }
         
         if !lateCaffeineIntake.isEmpty {
@@ -1012,12 +1020,12 @@ struct SleepCardView: View {
             }
             
             // More caffeine = higher risk
-            if lateCaffeineAmount >= 500 { // Large amounts
-                return 15
-            } else if lateCaffeineAmount >= 250 { // Moderate amounts
-                return 10
+            if lateCaffeineAmount >= CardViewConstants.Sleep.largeCaffeineAmountMl {
+                return CardViewConstants.Sleep.largeCaffeineRiskPoints
+            } else if lateCaffeineAmount >= CardViewConstants.Sleep.moderateCaffeineAmountMl {
+                return CardViewConstants.Sleep.moderateCaffeineRiskPoints
             } else {
-                return 5 // Small amounts
+                return CardViewConstants.Sleep.smallCaffeineRiskPoints
             }
         }
         
@@ -1025,23 +1033,33 @@ struct SleepCardView: View {
     }
     
     private func calculateAlcoholRisk() -> Int {
-        // Check for any drinks that might indicate alcohol
-        // Note: Current system doesn't explicitly track alcohol, but "other" might be used
-        let suspectedAlcohol = dayWaterData.filter { portion in
-            portion.drink == .other || portion.drink == .soda // Soda could be mixed drinks
+        // Check for alcoholic drinks using the drink's containsAlcohol property
+        let alcoholicDrinks = dayWaterData.filter { portion in
+            portion.drink.containsAlcohol
         }
         
-        // Conservative approach: if there are "other" drinks in evening, slight risk increase
-        if !suspectedAlcohol.isEmpty {
-            let eveningOtherDrinks = suspectedAlcohol.filter { portion in
-                guard let bedTime = sleepRecommendation?.bedTime else { return false }
+        // Check if alcohol was consumed in the evening (4 hours before bedtime)
+        if !alcoholicDrinks.isEmpty {
+            let eveningAlcohol = alcoholicDrinks.filter { portion in
+                guard let bedTime = sleepRecommendation?.bedTime else {
+                    // Fallback: use default bedtime
+                    let calendar = Calendar.current
+                    let assumedBedtime = calendar.date(
+                        bySettingHour: CardViewConstants.Sleep.defaultBedtimeHour,
+                        minute: 0,
+                        second: 0,
+                        of: selectedDate
+                    ) ?? selectedDate
+                    let eveningStart = calendar.date(byAdding: .hour, value: -4, to: assumedBedtime) ?? assumedBedtime
+                    return portion.createDate >= eveningStart && portion.createDate <= assumedBedtime
+                }
                 let calendar = Calendar.current
                 let eveningStart = calendar.date(byAdding: .hour, value: -4, to: bedTime) ?? bedTime
                 return portion.createDate >= eveningStart && portion.createDate <= bedTime
             }
             
-            if !eveningOtherDrinks.isEmpty {
-                return 5 // Small risk increase for evening "other" drinks
+            if !eveningAlcohol.isEmpty {
+                return CardViewConstants.Sleep.eveningOtherDrinksRiskPoints
             }
         }
         
@@ -1049,9 +1067,9 @@ struct SleepCardView: View {
     }
     
     private func getEveningIntakeStatus(_ percentage: Double) -> MetricStatus {
-        if percentage <= 0.20 {
+        if percentage <= CardViewConstants.Sleep.optimalEveningIntakeThreshold {
             return .optimal
-        } else if percentage <= 0.30 {
+        } else if percentage <= CardViewConstants.Sleep.warningEveningIntakeThreshold {
             return .warning
         } else {
             return .critical
@@ -1059,9 +1077,9 @@ struct SleepCardView: View {
     }
     
     private func getHydrationStatus(_ score: Double) -> MetricStatus {
-        if score >= 0.80 {
+        if score >= CardViewConstants.Sleep.optimalHydrationThreshold {
             return .optimal
-        } else if score >= 0.60 {
+        } else if score >= CardViewConstants.Sleep.warningHydrationThreshold {
             return .warning
         } else {
             return .critical
@@ -1080,16 +1098,16 @@ struct SleepCardView: View {
         let confidencePrefix = getConfidencePrefix()
         
         // Evening timing insights
-        if eveningPercentage >= 0.30 {
+        if eveningPercentage >= CardViewConstants.Sleep.poorTimingThreshold {
             insights.append(String(localized: "\(confidencePrefix)You drank \(Int(eveningPercentage * 100))% of your fluids in the evening, which may disrupt sleep. Try shifting intake earlier."))
-        } else if eveningPercentage <= 0.15 && hydrationScore >= 0.70 {
+        } else if eveningPercentage <= CardViewConstants.Sleep.greatTimingThreshold && hydrationScore >= 0.70 {
             insights.append(String(localized: "\(confidencePrefix)Great hydration timing! Your steady intake throughout the day supports better sleep quality."))
         }
         
         // Hydration level insights
-        if hydrationScore < 0.60 {
+        if hydrationScore < CardViewConstants.Sleep.lowHydrationThreshold {
             insights.append(String(localized: "Low daily hydration (\(Int(totalIntake))ml) may increase risk of shorter sleep duration and morning fatigue."))
-        } else if hydrationScore >= 0.85 {
+        } else if hydrationScore >= CardViewConstants.Sleep.excellentHydrationThreshold {
             insights.append(String(localized: "Excellent hydration (\(Int(totalIntake))ml) supports optimal melatonin production and sleep regulation."))
         }
         
@@ -1124,13 +1142,15 @@ struct SleepCardView: View {
         
         // Add data completeness guidance
         if dataCompleteness == .minimal {
-            insights.append(String(localized: "💡 Track for 7+ days to unlock personalized patterns and more accurate recommendations."))
+            insights.append(String(localized: "💡 Track for \(CardViewConstants.Sleep.minimalDataNights)+ days to unlock personalized patterns and more accurate recommendations."))
         } else if dataCompleteness == .moderate {
-            insights.append(String(localized: "📈 Great progress! 21+ days of data will enable even more precise sleep-hydration insights."))
+            insights.append(String(localized: "📈 Great progress! \(CardViewConstants.Sleep.moderateDataNights)+ days of data will enable even more precise sleep-hydration insights."))
         }
         
         return insights
     }
+    
+    // MARK: - Error Handling
     
     private func getConfidencePrefix() -> String {
         switch dataCompleteness {
@@ -1262,8 +1282,7 @@ struct SleepCardView: View {
                 isRefreshingSleep = false
                 // Clear current AI comment to trigger regeneration
                 currentAIComment = ""
-                // Refresh water portions data
-                fetchWaterPortions()
+                // Note: Water portions data is now fetched on-demand via computed properties
             }
         }
     }
@@ -1314,12 +1333,13 @@ struct SleepCardView: View {
         }
     }
     
-    // MARK: - Water Portion Fetching
+    // MARK: - Efficient Water Portion Fetching
     
-    private func fetchWaterPortions() {
+    /// Fetches water portions for a specific day only - efficient for UI performance
+    private func fetchWaterPortionsForDay(_ date: Date) -> [WaterPortion] {
         let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? selectedDate
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
         
         let fetchDescriptor = FetchDescriptor<WaterPortion>(
             predicate: #Predicate { portion in
@@ -1329,17 +1349,22 @@ struct SleepCardView: View {
         )
         
         do {
-            allWaterPortions = try modelContext.fetch(fetchDescriptor)
+            return try modelContext.fetch(fetchDescriptor)
         } catch {
-            print("Failed to fetch water portions: \(error)")
-            allWaterPortions = []
+            print("Failed to fetch water portions for day: \(error)")
+            return []
         }
     }
     
-    private func fetchLastWeekWaterPortions() -> [WaterPortion] {
+    /// Fetches water portions for the week containing the given date - efficient for UI performance
+    private func fetchWaterPortionsForWeek(_ date: Date) -> [WaterPortion] {
         let calendar = Calendar.current
-        let weekAgo = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+        let weekAgo = calendar.date(
+            byAdding: .day,
+            value: -CardViewConstants.Sleep.lastWeekDataLookbackDays,
+            to: date
+        ) ?? date
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: date) ?? date
         
         let fetchDescriptor = FetchDescriptor<WaterPortion>(
             predicate: #Predicate { portion in
@@ -1351,7 +1376,7 @@ struct SleepCardView: View {
         do {
             return try modelContext.fetch(fetchDescriptor)
         } catch {
-            print("Failed to fetch last week water portions: \(error)")
+            print("Failed to fetch water portions for week: \(error)")
             return []
         }
     }
