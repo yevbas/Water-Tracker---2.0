@@ -53,18 +53,8 @@ struct SleepCardView: View {
     private var lastAnalysisDate: Date? {
         cachedAnalysis?.date
     }
-
-    // Get water data for the selected day - only fetched when needed
-    private var dayWaterData: [WaterPortion] {
-        fetchWaterPortionsForDay(selectedDate)
-    }
     
-    // Get water data for the last week to compare with sleep - only fetched when needed
-    private var lastWeekWaterData: [WaterPortion] {
-        fetchWaterPortionsForWeek(selectedDate)
-    }
-    
-    // Calculate hydration metrics based on research
+    // Calculate hydration metrics based on research - fetches water data internally
     private var hydrationMetrics: HydrationMetrics {
         calculateHydrationMetrics()
     }
@@ -387,20 +377,22 @@ struct SleepCardView: View {
     // MARK: - No Data View
 
     private var noDataView: some View {
-        VStack(spacing: 16) {
+        let dayWaterData = fetchWaterPortionsForDay(selectedDate)
+        
+        return VStack(spacing: 16) {
             // Different messages based on data availability
             if dayWaterData.isEmpty && historicalSleepData.isEmpty {
                 // No data at all
                 completeNoDataView
             } else if historicalSleepData.isEmpty {
                 // Have hydration data but no sleep data
-                noSleepDataView
+                noSleepDataView(drinkCount: dayWaterData.count)
             } else if dayWaterData.isEmpty {
                 // Have sleep data but no hydration data for today
-                noHydrationDataView
+                noHydrationDataView(nightCount: historicalSleepData.count)
             } else {
                 // Have some data but analysis failed
-                analysisFailedView
+                analysisFailedView(drinkCount: dayWaterData.count, nightCount: historicalSleepData.count)
             }
         }
         .frame(maxWidth: .infinity)
@@ -424,7 +416,7 @@ struct SleepCardView: View {
         }
     }
     
-    private var noSleepDataView: some View {
+    private func noSleepDataView(drinkCount: Int) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "bed.double")
                 .font(.title2)
@@ -435,7 +427,7 @@ struct SleepCardView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 6) {
-                Text("We can see your hydration data (\(dayWaterData.count) drinks today), but need sleep data to provide timing recommendations.")
+                Text("We can see your hydration data (\(drinkCount) drinks today), but need sleep data to provide timing recommendations.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -448,7 +440,7 @@ struct SleepCardView: View {
         }
     }
     
-    private var noHydrationDataView: some View {
+    private func noHydrationDataView(nightCount: Int) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "drop.circle")
                 .font(.title2)
@@ -459,7 +451,7 @@ struct SleepCardView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 6) {
-                Text("We have your sleep data (\(historicalSleepData.count) nights tracked), but no water intake recorded for today.")
+                Text("We have your sleep data (\(nightCount) nights tracked), but no water intake recorded for today.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -472,7 +464,7 @@ struct SleepCardView: View {
         }
     }
     
-    private var analysisFailedView: some View {
+    private func analysisFailedView(drinkCount: Int, nightCount: Int) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.title2)
@@ -483,7 +475,7 @@ struct SleepCardView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 6) {
-                Text("We have your data (\(dayWaterData.count) drinks, \(historicalSleepData.count) nights) but analysis failed.")
+                Text("We have your data (\(drinkCount) drinks, \(nightCount) nights) but analysis failed.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -861,6 +853,9 @@ struct SleepCardView: View {
     // MARK: - Hydration Calculations (Evidence-Based)
     
     private func calculateHydrationMetrics() -> HydrationMetrics {
+        // Fetch water data only once for calculations
+        let dayWaterData = fetchWaterPortionsForDay(selectedDate)
+        
         // Handle edge case: no hydration data
         guard !dayWaterData.isEmpty else {
             return HydrationMetrics(
@@ -891,7 +886,7 @@ struct SleepCardView: View {
         }
         
         // Calculate evening intake (last 3-4 hours before bedtime)
-        let eveningIntake = calculateEveningIntake()
+        let eveningIntake = calculateEveningIntake(dayWaterData: dayWaterData)
         let eveningPercentage = totalDailyIntake > 0 ? eveningIntake / totalDailyIntake : 0
         
         // Calculate hydration score (based on personalized target)
@@ -899,14 +894,15 @@ struct SleepCardView: View {
         let hydrationScore = min(1.0, totalDailyIntake / dailyTarget)
         
         // Calculate nocturia risk
-        let nocturiaRisk = calculateNocturiaRisk(eveningPercentage: eveningPercentage, totalIntake: totalDailyIntake)
+        let nocturiaRisk = calculateNocturiaRisk(eveningPercentage: eveningPercentage, totalIntake: totalDailyIntake, dayWaterData: dayWaterData)
         
         // Generate insights based on research and data completeness
         let insights = generateHydrationInsights(
             eveningPercentage: eveningPercentage,
             hydrationScore: hydrationScore,
             nocturiaRisk: nocturiaRisk,
-            totalIntake: totalDailyIntake
+            totalIntake: totalDailyIntake,
+            dayWaterData: dayWaterData
         )
         
         return HydrationMetrics(
@@ -919,7 +915,7 @@ struct SleepCardView: View {
         )
     }
     
-    private func calculateEveningIntake() -> Double {
+    private func calculateEveningIntake(dayWaterData: [WaterPortion]) -> Double {
         guard let bedTime = sleepRecommendation?.bedTime else {
             // Fallback: use default bedtime if no sleep data
             let calendar = Calendar.current
@@ -929,13 +925,13 @@ struct SleepCardView: View {
                 second: 0,
                 of: selectedDate
             ) ?? selectedDate
-            return calculateEveningIntakeForBedtime(assumedBedtime)
+            return calculateEveningIntakeForBedtime(assumedBedtime, dayWaterData: dayWaterData)
         }
         
-        return calculateEveningIntakeForBedtime(bedTime)
+        return calculateEveningIntakeForBedtime(bedTime, dayWaterData: dayWaterData)
     }
     
-    private func calculateEveningIntakeForBedtime(_ bedTime: Date) -> Double {
+    private func calculateEveningIntakeForBedtime(_ bedTime: Date, dayWaterData: [WaterPortion]) -> Double {
         let calendar = Calendar.current
         let eveningStart = calendar.date(
             byAdding: .hour,
@@ -956,7 +952,7 @@ struct SleepCardView: View {
         return UserPreferencesHelper.getDailyWaterGoalMl()
     }
     
-    private func calculateNocturiaRisk(eveningPercentage: Double, totalIntake: Double) -> NocturiaRisk {
+    private func calculateNocturiaRisk(eveningPercentage: Double, totalIntake: Double, dayWaterData: [WaterPortion]) -> NocturiaRisk {
         // Based on research: evening intake >20-25% of daily total increases nocturia risk
         var riskScore = 0
         
@@ -979,12 +975,12 @@ struct SleepCardView: View {
         }
         
         // Caffeine factors (0-15 points)
-        let caffeineRisk = calculateCaffeineRisk()
+        let caffeineRisk = calculateCaffeineRisk(dayWaterData: dayWaterData)
         riskScore += caffeineRisk
         
         // Alcohol factors (0-10 points) 
         // Note: Alcohol is diuretic but also sedating, complex relationship
-        let alcoholRisk = calculateAlcoholRisk()
+        let alcoholRisk = calculateAlcoholRisk(dayWaterData: dayWaterData)
         riskScore += alcoholRisk
         
         // Age factor (if available from HealthKit)
@@ -999,7 +995,7 @@ struct SleepCardView: View {
         }
     }
     
-    private func calculateCaffeineRisk() -> Int {
+    private func calculateCaffeineRisk(dayWaterData: [WaterPortion]) -> Int {
         let calendar = Calendar.current
         let afternoon = calendar.date(
             bySettingHour: CardViewConstants.Sleep.afternoonCaffeineHour,
@@ -1032,7 +1028,7 @@ struct SleepCardView: View {
         return 0
     }
     
-    private func calculateAlcoholRisk() -> Int {
+    private func calculateAlcoholRisk(dayWaterData: [WaterPortion]) -> Int {
         // Check for alcoholic drinks using the drink's containsAlcohol property
         let alcoholicDrinks = dayWaterData.filter { portion in
             portion.drink.containsAlcohol
@@ -1090,7 +1086,8 @@ struct SleepCardView: View {
         eveningPercentage: Double,
         hydrationScore: Double,
         nocturiaRisk: NocturiaRisk,
-        totalIntake: Double
+        totalIntake: Double,
+        dayWaterData: [WaterPortion]
     ) -> [String] {
         var insights: [String] = []
         
@@ -1112,7 +1109,7 @@ struct SleepCardView: View {
         }
         
         // Nocturia risk insights with research context
-        let caffeineInsight = generateCaffeineInsight()
+        let caffeineInsight = generateCaffeineInsight(dayWaterData: dayWaterData)
         
         switch nocturiaRisk {
         case .high:
@@ -1165,7 +1162,7 @@ struct SleepCardView: View {
         }
     }
     
-    private func generateCaffeineInsight() -> String {
+    private func generateCaffeineInsight(dayWaterData: [WaterPortion]) -> String {
         let calendar = Calendar.current
         let afternoon = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: selectedDate) ?? selectedDate
         
@@ -1297,6 +1294,9 @@ struct SleepCardView: View {
         
         Task {
             do {
+                // Fetch water data only when generating AI comment
+                let lastWeekWaterData = fetchWaterPortionsForWeek(selectedDate)
+                
                 // Use original AI analysis function
                 let aiComment = try await aiClient.analyzeSleepForHydration(
                     sleepData: recommendation, 
