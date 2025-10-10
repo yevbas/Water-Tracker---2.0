@@ -343,18 +343,18 @@ enum WaterUnit: Codable, Equatable, CaseIterable {
     var displayName: String {
         switch self {
         case .ounces:
-            return "Fluid ounces (fl oz)"
+            return String(localized: "Fluid ounces (fl oz)")
         case .millilitres:
-            return "Milliliters (ml)"
+            return String(localized: "Milliliters (ml)")
         }
     }
     
     var shortName: String {
         switch self {
         case .ounces:
-            return "fl oz"
+            return String(localized: "fl oz")
         case .millilitres:
-            return "ml"
+            return String(localized: "ml")
         }
     }
     

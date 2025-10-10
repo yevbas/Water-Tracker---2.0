@@ -104,7 +104,7 @@ struct WaterVGridItemView: View {
     private var sugarDisplay: String {
         let sugars = sugarContent
         if sugars > 0 {
-            return String(localized: "\(sugars.formatted(.number.precision(.fractionLength(0...1))))g sugar")
+            return String(localized: "\(sugars.formatted(.number.precision(.fractionLength(0...1)))) g sugar")
         }
         return ""
     }
@@ -121,59 +121,61 @@ struct WaterVGridItemView: View {
                     Spacer()
                 }
 
-                HStack {
-                    Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(WaterUnit.fromString(measurementUnitsString).shortName)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    if waterPortion.drink.hydrationFactor != 1.0 {
-                        HStack {
-                            Text(hydrationEffectText)
-                                .font(.caption)
-                                .foregroundStyle(hydrationEffectColor)
-                            Spacer()
-                        }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("\(amount.formatted(.number.precision(.fractionLength(1)))) \(WaterUnit.fromString(measurementUnitsString).shortName)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
                     }
 
-                    if showCaffeine && waterPortion.drink.containsCaffeine && caffeineContent > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "bolt.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.brown)
-                            Text(caffeineDisplay)
-                                .font(.caption)
-                                .foregroundStyle(.brown)
-                            Spacer()
+                    VStack(alignment: .leading, spacing: 2) {
+                        if waterPortion.drink.hydrationFactor != 1.0 {
+                            HStack {
+                                Text(hydrationEffectText)
+                                    .font(.caption)
+                                    .foregroundStyle(hydrationEffectColor)
+                                Spacer()
+                            }
                         }
-                    }
-                    
-                    if waterPortion.drink.hasNutritionalInfo {
-                        HStack(spacing: 6) {
-                            if showCalories && calorieContent > 0 {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "flame.fill")
-                                        .font(.caption2)
-                                        .foregroundStyle(.orange)
-                                    Text(calorieDisplay)
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
-                                }
+
+                        if showCaffeine && waterPortion.drink.containsCaffeine && caffeineContent > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "bolt.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.brown)
+                                Text(caffeineDisplay)
+                                    .font(.caption)
+                                    .foregroundStyle(.brown)
+                                Spacer()
                             }
-                            
-                            if showSugars && sugarContent > 0 {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "cube.fill")
-                                        .font(.caption2)
-                                        .foregroundStyle(.pink)
-                                    Text(sugarDisplay)
-                                        .font(.caption)
-                                        .foregroundStyle(.pink)
+                        }
+
+                        if waterPortion.drink.hasNutritionalInfo {
+                            HStack(spacing: 6) {
+                                if showCalories && calorieContent > 0 {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "flame.fill")
+                                            .font(.caption2)
+                                            .foregroundStyle(.orange)
+                                        Text(calorieDisplay)
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    }
                                 }
+
+                                if showSugars && sugarContent > 0 {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "cube.fill")
+                                            .font(.caption2)
+                                            .foregroundStyle(.pink)
+                                        Text(sugarDisplay)
+                                            .font(.caption)
+                                            .foregroundStyle(.pink)
+                                    }
+                                }
+                                Spacer()
                             }
-                            Spacer()
                         }
                     }
                 }

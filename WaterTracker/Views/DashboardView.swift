@@ -131,7 +131,7 @@ struct DashboardView: View {
             }
         }
         .onChange(of: selectedDate, initial: true) { _, newDate in
-            fetchOrCreateWaterProgress(for: newDate ?? Date().rounded())
+            fetchOrCreateWaterProgress(for: newDate)
         }
         .onChange(of: waterGoalMl) { _, newGoal in
             if let progress = currentWaterProgress {
@@ -398,7 +398,7 @@ struct DashboardView: View {
             Image(systemName: "bolt.fill")
                 .font(.caption2)
                 .foregroundStyle(.brown)
-            Text("\(Int(totalCaffeineMg(for: selectedDate).rounded()))mg")
+            Text("\(Int(totalCaffeineMg(for: selectedDate).rounded())) mg")
                 .font(.caption2)
                 .foregroundStyle(.brown)
         }
@@ -432,7 +432,7 @@ struct DashboardView: View {
             Image(systemName: "cube.fill")
                 .font(.caption2)
                 .foregroundStyle(.pink)
-            Text("\(totalSugars(for: selectedDate).formatted(.number.precision(.fractionLength(0...1))))g")
+            Text("\(totalSugars(for: selectedDate).formatted(.number.precision(.fractionLength(0...1)))) g")
                 .font(.caption2)
                 .foregroundStyle(.pink)
         }
@@ -539,26 +539,26 @@ struct DashboardView: View {
 
     private var netHydrationDisplay: String {
         let netHydrationMl = totalConsumedMl(for: selectedDate)
-        let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
+//        let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
 
         let isOunces = measurementUnits == "fl_oz"
         let netAmount = isOunces ? WaterUnit.ounces.fromMilliliters(netHydrationMl) : netHydrationMl
-        let rawAmount = isOunces ? WaterUnit.ounces.fromMilliliters(rawConsumedMl) : rawConsumedMl
-        let unit = isOunces ? "fl oz" : "ml"
+        //let rawAmount = isOunces ? WaterUnit.ounces.fromMilliliters(rawConsumedMl) : rawConsumedMl
+        let unit = isOunces ? WaterUnit.ounces.shortName : WaterUnit.millilitres.shortName
 
-        return "\(Int(netAmount.rounded())) \(unit) net (\(Int(rawAmount.rounded())) consumed)"
+        return "\(Int(netAmount.rounded())) \(unit)"
     }
 
     private var netHydrationCollapsedDisplay: String {
         let netHydrationMl = totalConsumedMl(for: selectedDate)
-        let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
+//        let rawConsumedMl = totalRawConsumedMl(for: selectedDate)
 
         let isOunces = measurementUnits == "fl_oz"
         let netAmount = isOunces ? WaterUnit.ounces.fromMilliliters(netHydrationMl) : netHydrationMl
-        let rawAmount = isOunces ? WaterUnit.ounces.fromMilliliters(rawConsumedMl) : rawConsumedMl
-        let unit = isOunces ? "fl oz" : "ml"
+        //let rawAmount = isOunces ? WaterUnit.ounces.fromMilliliters(rawConsumedMl) : rawConsumedMl
+        let unit = isOunces ? WaterUnit.ounces.shortName : WaterUnit.millilitres.shortName
 
-        return "\(Int(netAmount.rounded())) | \(Int(rawAmount.rounded()))"
+        return "\(Int(netAmount.rounded())) \(unit)"
     }
 
     private var dehydrationDisplay: String {
@@ -566,18 +566,18 @@ struct DashboardView: View {
 
         let isOunces = measurementUnits == "fl_oz"
         let amount = isOunces ? WaterUnit.ounces.fromMilliliters(dehydrationMl) : dehydrationMl
-        let unit = isOunces ? "fl oz" : "ml"
+        let unit = isOunces ? WaterUnit.ounces.shortName : WaterUnit.millilitres.shortName
 
-        return "- \(Int(amount.rounded()))\(unit)"
+        return "+ \(Int(amount.rounded())) \(unit)"
     }
 
     private var goalDisplay: String {
         let goalMl = currentWaterProgress?.goalMl ?? Double(waterGoalMl)
         let isOunces = measurementUnits == "fl_oz"
         let amount = isOunces ? WaterUnit.ounces.fromMilliliters(goalMl) : goalMl
-        let unit = isOunces ? "fl oz" : "ml"
+        let unit = isOunces ? WaterUnit.ounces.shortName : WaterUnit.millilitres.shortName
 
-        return "Goal \(Int(amount.rounded()))\(unit)"
+        return String(localized: "Goal \(Int(amount.rounded())) \(unit)")
     }
 
     // MARK: - Add Drink Button
@@ -630,7 +630,7 @@ struct DashboardView: View {
             await saveToHealthKit(drink: drink, amountInMl: amountInMl)
         }
 
-        fetchOrCreateWaterProgress(for: selectedDate ?? Date().rounded())
+        fetchOrCreateWaterProgress(for: selectedDate)
     }
 
     /// Saves drink data to HealthKit based on drink type (amount is already in ml)
@@ -670,7 +670,7 @@ struct DashboardView: View {
     func remove(_ waterPortion: WaterPortion) {
         modelContext.delete(waterPortion)
         try? modelContext.save()
-        fetchOrCreateWaterProgress(for: selectedDate ?? Date().rounded())
+        fetchOrCreateWaterProgress(for: selectedDate)
     }
 
     /// Gets or creates WaterProgress for a specific date

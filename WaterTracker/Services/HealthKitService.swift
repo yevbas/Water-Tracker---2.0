@@ -334,7 +334,8 @@ class HealthKitService: ObservableObject {
     }
     
     // MARK: - Water Intake Saving
-    
+
+    @discardableResult
     func saveWaterIntake(amount: Double, unit: WaterUnit, date: Date = Date()) async -> Bool {
         // Check if water sync is enabled
         guard UserDefaults.standard.bool(forKey: "healthkit_sync_water") else {
@@ -377,7 +378,8 @@ class HealthKitService: ObservableObject {
             }
         }
     }
-    
+
+    @discardableResult
     func saveCaffeineIntake(amount: Double, unit: WaterUnit, date: Date = Date()) async -> Bool {
         // Check if caffeine sync is enabled
         guard UserDefaults.standard.bool(forKey: "healthkit_sync_caffeine") else {
@@ -425,7 +427,8 @@ class HealthKitService: ObservableObject {
             }
         }
     }
-    
+
+    @discardableResult
     func saveAlcoholIntake(amount: Double, unit: WaterUnit, alcoholType: Drink, date: Date = Date()) async -> Bool {
         // Check if alcohol sync is enabled
         guard UserDefaults.standard.bool(forKey: "healthkit_sync_alcohol") else {
@@ -847,6 +850,7 @@ extension HKBiologicalSex {
 }
 
 // MARK: - Helper Struct for Data Collection
+
 struct HealthKitData {
     var height: Double?
     var weight: Double?
