@@ -234,17 +234,23 @@ class SleepService: ObservableObject {
         
         print("💤 Found \(asleepSamples.count) asleep samples")
         
-        // Calculate total sleep duration
-        let totalSleepSeconds = asleepSamples.reduce(0.0) { total, sample in
-            total + sample.endDate.timeIntervalSince(sample.startDate)
-        }
-        let sleepDurationHours = totalSleepSeconds / 3600.0
-        
-        print("⏰ Total sleep duration: \(sleepDurationHours) hours")
-        
         // Find earliest bedtime and latest wake time
         let bedTime = asleepSamples.map { $0.startDate }.min()
         let wakeTime = asleepSamples.map { $0.endDate }.max()
+        
+        // Calculate total sleep duration by merging overlapping intervals
+        // This prevents double-counting when HealthKit has overlapping sleep stage samples
+        let sleepDurationHours: Double
+        if let bedTime = bedTime, let wakeTime = wakeTime {
+            // Use the time span from first sleep to last wake
+            // This is more accurate than summing overlapping samples
+            let totalSleepSeconds = wakeTime.timeIntervalSince(bedTime)
+            sleepDurationHours = totalSleepSeconds / 3600.0
+            print("⏰ Total sleep duration: \(sleepDurationHours) hours (from \(bedTime.formatted(date: .omitted, time: .shortened)) to \(wakeTime.formatted(date: .omitted, time: .shortened)))")
+        } else {
+            sleepDurationHours = 0
+            print("⚠️ Could not determine sleep duration - missing bedtime or wake time")
+        }
         
         // Calculate sleep stages
         let deepSleepSamples = samples.filter { sample in
@@ -343,6 +349,33 @@ class SleepService: ObservableObject {
         var qualityScore = 0.0
         let totalMinutes = duration * 60.0
         
+        // Calculate actual measured sleep time (sum of all stages)
+        // If no stage data available, use total duration as fallback
+        let measuredSleepMinutes = Double(deepMinutes + remMinutes + coreMinutes)
+        let effectiveTotalMinutes: Double
+        
+        if measuredSleepMinutes > 0 && measuredSleepMinutes <= totalMinutes {
+            // We have stage data - use it for more accurate percentages
+            // But only if it's reasonably complete (at least 60% of total duration)
+            let completeness = measuredSleepMinutes / totalMinutes
+            if completeness >= 0.60 {
+                effectiveTotalMinutes = measuredSleepMinutes
+                print("📊 Using measured sleep time: \(Int(measuredSleepMinutes)) minutes (\(Int(measuredSleepMinutes/60))h \(Int(measuredSleepMinutes.truncatingRemainder(dividingBy: 60)))m) - \(Int(completeness * 100))% complete")
+            } else {
+                // Stage data is too incomplete - use total duration instead
+                effectiveTotalMinutes = totalMinutes
+                print("⚠️ Stage data incomplete (\(Int(completeness * 100))%) - using total duration: \(Int(totalMinutes)) minutes")
+            }
+        } else if measuredSleepMinutes > totalMinutes {
+            // Data inconsistency - stages exceed total duration
+            effectiveTotalMinutes = totalMinutes
+            print("⚠️ Data inconsistency: measured sleep (\(Int(measuredSleepMinutes))min) > total duration (\(Int(totalMinutes))min)")
+        } else {
+            // No stage data - use total duration
+            effectiveTotalMinutes = totalMinutes
+            print("📊 No stage data - using total duration: \(Int(totalMinutes)) minutes")
+        }
+        
         // 1. Duration Quality (0-0.35) - Based on NSF recommendations for adults (7-9h optimal)
         // Reference: Hirshkowitz et al., Sleep Health 2015
         if duration >= 7.0 && duration <= 9.0 {
@@ -360,39 +393,48 @@ class SleepService: ObservableObject {
         // 2. Deep Sleep Quality (0-0.30) - Critical for physical restoration
         // Reference: Ohayon et al., Sleep Medicine Reviews 2017
         // Healthy adults: 13-23% of total sleep should be deep sleep
-        let deepPercentage = Double(deepMinutes) / totalMinutes
-        if deepPercentage >= 0.13 && deepPercentage <= 0.23 {
+        let deepPercentage = effectiveTotalMinutes > 0 ? Double(deepMinutes) / effectiveTotalMinutes : 0
+        if deepMinutes > 0 && deepPercentage >= 0.13 && deepPercentage <= 0.23 {
             qualityScore += 0.30 // Optimal deep sleep
-        } else if deepPercentage >= 0.10 && deepPercentage < 0.13 {
+            print("✓ Deep sleep: \(Int(deepPercentage * 100))% - Optimal")
+        } else if deepMinutes > 0 && deepPercentage >= 0.10 && deepPercentage < 0.13 {
             qualityScore += 0.20 // Below optimal but acceptable
-        } else if deepPercentage >= 0.08 {
+            print("⚠ Deep sleep: \(Int(deepPercentage * 100))% - Below optimal")
+        } else if deepMinutes > 0 && deepPercentage >= 0.08 {
             qualityScore += 0.10 // Insufficient deep sleep
+            print("⚠ Deep sleep: \(Int(deepPercentage * 100))% - Insufficient")
         } else if deepMinutes == 0 {
             qualityScore += 0.15 // No data available, assume moderate
+            print("ℹ️ Deep sleep: No data available")
         }
         
         // 3. REM Sleep Quality (0-0.25) - Critical for cognitive function
         // Reference: Ohayon et al., Sleep Medicine Reviews 2017
         // Healthy adults: 20-25% of total sleep should be REM
-        let remPercentage = Double(remMinutes) / totalMinutes
-        if remPercentage >= 0.20 && remPercentage <= 0.25 {
+        let remPercentage = effectiveTotalMinutes > 0 ? Double(remMinutes) / effectiveTotalMinutes : 0
+        if remMinutes > 0 && remPercentage >= 0.20 && remPercentage <= 0.25 {
             qualityScore += 0.25 // Optimal REM sleep
-        } else if remPercentage >= 0.15 && remPercentage < 0.20 {
+            print("✓ REM sleep: \(Int(remPercentage * 100))% - Optimal")
+        } else if remMinutes > 0 && remPercentage >= 0.15 && remPercentage < 0.20 {
             qualityScore += 0.18 // Below optimal but acceptable
-        } else if remPercentage >= 0.10 {
+            print("⚠ REM sleep: \(Int(remPercentage * 100))% - Below optimal")
+        } else if remMinutes > 0 && remPercentage >= 0.10 {
             qualityScore += 0.10 // Insufficient REM
+            print("⚠ REM sleep: \(Int(remPercentage * 100))% - Insufficient")
         } else if remMinutes == 0 {
             qualityScore += 0.12 // No data available, assume moderate
+            print("ℹ️ REM sleep: No data available")
         }
         
         // 4. Sleep Architecture Balance (0-0.10)
         // Light/Core sleep should be 50-60% of total
-        let corePercentage = Double(coreMinutes) / totalMinutes
+        let corePercentage = effectiveTotalMinutes > 0 ? Double(coreMinutes) / effectiveTotalMinutes : 0
         if corePercentage >= 0.45 && corePercentage <= 0.65 {
             qualityScore += 0.10 // Balanced architecture
-        } else if corePercentage >= 0.35 || corePercentage <= 0.75 {
-            qualityScore += 0.05 // Somewhat imbalanced
+        } else if (corePercentage >= 0.35 && corePercentage < 0.45) || (corePercentage > 0.65 && corePercentage <= 0.75) {
+            qualityScore += 0.05 // Somewhat imbalanced but acceptable
         }
+        // If corePercentage is outside 0.35-0.75 range, add 0 points (severely imbalanced)
         
         return min(1.0, qualityScore)
     }
@@ -415,12 +457,25 @@ class SleepService: ObservableObject {
         var additionalWaterMl = 0
         var factors: [String] = []
         
+        // Validate inputs
+        guard duration > 0 && duration <= 24 else {
+            print("⚠️ Invalid sleep duration: \(duration) hours")
+            return SleepRecommendationData(
+                additionalWaterMl: 0,
+                factors: ["Invalid sleep duration data"],
+                confidence: 0,
+                priority: .low
+            )
+        }
+        
         // 1. INSENSIBLE WATER LOSS DURING SLEEP
         // Reference: Armstrong & Johnson (2018), "Water requirements during sleep"
         // Average: 40-80 ml/hour via respiration and perspiration
         // Higher in REM sleep due to increased metabolic activity
         let totalSleepMinutes = duration * 60.0
-        let baseRespiratoryLoss = Int(duration * 50) // 50ml/hour baseline
+        // Use safe clamping for respiratory loss calculation
+        let clampedDuration = min(max(duration, 3.0), 12.0) // Reasonable sleep duration range
+        let baseRespiratoryLoss = Int(clampedDuration * 50) // 50ml/hour baseline
         
         // REM sleep increases metabolic rate by 20-30%
         let remHours = Double(remMinutes) / 60.0
@@ -499,14 +554,20 @@ class SleepService: ObservableObject {
         
         // 7. SLEEP EFFICIENCY IMPACT
         // Low efficiency (lots of fragmented sleep) increases stress and metabolism
-        // If we have all stages, calculate efficiency
+        // If we have stage data, calculate efficiency
         if deepMinutes > 0 || remMinutes > 0 || coreMinutes > 0 {
             let measuredSleepMinutes = Double(deepMinutes + remMinutes + coreMinutes)
-            let sleepEfficiency = measuredSleepMinutes / totalSleepMinutes
-            
-            if sleepEfficiency < 0.75 {
-                additionalWaterMl += 100
-                factors.append("Low sleep efficiency (+100ml): Fragmented sleep increases stress and metabolic demands")
+            // Guard against division by zero and invalid efficiency
+            if totalSleepMinutes > 0 {
+                let sleepEfficiency = min(1.0, measuredSleepMinutes / totalSleepMinutes)
+                
+                if sleepEfficiency < 0.75 {
+                    additionalWaterMl += 100
+                    factors.append("Low sleep efficiency (\(Int(sleepEfficiency * 100))%, +100ml): Fragmented sleep increases stress and metabolic demands")
+                } else if sleepEfficiency >= 0.85 {
+                    // Excellent sleep efficiency - may need slightly less water
+                    print("✓ Excellent sleep efficiency: \(Int(sleepEfficiency * 100))%")
+                }
             }
         }
         

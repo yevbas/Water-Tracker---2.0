@@ -939,7 +939,21 @@ struct SleepCardView: View {
             to: bedTime
         ) ?? bedTime
         
-        return dayWaterData.filter { portion in
+        // Check if evening window spans across midnight (bedtime is after midnight)
+        let bedtimeDay = calendar.startOfDay(for: bedTime)
+        let eveningStartDay = calendar.startOfDay(for: eveningStart)
+        
+        var waterPortions = dayWaterData
+        
+        // If evening window starts on a different day, fetch water from that day too
+        if eveningStartDay < bedtimeDay {
+            print("⏰ Evening window spans midnight - fetching water from previous day")
+            let previousDayPortions = fetchWaterPortionsForDay(eveningStartDay)
+            // Combine and sort by date
+            waterPortions = (dayWaterData + previousDayPortions).sorted { $0.createDate < $1.createDate }
+        }
+        
+        return waterPortions.filter { portion in
             portion.createDate >= eveningStart && portion.createDate <= bedTime
         }.reduce(0) { total, portion in
             // portion.amount is already in millilitres
