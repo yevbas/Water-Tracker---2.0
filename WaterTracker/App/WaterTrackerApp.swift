@@ -64,9 +64,6 @@ struct WaterTrackerApp: App {
                     ConfigureView(container: sharedModelContainer, healthKitService: healthKitService) {
                         isConfigured = true
                     }
-                    .onAppear {
-                        onboardingPassed = true
-                    }
                 }
             }
         }

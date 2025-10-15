@@ -2,12 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSHealthShareUsageDescription</key>
-	<string>WaterTracker uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>WaterTracker can update your health data to track your hydration progress and provide better recommendations based on your health metrics.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>WaterTracker uses your location to provide accurate weather-based hydration recommendations. Your location helps us determine local weather conditions that affect your water intake needs.</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-8725225753787635~9745974256</string>
 	<key>SKAdNetworkItems</key>
