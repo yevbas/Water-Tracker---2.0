@@ -16,13 +16,13 @@ struct ConvertUserView: View {
     var body: some View {
         VStack(spacing: 16) {
             if #available(iOS 17.0, *) {
-                (Text("Try ") + Text("WaterTracker PRO").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                (Text("Try ") + Text(" Aquio PRO").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .multilineTextAlignment(.center)
                     .lineLimit(4)
                     .padding(.horizontal)
             } else {
-                Text("Try WaterTracker PRO")
+                Text("Try Aquio PRO")
                     .font(.system(.largeTitle, design: .rounded).weight(.bold))
                     .multilineTextAlignment(.center)
                 .lineLimit(4)

@@ -18,10 +18,10 @@ struct WelcomeView: View {
                 .looping()
             VStack(alignment: .leading, spacing: 12) {
                 if #available(iOS 17.0, *) {
-                    (Text("Welcome to ") + Text("WaterTracker").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                    (Text("Welcome to ") + Text(" Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 } else {
-                    Text("Thanks for installing WaterTracker")
+                    Text("Thanks for installing Aquio")
                     font(.system(.largeTitle, design: .rounded, weight: .bold))
                 }
                 Text("Stay hydrated with a personalized daily water goal.")
