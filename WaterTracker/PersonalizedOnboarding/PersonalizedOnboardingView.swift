@@ -35,9 +35,9 @@ struct PersonalizedOnboarding: View {
         case healthKitPermission
         case healthKitDataConfirmation
         case metricCollection
-        case askingForReview
         case calculating
         case planPreview(PlanPreviewModel)
+        case askingForReview
         case convertUser
     }
 
@@ -217,11 +217,11 @@ struct PersonalizedOnboarding: View {
                 plantPreview: plantPreview
             ) {
                 planPreview = plantPreview
-                stage = .convertUser
+                stage = .askingForReview
             }
         case .askingForReview:
             RateUsView {
-                stage = .calculating
+                stage = .convertUser
             }
         case .convertUser:
             ConvertUserView(planPreview: planPreview)
@@ -297,7 +297,7 @@ struct PersonalizedOnboarding: View {
             return
         }
         guard let nextMetric = metrics[safe: Int(index) + 1] else {
-            stage = .askingForReview
+            stage = .calculating
             return
         }
         self.selectedMetric = nextMetric
