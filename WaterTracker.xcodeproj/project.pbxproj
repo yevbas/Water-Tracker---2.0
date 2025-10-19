@@ -298,7 +298,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WaterTracker/WaterTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"WaterTracker/Preview Content\"";
 				DEVELOPMENT_TEAM = 7SVA3R34P5;
 				ENABLE_PREVIEWS = YES;
@@ -306,10 +306,12 @@
 				INFOPLIST_FILE = WaterTracker/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Water Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "WaterTracker uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "To analyze your drinks from photos";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aquio uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "WaterTracker can update your health data to track your hydration progress and provide better recommendations based on your health metrics.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WaterTracker uses your location to provide accurate weather-based hydration recommendations. Your location helps us determine local weather conditions that affect your water intake needs.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "To analyze your drinks from photos";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Allow tracking for personalized ads";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -336,7 +338,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WaterTracker/WaterTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"WaterTracker/Preview Content\"";
 				DEVELOPMENT_TEAM = 7SVA3R34P5;
 				ENABLE_PREVIEWS = YES;
@@ -344,10 +346,12 @@
 				INFOPLIST_FILE = WaterTracker/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Water Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "WaterTracker uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "To analyze your drinks from photos";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aquio uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "WaterTracker can update your health data to track your hydration progress and provide better recommendations based on your health metrics.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WaterTracker uses your location to provide accurate weather-based hydration recommendations. Your location helps us determine local weather conditions that affect your water intake needs.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "To analyze your drinks from photos";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Allow tracking for personalized ads";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
