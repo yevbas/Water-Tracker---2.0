@@ -303,13 +303,13 @@ struct DashboardView: View {
     @ViewBuilder
     private var todayCardsSection: some View {
         if showWeatherCard {
-            WeatherCardView()
+            WeatherCardView(selectedDate: selectedDate)
                 .environmentObject(revenueCatMonitor)
                 .id("weather-card")
         }
 
         if showSleepCard {
-            SleepCardView(isLoading: sleepService.isLoading)
+            SleepCardView(selectedDate: selectedDate, isLoading: sleepService.isLoading)
                 .environmentObject(revenueCatMonitor)
                 .id("sleep-card")
         }

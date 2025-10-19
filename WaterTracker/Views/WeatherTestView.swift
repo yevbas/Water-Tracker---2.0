@@ -25,7 +25,7 @@ struct WeatherTestView: View {
                 .multilineTextAlignment(.center)
 
             // Weather Card
-            WeatherCardView()
+            WeatherCardView(selectedDate: Date().rounded())
 
             // Test Controls
             VStack(spacing: 16) {

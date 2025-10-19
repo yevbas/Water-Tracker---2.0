@@ -10,7 +10,7 @@ import SwiftData
 import RevenueCatUI
 
 struct SleepCardView: View {
-    let selectedDate: Date = Date().rounded()
+    let selectedDate: Date
     let isLoading: Bool
 
     @Environment(\.modelContext) var modelContext
@@ -31,6 +31,18 @@ struct SleepCardView: View {
     @State private var cachedHydrationMetrics: HydrationMetrics?
     @State private var cachedHistoricalData: [SleepAnalysisCache] = []
     @State private var cachedDataCompleteness: DataCompleteness = .minimal
+    
+    // Task management for proper cleanup
+    @State private var refreshTask: Task<Void, Never>?
+    @State private var aiGenerationTask: Task<Void, Never>?
+    
+    // Cached water portions to avoid redundant queries
+    @State private var cachedWaterPortions: [WaterPortion] = []
+    @State private var lastWaterFetchDate: Date?
+    
+    // Error state management
+    @State private var errorMessage: String?
+    @State private var hasError = false
 
     private var cachedAnalysis: SleepAnalysisCache? {
         let selectedRoundedDate = selectedDate.rounded()
@@ -105,18 +117,22 @@ struct SleepCardView: View {
                     if isLoading || isRefreshingSleep {
                         ProgressView()
                             .scaleEffect(0.8)
+                            .accessibilityLabel("Loading sleep data")
                     } else if let recommendation = sleepRecommendation {
                         Image(systemName: sleepIcon(for: recommendation.sleepQualityScore))
                             .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(.cyan)
+                            .accessibilityLabel("Sleep quality: \(Int(recommendation.sleepQualityScore * 100))%")
                     } else if sleepService.errorMessage != nil {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(.red)
+                            .accessibilityLabel("Sleep data error")
                     } else {
                         Image(systemName: revenueCatMonitor.userHasFullAccess ? "bed.double.fill" : "lock.fill")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(revenueCatMonitor.userHasFullAccess ? .cyan : .gray)
+                            .accessibilityLabel(revenueCatMonitor.userHasFullAccess ? "Sleep tracking" : "Premium feature locked")
                     }
 
                     // Sleep Info
@@ -125,12 +141,14 @@ struct SleepCardView: View {
                             Text("Sleep")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(.primary)
+                                .accessibilityAddTraits(.isHeader)
                             
                             if let actualDate = sleepRecommendation?.actualSleepDate,
                                !Calendar.current.isDate(actualDate, inSameDayAs: selectedDate) {
                                 Text("Yesterday")
                                     .font(.system(size: 13))
                                     .foregroundStyle(.secondary)
+                                    .accessibilityLabel("Data from yesterday")
                             }
                         }
                         
@@ -138,18 +156,22 @@ struct SleepCardView: View {
                             Text(isRefreshingSleep ? "Refreshing..." : "Analyzing...")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
+                                .accessibilityLabel(isRefreshingSleep ? "Refreshing sleep data" : "Analyzing sleep patterns")
                         } else if let recommendation = sleepRecommendation {
                             Text("Time Asleep")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
+                                .accessibilityLabel("Sleep duration: \(formatSleepDuration(recommendation.sleepDurationHours))")
                         } else if sleepService.errorMessage != nil {
                             Text("No Data")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
+                                .accessibilityLabel("No sleep data available")
                         } else {
                             Text(revenueCatMonitor.userHasFullAccess ? "No Data" : "Premium feature")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
+                                .accessibilityLabel(revenueCatMonitor.userHasFullAccess ? "No sleep data available" : "Premium feature - upgrade to access sleep analysis")
                         }
                     }
 
@@ -176,6 +198,9 @@ struct SleepCardView: View {
                             }
                             .buttonStyle(.plain)
                             .disabled(isRefreshingSleep)
+                            .accessibilityLabel("Refresh sleep data")
+                            .accessibilityHint("Tap to refresh sleep analysis")
+                            .accessibilityAddTraits(isRefreshingSleep ? [.isButton] : [])
                         }
 
                         // Expand/Collapse Icon
@@ -183,6 +208,8 @@ struct SleepCardView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.gray)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                            .accessibilityLabel(isExpanded ? "Collapse sleep details" : "Expand sleep details")
+                            .accessibilityAddTraits(.isButton)
                     }
                 }
                 .padding(CardViewConstants.Layout.cardPadding)
@@ -253,23 +280,33 @@ struct SleepCardView: View {
         .task(id: selectedDate) {
             // Calculate expensive values when view appears or date changes
             // Using .task instead of .onAppear for better async performance
-            updateCachedValues()
+            await updateCachedValues()
         }
         .onChange(of: allSleepAnalyses.count) { _, _ in
             // Recalculate when sleep data changes
-            updateCachedValues()
+            Task {
+                await updateCachedValues()
+            }
         }
         .onChange(of: isExpanded) { _, newValue in
             // Calculate hydration metrics when expanded
             if newValue && cachedHydrationMetrics == nil {
-                cachedHydrationMetrics = calculateHydrationMetrics()
+                Task {
+                    await calculateAndCacheHydrationMetrics()
+                }
             }
+        }
+        .onDisappear {
+            // Cancel any running tasks when view disappears
+            refreshTask?.cancel()
+            aiGenerationTask?.cancel()
         }
     }
 
     // MARK: - Cache Update
     
-    private func updateCachedValues() {
+    @MainActor
+    private func updateCachedValues() async {
         // Update historical sleep data cache
         let calendar = Calendar.current
         let lookbackDate = calendar.date(
@@ -294,11 +331,32 @@ struct SleepCardView: View {
             cachedDataCompleteness = .minimal
         }
         
+        // Update water portions cache if needed
+        await updateWaterPortionsCache()
+        
         // Update hydration metrics cache (only when expanded or will be shown)
         // This is the most expensive operation, so we calculate it lazily
         if isExpanded || sleepRecommendation != nil {
-            cachedHydrationMetrics = calculateHydrationMetrics()
+            await calculateAndCacheHydrationMetrics()
         }
+    }
+    
+    @MainActor
+    private func updateWaterPortionsCache() async {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: selectedDate)
+        
+        // Only fetch if we don't have cached data for this date
+        if lastWaterFetchDate != startOfDay {
+            cachedWaterPortions = await fetchWaterPortionsForDay(selectedDate)
+            lastWaterFetchDate = startOfDay
+        }
+    }
+    
+    @MainActor
+    private func calculateAndCacheHydrationMetrics() async {
+        await updateWaterPortionsCache()
+        cachedHydrationMetrics = await calculateHydrationMetrics()
     }
 
     // MARK: - Premium Locked Content
@@ -421,7 +479,7 @@ struct SleepCardView: View {
     // MARK: - No Data View
 
     private var noDataView: some View {
-        let dayWaterData = fetchWaterPortionsForDay(selectedDate)
+        let dayWaterData = cachedWaterPortions
         
         return VStack(spacing: 16) {
             // Different messages based on data availability
@@ -896,9 +954,9 @@ struct SleepCardView: View {
     
     // MARK: - Hydration Calculations (Evidence-Based)
     
-    private func calculateHydrationMetrics() -> HydrationMetrics {
-        // Fetch water data only once for calculations
-        let dayWaterData = fetchWaterPortionsForDay(selectedDate)
+    private func calculateHydrationMetrics() async -> HydrationMetrics {
+        // Use cached water data to avoid redundant queries
+        let dayWaterData = cachedWaterPortions
         
         // Handle edge case: no hydration data
         guard !dayWaterData.isEmpty else {
@@ -930,7 +988,7 @@ struct SleepCardView: View {
         }
         
         // Calculate evening intake (last 3-4 hours before bedtime)
-        let eveningIntake = calculateEveningIntake(dayWaterData: dayWaterData)
+        let eveningIntake = await calculateEveningIntake(dayWaterData: dayWaterData)
         let eveningPercentage = totalDailyIntake > 0 ? eveningIntake / totalDailyIntake : 0
         
         // Calculate hydration score (based on personalized target)
@@ -959,7 +1017,7 @@ struct SleepCardView: View {
         )
     }
     
-    private func calculateEveningIntake(dayWaterData: [WaterPortion]) -> Double {
+    private func calculateEveningIntake(dayWaterData: [WaterPortion]) async -> Double {
         guard let bedTime = sleepRecommendation?.bedTime else {
             // Fallback: use default bedtime if no sleep data
             let calendar = Calendar.current
@@ -969,13 +1027,13 @@ struct SleepCardView: View {
                 second: 0,
                 of: selectedDate
             ) ?? selectedDate
-            return calculateEveningIntakeForBedtime(assumedBedtime, dayWaterData: dayWaterData)
+            return await calculateEveningIntakeForBedtime(assumedBedtime, dayWaterData: dayWaterData)
         }
         
-        return calculateEveningIntakeForBedtime(bedTime, dayWaterData: dayWaterData)
+        return await calculateEveningIntakeForBedtime(bedTime, dayWaterData: dayWaterData)
     }
     
-    private func calculateEveningIntakeForBedtime(_ bedTime: Date, dayWaterData: [WaterPortion]) -> Double {
+    private func calculateEveningIntakeForBedtime(_ bedTime: Date, dayWaterData: [WaterPortion]) async -> Double {
         let calendar = Calendar.current
         let eveningStart = calendar.date(
             byAdding: .hour,
@@ -992,7 +1050,7 @@ struct SleepCardView: View {
         // If evening window starts on a different day, fetch water from that day too
         if eveningStartDay < bedtimeDay {
             print("⏰ Evening window spans midnight - fetching water from previous day")
-            let previousDayPortions = fetchWaterPortionsForDay(eveningStartDay)
+            let previousDayPortions = await fetchWaterPortionsForDay(eveningStartDay)
             // Combine and sort by date
             waterPortions = (dayWaterData + previousDayPortions).sorted { $0.createDate < $1.createDate }
         }
@@ -1222,11 +1280,11 @@ struct SleepCardView: View {
     
     private func generateCaffeineInsight(dayWaterData: [WaterPortion]) -> String {
         let calendar = Calendar.current
-        let afternoon = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: selectedDate) ?? selectedDate
+        let afternoon = calendar.date(bySettingHour: CardViewConstants.Sleep.afternoonCaffeineHour, minute: 0, second: 0, of: selectedDate) ?? selectedDate
         
-        // Check for late caffeine intake
+        // Check for late caffeine intake using the drink's containsCaffeine property
         let lateCaffeineIntake = dayWaterData.filter { portion in
-            (portion.drink == .coffee || portion.drink == .tea) && portion.createDate >= afternoon
+            portion.drink.containsCaffeine && portion.createDate >= afternoon
         }
         
         if !lateCaffeineIntake.isEmpty {
@@ -1247,9 +1305,9 @@ struct SleepCardView: View {
             }
         }
         
-        // Check for good caffeine timing
+        // Check for good caffeine timing using the drink's containsCaffeine property
         let morningCaffeine = dayWaterData.filter { portion in
-            (portion.drink == .coffee || portion.drink == .tea) && portion.createDate < afternoon
+            portion.drink.containsCaffeine && portion.createDate < afternoon
         }
         
         if !morningCaffeine.isEmpty && lateCaffeineIntake.isEmpty {
@@ -1308,36 +1366,53 @@ struct SleepCardView: View {
     // MARK: - Sleep Data Refresh
     
     private func refreshSleepData() {
-        isRefreshingSleep = true
+        // Cancel any existing refresh task
+        refreshTask?.cancel()
         
-        Task {
-            // Clean up old sleep data first, keeping only current date
-            SleepAnalysisCache.cleanupOldData(
-                modelContext: modelContext,
-                keepingCurrentDate: selectedDate
-            )
+        isRefreshingSleep = true
+        hasError = false
+        errorMessage = nil
+        
+        refreshTask = Task {
+            do {
+                // Clean up old sleep data first, keeping only current date
+                SleepAnalysisCache.cleanupOldData(
+                    modelContext: modelContext,
+                    keepingCurrentDate: selectedDate
+                )
 
-            // Fetch fresh sleep data
-            if let recommendation = await sleepService.fetchSleepData(for: selectedDate) {
-                // Create new cache entry with fresh data (no AI comment initially)
-                let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: "")
-                cache.date = selectedDate.rounded()
-                
-                // Insert new cache
-                modelContext.insert(cache)
-                
-                do {
+                // Fetch fresh sleep data
+                if let recommendation = await sleepService.fetchSleepData(for: selectedDate) {
+                    // Create new cache entry with fresh data (no AI comment initially)
+                    let cache = SleepAnalysisCache.fromSleepRecommendation(recommendation, aiComment: "")
+                    cache.date = selectedDate.rounded()
+                    
+                    // Insert new cache
+                    modelContext.insert(cache)
+                    
                     try modelContext.save()
-                } catch {
-                    print("Failed to save refreshed sleep data: \(error)")
+                    
+                    await MainActor.run {
+                        isRefreshingSleep = false
+                        // Clear current AI comment to trigger regeneration
+                        currentAIComment = ""
+                        // Clear cached water portions to force refresh
+                        cachedWaterPortions = []
+                        lastWaterFetchDate = nil
+                    }
+                } else {
+                    await MainActor.run {
+                        isRefreshingSleep = false
+                        hasError = true
+                        errorMessage = "No sleep data available for the selected date"
+                    }
                 }
-            }
-            
-            await MainActor.run {
-                isRefreshingSleep = false
-                // Clear current AI comment to trigger regeneration
-                currentAIComment = ""
-                // Note: Water portions data is now fetched on-demand via computed properties
+            } catch {
+                await MainActor.run {
+                    isRefreshingSleep = false
+                    hasError = true
+                    errorMessage = "Failed to refresh sleep data: \(error.localizedDescription)"
+                }
             }
         }
     }
@@ -1348,12 +1423,17 @@ struct SleepCardView: View {
     private func generateAIComment() {
         guard let recommendation = sleepRecommendation else { return }
         
-        isGeneratingAIComment = true
+        // Cancel any existing AI generation task
+        aiGenerationTask?.cancel()
         
-        Task {
+        isGeneratingAIComment = true
+        hasError = false
+        errorMessage = nil
+        
+        aiGenerationTask = Task {
             do {
                 // Fetch water data only when generating AI comment
-                let lastWeekWaterData = fetchWaterPortionsForWeek(selectedDate)
+                let lastWeekWaterData = await fetchWaterPortionsForWeek(selectedDate)
                 
                 // Use original AI analysis function
                 let aiComment = try await aiClient.analyzeSleepForHydration(
@@ -1373,6 +1453,8 @@ struct SleepCardView: View {
                     // If AI generation fails, leave comment empty
                     currentAIComment = ""
                     isGeneratingAIComment = false
+                    hasError = true
+                    errorMessage = "Failed to generate AI insight: \(error.localizedDescription)"
                 }
             }
         }
@@ -1394,7 +1476,7 @@ struct SleepCardView: View {
     // MARK: - Efficient Water Portion Fetching
     
     /// Fetches water portions for a specific day only - efficient for UI performance
-    private func fetchWaterPortionsForDay(_ date: Date) -> [WaterPortion] {
+    private func fetchWaterPortionsForDay(_ date: Date) async -> [WaterPortion] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
@@ -1415,7 +1497,7 @@ struct SleepCardView: View {
     }
     
     /// Fetches water portions for the week containing the given date - efficient for UI performance
-    private func fetchWaterPortionsForWeek(_ date: Date) -> [WaterPortion] {
+    private func fetchWaterPortionsForWeek(_ date: Date) async -> [WaterPortion] {
         let calendar = Calendar.current
         let weekAgo = calendar.date(
             byAdding: .day,
@@ -1523,7 +1605,7 @@ enum DataCompleteness {
 }
 
 #Preview {
-    SleepCardView(isLoading: false)
+    SleepCardView(selectedDate: Date().rounded(), isLoading: false)
         .modelContainer(for: [SleepAnalysisCache.self, WaterPortion.self], inMemory: true)
         .environmentObject(RevenueCatMonitor(state: .preview(false)))
         .environmentObject(AIDrinkAnalysisClient())

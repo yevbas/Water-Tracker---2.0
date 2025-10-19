@@ -36,8 +36,20 @@ struct DrinkSelector: View {
 
     var onDrinkSelected: (Drink, Double, Date) -> Void = { _, _, _  in }
     
+    // Add initial amount parameter
+    private let initialAmount: String?
+    
     // Default amount in milliliters
     private let defaultAmountMl: Double = 250
+    
+    // Initializer with optional initial amount
+    init(createDate: Date = Date(), amount: String? = nil, drink: Drink = .water, onDrinkSelected: @escaping (Drink, Double, Date) -> Void = { _, _, _ in }) {
+        self._createDate = State(initialValue: createDate)
+        self._amount = State(initialValue: "")
+        self._drink = State(initialValue: drink)
+        self.initialAmount = amount
+        self.onDrinkSelected = onDrinkSelected
+    }
     
     // MARK: - Hydration Effect Helpers
     
@@ -172,20 +184,24 @@ struct DrinkSelector: View {
             .padding(.horizontal, 12)
         }
         .onAppear {
-            // Set default amount based on measurement unit
-            let defaultAmount = switch measurementUnits {
-            case .millilitres: 
-                defaultAmountMl
-            case .ounces:
-                measurementUnits.fromMilliliters(defaultAmountMl)
-            }
-            
-            // Format based on unit - integers for ml, decimals for oz
-            amount = switch measurementUnits {
-            case .millilitres:
-                String(Int(defaultAmount.rounded()))
-            case .ounces:
-                String(format: "%.1f", defaultAmount)
+            // Use initial amount if provided, otherwise set default amount based on measurement unit
+            if let initialAmount = initialAmount {
+                amount = initialAmount
+            } else {
+                let defaultAmount = switch measurementUnits {
+                case .millilitres: 
+                    defaultAmountMl
+                case .ounces:
+                    measurementUnits.fromMilliliters(defaultAmountMl)
+                }
+                
+                // Format based on unit - integers for ml, decimals for oz
+                amount = switch measurementUnits {
+                case .millilitres:
+                    String(Int(defaultAmount.rounded()))
+                case .ounces:
+                    String(format: "%.1f", defaultAmount)
+                }
             }
             isFocused = true
         }
@@ -217,7 +233,7 @@ struct DrinkSelector: View {
                 let amountInMl = measurementUnits.toMilliliters(amountValue)
                 
                 
-                if rc.userHasFullAccess || drink == .water {
+                if initialAmount != nil || rc.userHasFullAccess || drink == .water {
                     onDrinkSelected(drink, amountInMl, createDate)
                     dismiss()
                 } else {

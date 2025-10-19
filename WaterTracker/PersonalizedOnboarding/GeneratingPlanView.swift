@@ -28,8 +28,8 @@ struct GeneratingPlanView: View {
         VStack {
             if isGoalReady {
                 LottieView(animation: .named("succeess"))
-                    .playing(.fromProgress(0.0, toProgress: 1.0, loopMode: .playOnce))
-                    .animationSpeed(2)
+                    .playing(.fromProgress(0.0, toProgress: 0.5, loopMode: .playOnce))
+                    .animationSpeed(1)
                     .animationDidFinish({ _ in
                         isMainButtonEnabled = true
                     })

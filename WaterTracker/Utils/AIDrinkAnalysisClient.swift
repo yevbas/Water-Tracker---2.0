@@ -47,6 +47,7 @@ final class AIDrinkAnalysisClient: ObservableObject {
         - Consider temperature, humidity, UV index, and weather conditions
         - IMPORTANT: Respond ONLY in \(systemLanguage) language
         - Use natural, native-level language for \(systemLanguage)
+        - Max amount of symbols is 200
         """
         
         let weatherContext = """
@@ -107,6 +108,7 @@ final class AIDrinkAnalysisClient: ObservableObject {
         - IMPORTANT: Respond ONLY in \(systemLanguage) language
         - Use natural, native-level language for \(systemLanguage)
         - Reference specific sleep metrics when relevant
+        - Max amount of symbols is 200        
         """
         
         // Calculate water intake for context
