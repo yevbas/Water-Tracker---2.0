@@ -24,7 +24,22 @@ class WeatherService: NSObject, ObservableObject {
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.requestWhenInUseAuthorization()
+    }
+
+    private var onLocationAllowed: (() -> Void)?
+
+    func onAuthorizationAllowed(_ completion: (() -> Void)?) {
+        onLocationAllowed = completion
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .authorizedAlways, .authorizedWhenInUse, .authorized:
+            completion?()
+        case .denied, .restricted:
+            print("Location denied or restricted")
+        @unknown default:
+            fatalError()
+        }
     }
 
     
@@ -220,4 +235,12 @@ extension WeatherService: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         // Authorization status changes are handled by the calling code
     }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        if let onLocationAllowed {
+            onAuthorizationAllowed(onLocationAllowed)
+        }
+    }
+
+    
 }

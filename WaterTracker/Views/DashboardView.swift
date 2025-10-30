@@ -139,6 +139,14 @@ struct DashboardView: View {
                 try? modelContext.save()
             }
         }
+        .onAppear {
+            // Request App Tracking Transparency permission when the main dashboard appears
+            Task {
+                // Add a small delay to ensure the app is fully active
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                await AppConfigurator.requestTrackingAuthorization()
+            }
+        }
     }
 
     // MARK: - Header View

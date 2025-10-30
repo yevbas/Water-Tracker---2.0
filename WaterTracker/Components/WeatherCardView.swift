@@ -684,69 +684,73 @@ struct WeatherCardView: View {
     
     private func refreshWeatherData() {
         // Cancel any existing refresh task
-        refreshTask?.cancel()
-        
-        isRefreshingWeather = true
-        errorMessage = nil
-        hasError = false
-        
-        refreshTask = Task {
-            do {
-                // Fetch fresh weather data using the new service pattern
-                let recommendation = try await weatherService.fetchWeatherData()
 
-                isGeneratingAIComment = true
+        weatherService.onAuthorizationAllowed {
+            refreshTask?.cancel()
 
-                let aiComment = try await aiClient.analyzeWeatherForHydration(
-                    weatherData: recommendation
-                )
+            isRefreshingWeather = true
+            errorMessage = nil
+            hasError = false
 
-                isGeneratingAIComment = false
+            refreshTask = Task {
+                do {
+                    // Fetch fresh weather data using the new service pattern
+                    let recommendation = try await weatherService.fetchWeatherData()
 
-                // Get location name if available
-                var locationName: String?
+                    isGeneratingAIComment = true
 
-                if let location = weatherService.locationManager.location {
-                    locationName = await weatherService.getLocationName(for: location)
-                }
+                    let aiComment = try await aiClient.analyzeWeatherForHydration(
+                        weatherData: recommendation
+                    )
 
-                // Create new cache entry with fresh data
-                let cache = WeatherAnalysisCache.fromWeatherRecommendation(
-                    recommendation,
-                    aiComment: aiComment,
-                    locationName: locationName
-                )
-                cache.date = selectedDate.rounded()
-                
-                // Remove old cache for this date and clean up old data
-                await cleanOldWeatherData()
-                
-                // Insert new cache
-                modelContext.insert(cache)
+                    isGeneratingAIComment = false
 
-                try modelContext.save()
-                
-                await MainActor.run {
-                    isRefreshingWeather = false
-                    currentAIComment = ""
-                    // Clear error state on success
-                    hasError = false
-                    errorMessage = nil
-                }
-            } catch let weatherError as WeatherError {
-                await MainActor.run {
-                    isRefreshingWeather = false
-                    hasError = true
-                    errorMessage = weatherError.localizedDescription
-                }
-            } catch let error {
-                await MainActor.run {
-                    isRefreshingWeather = false
-                    hasError = true
-                    errorMessage = String(localized: "Failed to fetch weather data: \(error.localizedDescription)")
+                    // Get location name if available
+                    var locationName: String?
+
+                    if let location = weatherService.locationManager.location {
+                        locationName = await weatherService.getLocationName(for: location)
+                    }
+
+                    // Create new cache entry with fresh data
+                    let cache = WeatherAnalysisCache.fromWeatherRecommendation(
+                        recommendation,
+                        aiComment: aiComment,
+                        locationName: locationName
+                    )
+                    cache.date = selectedDate.rounded()
+
+                    // Remove old cache for this date and clean up old data
+                    await cleanOldWeatherData()
+
+                    // Insert new cache
+                    modelContext.insert(cache)
+
+                    try modelContext.save()
+
+                    await MainActor.run {
+                        isRefreshingWeather = false
+                        currentAIComment = ""
+                        // Clear error state on success
+                        hasError = false
+                        errorMessage = nil
+                    }
+                } catch let weatherError as WeatherError {
+                    await MainActor.run {
+                        isRefreshingWeather = false
+                        hasError = true
+                        errorMessage = weatherError.localizedDescription
+                    }
+                } catch let error {
+                    await MainActor.run {
+                        isRefreshingWeather = false
+                        hasError = true
+                        errorMessage = String(localized: "Failed to fetch weather data: \(error.localizedDescription)")
+                    }
                 }
             }
         }
+
     }
     
     @MainActor
@@ -828,7 +832,7 @@ struct WeatherCardView: View {
         .modelContainer(for: WeatherAnalysisCache.self, inMemory: true)
         .environmentObject(WeatherService())
         .environmentObject(AIDrinkAnalysisClient())
-        .environmentObject(RevenueCatMonitor(state: .preview(false)))
+        .environmentObject(RevenueCatMonitor(state: .preview(true)))
         .padding()
 }
 

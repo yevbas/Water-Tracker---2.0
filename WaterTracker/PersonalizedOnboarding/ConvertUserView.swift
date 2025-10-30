@@ -10,7 +10,9 @@ import RevenueCatUI
 import RevenueCat
 
 struct ConvertUserView: View {
-    @State var isPresentedPaywall: Bool = false
+    @State var isPresentedPaywall = false
+    @State var isPresentedDiscountedPaywall = false
+
     var planPreview: PlanPreviewModel?
 
     var body: some View {
@@ -45,17 +47,51 @@ struct ConvertUserView: View {
             }
         }
         .sheet(isPresented: $isPresentedPaywall) {
-            paywallView
+            paywallView()
+        }
+        .sheet(isPresented: $isPresentedDiscountedPaywall) {
+            discountedPaywallView()
         }
     }
 
-    private var paywallView: some View {
-        PaywallView(displayCloseButton: true)
+    @ViewBuilder
+    private func paywallView() -> some View {
+        if (Purchases.shared.cachedOfferings?.all ?? [:]).isEmpty {
+            PaywallView(displayCloseButton: true)
+                .onPurchaseCompleted { _ in endOnboarding() }
+                .onPurchaseCancelled { endOnboarding() }
+                .onRequestedDismissal { endOnboarding() }
+                .onPurchaseFailure { _ in endOnboarding() }
+                .interactiveDismissDisabled()
+        } else {
+            PaywallView(displayCloseButton: true)
+                .onPurchaseCompleted { _ in endOnboarding() }
+                .onPurchaseCancelled {
+                    isPresentedPaywall = false
+                    isPresentedDiscountedPaywall = true
+                }
+                .onRequestedDismissal {
+                    isPresentedPaywall = false
+                    isPresentedDiscountedPaywall = true
+                }
+                .onPurchaseFailure { _ in endOnboarding() }
+                .interactiveDismissDisabled()
+        }
+    }
+
+    @ViewBuilder
+    private func discountedPaywallView() -> some View {
+        if let discountedOffering = Purchases.shared.cachedOfferings?.all["annual_discounted"] {
+            PaywallView(
+                offering: discountedOffering,
+                displayCloseButton: true
+            )
             .onPurchaseCompleted { _ in endOnboarding() }
             .onPurchaseCancelled { endOnboarding() }
             .onRequestedDismissal { endOnboarding() }
             .onPurchaseFailure { _ in endOnboarding() }
             .interactiveDismissDisabled()
+        }
     }
 
     private func endOnboarding() {

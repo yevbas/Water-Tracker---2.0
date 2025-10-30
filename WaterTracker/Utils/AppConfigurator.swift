@@ -21,19 +21,8 @@ enum AppConfigurator {
         // Firebase
         await configureFirebaseAndRemoteConfig()
 
-        // Notifications
-        let notifications = NotificationsManager.shared
-        notifications.refreshAuthorizationStatus()
-        notifications.registerCategories()
-        if notifications.authorizationStatus == .notDetermined {
-            let _ = await notifications.requestAuthorization()
-        }
-        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
-
         // Hydration service
         HydrationService.shared.configure(container: container, healthKitService: healthKitService)
-
-        await requestTrackingAuthorization()
 
         await MobileAds.shared.start()
 
@@ -81,31 +70,27 @@ enum AppConfigurator {
         await RemoteConfigService.shared.fetchAndActivate()
     }
 
-    private static func requestTrackingAuthorization() async {
-        await withCheckedContinuation { continuation in
-            ATTrackingManager.requestTrackingAuthorization { status in
-                continuation.resume()
-    #if DEBUG
-                switch status {
-                case .authorized:
-                    // Tracking authorization dialog was shown
-                    // and we are authorized
-                    print("IDFA Authorized")
-                case .denied:
-                    // Tracking authorization dialog was
-                    // shown and permission is denied
-                    print("IDFA Denied")
-                case .notDetermined:
-                    // Tracking authorization dialog has not been shown
-                    print("IDFA Not Determined")
-                case .restricted:
-                    print("IDFA Restricted")
-                @unknown default:
-                    print("Unknown")
-                }
-    #endif
-            }
+    static func requestTrackingAuthorization() async {
+        let status = await ATTrackingManager.requestTrackingAuthorization()
+#if DEBUG
+        switch status {
+        case .authorized:
+            // Tracking authorization dialog was shown
+            // and we are authorized
+            print("IDFA Authorized")
+        case .denied:
+            // Tracking authorization dialog was
+            // shown and permission is denied
+            print("IDFA Denied")
+        case .notDetermined:
+            // Tracking authorization dialog has not been shown
+            print("IDFA Not Determined")
+        case .restricted:
+            print("IDFA Restricted")
+        @unknown default:
+            print("Unknown")
         }
+#endif
     }
 
 }

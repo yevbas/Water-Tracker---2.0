@@ -106,7 +106,7 @@ struct HealthKitPermissionView: View {
                         Image(systemName: "heart.fill")
                             .font(.system(size: 18, weight: .medium))
 
-                        Text("Connect with Health")
+                        Text("Continue")
                     }
                     .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
@@ -125,15 +125,15 @@ struct HealthKitPermissionView: View {
                 }
                 .disabled(isRequestingHealthKitPermission)
 
-                Button {
-                    onPermissionDenied()
-                } label: {
-                    Text("Skip for now")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-                .disabled(isRequestingHealthKitPermission)
+//                Button {
+//                    onPermissionDenied()
+//                } label: {
+//                    Text("Skip for now")
+//                        .font(.system(.body, design: .rounded, weight: .medium))
+//                        .foregroundStyle(.secondary)
+//                        .frame(maxWidth: .infinity)
+//                }
+//                .disabled(isRequestingHealthKitPermission)
             }
             .padding(.horizontal, 24)
         })
@@ -329,7 +329,7 @@ struct HealthKitPermissionPreviewView: View {
                         Image(systemName: "heart.fill")
                             .font(.system(size: 18, weight: .medium))
 
-                        Text("Connect with Health")
+                        Text("Continue")
                     }
                     .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
@@ -346,15 +346,14 @@ struct HealthKitPermissionPreviewView: View {
                             )
                     }
                 }
-
-                Button {
-                    print("Skip for now tapped (Preview)")
-                } label: {
-                    Text("Skip for now")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
+//                Button {
+//                    print("Skip for now tapped (Preview)")
+//                } label: {
+//                    Text("Skip for now")
+//                        .font(.system(.body, design: .rounded, weight: .medium))
+//                        .foregroundStyle(.secondary)
+//                        .frame(maxWidth: .infinity)
+//                }
             }
             .padding(.horizontal, 24)
         })
