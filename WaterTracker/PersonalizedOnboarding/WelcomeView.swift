@@ -12,32 +12,35 @@ struct WelcomeView: View {
     var onContinue: () -> Void = { }
 
     var body: some View {
-        VStack(spacing: 24) {
-            LottieView(animation: .named("h2o-rocket"))
-                .animationSpeed(0.5)
-                .looping()
-            VStack(alignment: .leading, spacing: 12) {
-                if #available(iOS 17.0, *) {
-                    (Text("Welcome to ") + Text(" Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                } else {
-                    Text("Thanks for installing Aquio")
-                    font(.system(.largeTitle, design: .rounded, weight: .bold))
+        ScrollView {
+            VStack(spacing: 24) {
+                LottieView(animation: .named("h2o-rocket"))
+                    .animationSpeed(0.5)
+                    .looping()
+                VStack(alignment: .leading, spacing: 12) {
+                    if #available(iOS 17.0, *) {
+                        (Text("Welcome to") + Text("  Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    } else {
+                        Text("Thanks for installing Aquio")
+                            font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    }
+                    Text("Stay hydrated with a personalized daily water goal.")
+                        .font(.title2)
                 }
-                Text("Stay hydrated with a personalized daily water goal.")
-                    .font(.title2)
+                .offset(y: -64)
             }
-            .offset(y: -64)
+            .padding(.horizontal)
+        }
+        .safeAreaInset(edge: .bottom) {
             PrimaryButton(
                 title: String(localized: "Start!"),
-                colors: [.blue, .cyan]
-            ) {
-                onContinue()
-            }
+                colors: [.blue, .cyan],
+                action: onContinue
+            )
             .shimmer()
             .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 }
 

@@ -18,7 +18,7 @@ final class RevenueCatMonitor: ObservableObject, RevenueCatMonitorProtocol {
     @Published private(set) var customerInfo: CustomerInfo?
 
     #if DEBUG
-    @Published var simulatesSubscription = false
+    @Published var simulatesSubscription = true
     #endif
 
     var userHasFullAccess: Bool {

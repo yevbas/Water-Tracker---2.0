@@ -104,7 +104,7 @@ struct GeneratedPlanReviewView: View {
         }
         .safeAreaInset(edge: .bottom) {
             PrimaryButton(
-                title: "Let's start!",
+                title: String(localized: "Let's start!"),
                 colors: [.blue, .cyan]
             ) {
                 onContinue()

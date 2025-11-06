@@ -16,23 +16,27 @@ struct ConvertUserView: View {
     var planPreview: PlanPreviewModel?
 
     var body: some View {
-        VStack(spacing: 16) {
-            if #available(iOS 17.0, *) {
-                (Text("Try ") + Text(" Aquio PRO").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(4)
-                    .padding(.horizontal)
-            } else {
-                Text("Try Aquio PRO")
-                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                    .multilineTextAlignment(.center)
-                .lineLimit(4)
+        ScrollView {
+            VStack(spacing: 16) {
+                if #available(iOS 17.0, *) {
+                    (Text("Try ") + Text("  Aquio PRO").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(4)
+                        .padding(.horizontal)
+                } else {
+                    Text("Try Aquio PRO")
+                        .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(4)
+                }
+                Image(.appPreview)
+                    .resizable()
+                    .scaledToFill()
             }
-            Image(.appPreview)
-                .resizable()
-                .scaledToFill()
-            VStack {
+        }
+        .safeAreaInset(edge: .bottom, content: {
+            VStack(spacing: 16) {
                 Label("No payments due now", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
@@ -45,7 +49,8 @@ struct ConvertUserView: View {
                 .padding(.horizontal)
                 .shimmer()
             }
-        }
+            .background()
+        })
         .sheet(isPresented: $isPresentedPaywall) {
             paywallView()
         }

@@ -16,26 +16,27 @@ struct SleepTimeInputView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 16) {
                 headerCard
-                
                 sleepTimeCard
-                
-                Spacer(minLength: 40)
-                
-                PrimaryButton(
-                    title: String(localized: "Generate Schedule"),
-                    systemImage: "wand.and.stars",
-                    colors: [.blue, .cyan]
-                ) {
-                    let sleepTime = ManualSleepTime(bedTime: bedTime, wakeTime: wakeTime)
-                    onSubmit(sleepTime)
-                }
-                .padding(.horizontal)
             }
             .padding(.vertical)
         }
         .background(Color(.systemGroupedBackground))
+        .safeAreaInset(edge: .bottom) {
+            PrimaryButton(
+                title: String(localized: "Generate Schedule"),
+                systemImage: "wand.and.stars",
+                colors: [.blue, .cyan]
+            ) {
+                let sleepTime = ManualSleepTime(
+                    bedTime: bedTime,
+                    wakeTime: wakeTime
+                )
+                onSubmit(sleepTime)
+            }
+            .padding(.horizontal)
+        }
     }
     
     private var headerCard: some View {
@@ -51,7 +52,6 @@ struct SleepTimeInputView: View {
                 
                 Spacer()
             }
-            
             Text("We couldn't find sleep data from HealthKit. Please enter your typical sleep schedule so we can create an optimized water intake schedule for you.")
                 .font(.system(size: 15))
                 .foregroundStyle(.secondary)

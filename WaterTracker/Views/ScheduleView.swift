@@ -10,15 +10,16 @@ import UserNotifications
 import RevenueCatUI
 
 struct ScheduleView: View {
-    @StateObject private var notifications = NotificationsManager.shared
-    @EnvironmentObject private var rc: RevenueCatMonitor
-    @State private var isPresentingAdd: Bool = false
-    @State private var newTime: Date = .init()
-    @State private var reminders: [Reminder] = []
-    @State private var loading: Bool = false
-    @State private var isShowingPaywall: Bool = false
-    @State private var showingDuplicateAlert: Bool = false
-    @State private var isShowingAutoSchedule: Bool = false
+    @StateObject var notifications = NotificationsManager.shared
+    @EnvironmentObject var revenueCat: RevenueCatMonitor
+
+    @State var isPresentingAdd: Bool = false
+    @State var newTime: Date = .init()
+    @State var reminders: [Reminder] = []
+    @State var loading: Bool = false
+    @State var isShowingPaywall: Bool = false
+    @State var showingDuplicateAlert: Bool = false
+    @State var isShowingAutoSchedule: Bool = false
 
     struct Reminder: Identifiable, Hashable {
         let id: String
@@ -91,7 +92,7 @@ struct ScheduleView: View {
     private var content: some View {
         VStack(spacing: 20) {
             headerCard
-            if !rc.userHasFullAccess {
+            if !revenueCat.userHasFullAccess {
                 buildAdBannerView(.addReminder)
                     .padding(.horizontal)
             }
@@ -279,13 +280,17 @@ struct ScheduleView: View {
 
     private var addReminderSheet: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    .environment(\ .locale, Locale(identifier: Locale.current.identifier))
-                    .padding(.top)
-                
+            ScrollView {
+                VStack(spacing: 24) {
+                    DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .environment(\ .locale, Locale(identifier: Locale.current.identifier))
+                        .padding(.top)
+                }
+                .padding(.horizontal)
+            }
+            .safeAreaInset(edge: .bottom, content: {
                 PrimaryButton(
                     title: String(localized: "Save"),
                     systemImage: "checkmark.circle.fill",
@@ -294,11 +299,8 @@ struct ScheduleView: View {
                 ) {
                     Task { await addReminder() }
                 }
-                .padding(.top)
-                
-                Spacer()
-            }
-            .padding()
+                .padding(.horizontal)
+            })
             .navigationTitle("New Reminder")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -312,7 +314,7 @@ struct ScheduleView: View {
 
     private func handleAddTapped() async {
         // If user is not subscribed and already has >= 1 reminder, show paywall
-        if rc.userHasFullAccess == false {
+        if revenueCat.userHasFullAccess == false {
             let current = await notifications.listPendingReminders()
             if current.count >= 1 {
                 await MainActor.run { isShowingPaywall = true }

@@ -12,14 +12,15 @@ import HealthKit
 import HealthKitUI
 
 struct PersonalizedOnboarding: View {
+    @EnvironmentObject private var healthKitService: HealthKitService
     @Environment(\.modelContext) private var modelContext
+
     @State var selectedMetric: MetricView.Configuration?
     @State var answers: [String: MetricView.Answer] = [:]
     @State var selectedAnswer: String?
     @State var selectedUnit: WaterUnit = .millilitres
     @State var planPreview: PlanPreviewModel?
     @State var stage = Stage.welcome
-    @EnvironmentObject private var healthKitService: HealthKitService
     @State private var hasHealthKitData = false
     
     // HealthKit data properties

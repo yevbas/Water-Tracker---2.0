@@ -113,7 +113,7 @@ struct AutoScheduleGeneratorView: View {
                 .padding(.horizontal)
             
             PrimaryButton(
-                title: "Try Again",
+                title: String(localized: "Try Again"),
                 systemImage: "arrow.clockwise",
                 colors: [.blue, .cyan]
             ) {

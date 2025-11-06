@@ -21,16 +21,64 @@ enum ActivitySelectionMap {
         if let exact = options.first(where: { $0.label == answer }) {
             return exact.bucket
         }
-        let low = answer.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-        if low.contains("sedentary") { return "sedentary" }
-        if low.contains("light") { return "light" }
-        if low.contains("moderate") { return "moderate" }
-        if low.contains("very") { return "very" }
-        if low.contains("extra") || low.contains("physical") { return "extra" }
+        // Normalize and use word-boundary regex so "every" doesn't match "very"
+        let s = answer.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+
+        if s.range(of: #"\bsedentary\b"#, options: .regularExpression) != nil { return "sedentary" }
+        if s.range(of: #"\blight\b"#,     options: .regularExpression) != nil { return "light" }
+        if s.range(of: #"\bmoderate\b"#,  options: .regularExpression) != nil { return "moderate" }
+        if s.range(of: #"\bvery\b"#,      options: .regularExpression) != nil { return "very" }
+        if s.range(of: #"\bextra\b"#,     options: .regularExpression) != nil { return "extra" }
+        if s.range(of: #"\bphysical\b"#,  options: .regularExpression) != nil { return "extra" }
         return nil
     }
 }
 
+enum WaterPlanner {
+    struct Tuning {
+        static let mlPerKg: Double = 30.0      // was 35.0
+        static let cupSizeMl: Double = 240.0   // 8 oz cup (unchanged)
+        static let roundStepMl: Double = 50.0  // (unchanged)
+    }
+
+    static func activityBonus(bucket: String) -> Double {
+        switch bucket {
+        case "sedentary": return 0
+        case "light":     return 150   // was 350
+        case "moderate":  return 350   // was 700
+        case "very":      return 600   // was 1000
+        case "extra":     return 800   // was 1200
+        default:          return 350   // keep default aligned with "moderate"
+        }
+    }
+
+    static func climateBonus(climate: String) -> Double {
+        if climate.contains("hot")       { return 300 } // was 500
+        if climate.contains("temperate") { return 150 } // was 250
+        return 0 // cool (unchanged)
+    }
+
+    static func roundMl(_ x: Double) -> Int {
+        Int((x / Tuning.roundStepMl).rounded() * Tuning.roundStepMl)
+    }
+
+    static func plan(for m: UserMetrics, unit: WaterUnit = .millilitres) -> PlanPreviewModel {
+        let base = m.weightKg * Tuning.mlPerKg
+        let bonus = activityBonus(bucket: m.activityBucket) + climateBonus(climate: m.climate)
+        let totalMl = max(1200, base + bonus)           // keep existing lower bound
+        let ml = roundMl(totalMl)
+
+        // switch to floor to avoid inflating servings (was rounded())
+        let cups = Int(floor(Double(ml) / Tuning.cupSizeMl))
+
+        return PlanPreviewModel(
+            waterMl: ml,
+            waterUnit: unit,
+            cups: cups,
+            expectedDate: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        )
+    }
+}
 
 // --- Parsing helpers (no typed-regex needed) ---
 private func extractNumber(_ string: String?) -> Double? {
@@ -91,48 +139,5 @@ struct PlanPreviewModel {
         self.waterAmount = WaterUnit.millilitres.convertTo(waterUnit, amount: Double(waterMl))
         self.cups = cups
         self.expectedDate = expectedDate
-    }
-}
-
-enum WaterPlanner {
-    struct Tuning {
-        static let mlPerKg: Double = 35.0      // base daily water per kg bodyweight
-        static let cupSizeMl: Double = 240.0   // 8 oz cup
-        static let roundStepMl: Double = 50.0
-    }
-
-    static func activityBonus(bucket: String) -> Double {
-        switch bucket {
-        case "sedentary": return 0
-        case "light": return 350
-        case "moderate": return 700
-        case "very": return 1000
-        case "extra": return 1200
-        default: return 350
-        }
-    }
-
-    static func climateBonus(climate: String) -> Double {
-        if climate.contains("hot") { return 500 }
-        if climate.contains("temperate") { return 250 }
-        return 0 // cool
-    }
-
-    static func roundMl(_ x: Double) -> Int {
-        Int((x / Tuning.roundStepMl).rounded() * Tuning.roundStepMl)
-    }
-
-    static func plan(for m: UserMetrics, unit: WaterUnit = .millilitres) -> PlanPreviewModel {
-        let base = m.weightKg * Tuning.mlPerKg
-        let bonus = activityBonus(bucket: m.activityBucket) + climateBonus(climate: m.climate)
-        let totalMl = max(1200, base + bonus)
-        let ml = roundMl(totalMl)
-        let cups = Int((Double(ml) / Tuning.cupSizeMl).rounded())
-        return PlanPreviewModel(
-            waterMl: ml,
-            waterUnit: unit,
-            cups: cups,
-            expectedDate: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-        )
     }
 }

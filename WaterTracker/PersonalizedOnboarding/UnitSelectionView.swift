@@ -12,44 +12,45 @@ struct UnitSelectionView: View {
     let onContinue: (WaterUnit) -> Void
     
     var body: some View {
-        VStack(spacing: 32) {
-            VStack(spacing: 16) {
-                Image(systemName: "ruler")
-                    .font(.system(size: 52, weight: .bold))
-                    .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
-                
-                if #available(iOS 17.0, *) {
-                    (Text("Choose your ") + Text("measurement system").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                } else {
-                    Text("Choose your measurement system")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+        ScrollView {
+            VStack(spacing: 32) {
+                VStack(spacing: 16) {
+                    Image(systemName: "ruler")
+                        .font(.system(size: 52, weight: .bold))
+                        .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
+
+                    if #available(iOS 17.0, *) {
+                        (Text("Choose your ") + Text("measurement system").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    } else {
+                        Text("Choose your measurement system")
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+
+                    Text("This will be used throughout the app for all water measurements")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }
-                
-                Text("This will be used throughout the app for all water measurements")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            VStack(spacing: 16) {
-                ForEach(WaterUnit.allCases, id: \.self) { unit in
-                    UnitSelectionCard(
-                        unit: unit,
-                        isSelected: selectedUnit == unit,
-                        onTap: { selectedUnit = unit }
-                    )
+
+                VStack(spacing: 16) {
+                    ForEach(WaterUnit.allCases, id: \.self) { unit in
+                        UnitSelectionCard(
+                            unit: unit,
+                            isSelected: selectedUnit == unit,
+                            onTap: { selectedUnit = unit }
+                        )
+                    }
                 }
+                .padding(.horizontal, 24)
             }
-            .padding(.horizontal, 24)
-            
-            Spacer()
-            
+        }
+        .safeAreaInset(edge: .bottom) {
             PrimaryButton(
                 title: String(localized: "Continue"),
                 colors: [.blue, .cyan]
