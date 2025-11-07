@@ -9,9 +9,17 @@ import Foundation
 import SwiftUI
 import Charts
 import SwiftData
+import RevenueCat
+import RevenueCatUI
 
 struct DashboardView: View {
     // MARK: - Environment & Storage
+
+    @AppStorage("user_did_decline_onboarding_paywall")
+    var userDidDeclineOnboardingPaywall = false
+
+    @AppStorage("user_did_fail_payment_on_onboarding_paywall")
+    var userDidFailPaymentOnOnboardingPaywall = false
 
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject private var sleepService: SleepService
@@ -38,6 +46,9 @@ struct DashboardView: View {
     @State var isPresentedImagePicker = false
     @State var selectedImage: UIImage?
     @State var isPresentedDrinkAnalysis = false
+
+    @State var isPresentedPaywall = false
+    @State var isPresentedDiscountedPaywall = false
 
     // MARK: - Scroll Animation Properties
 
@@ -114,6 +125,21 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $isPresentedDrinkSelector) {
             DrinkSelector(onDrinkSelected: saveDrink)
+                .onDisappear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if userDidDeclineOnboardingPaywall {
+                            isPresentedDiscountedPaywall = true
+                        } else if userDidFailPaymentOnOnboardingPaywall {
+                            isPresentedPaywall = true
+                        }
+                    }
+                }
+        }
+        .sheet(isPresented: $isPresentedDiscountedPaywall) {
+            discountedPaywallView()
+        }
+        .sheet(isPresented: $isPresentedPaywall) {
+            paywallView()
         }
         .sheet(item: $editingWaterPortion) { waterPortion in
             EditWaterPortionView(waterPortion: waterPortion)
@@ -151,6 +177,28 @@ struct DashboardView: View {
     }
 
     // MARK: - Header View
+
+    @ViewBuilder
+    private func discountedPaywallView() -> some View {
+        if let discountedOffering = Purchases.shared.cachedOfferings?.all["annual_discounted"] {
+            PaywallView(offering: discountedOffering, displayCloseButton: true)
+                .onDisappear {
+                    userDidDeclineOnboardingPaywall = false
+                    userDidFailPaymentOnOnboardingPaywall = false
+                }
+        } else {
+            paywallView()
+        }
+    }
+
+    @ViewBuilder
+    private func paywallView() -> some View {
+        PaywallView(displayCloseButton: true)
+            .onDisappear {
+                userDidDeclineOnboardingPaywall = false
+                userDidFailPaymentOnOnboardingPaywall = false
+            }
+    }
 
     private var scrollableContent: some View {
         ScrollView {

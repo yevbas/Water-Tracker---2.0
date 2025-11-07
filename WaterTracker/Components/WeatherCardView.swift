@@ -197,6 +197,12 @@ struct WeatherCardView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+            Label("Powered by Apple Weather", systemImage: "apple.logo")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(.systemBackground))
         .cornerRadius(CardViewConstants.Layout.cardCornerRadius)

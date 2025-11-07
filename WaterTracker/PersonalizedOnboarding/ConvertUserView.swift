@@ -11,7 +11,12 @@ import RevenueCat
 
 struct ConvertUserView: View {
     @State var isPresentedPaywall = false
-    @State var isPresentedDiscountedPaywall = false
+
+    @AppStorage("user_did_decline_onboarding_paywall") var userDidDeclineOnboardingPaywall = false
+    @AppStorage("user_did_fail_payment_on_onboarding_paywall") var userDidFailPaymentOnOnboardingPaywall = false
+
+    #warning("Legacy discount paywall implementation. May be returned in next versions. Lately declined my apple Code of Conduct")
+//    @State var isPresentedDiscountedPaywall = false
 
     var planPreview: PlanPreviewModel?
 
@@ -54,50 +59,62 @@ struct ConvertUserView: View {
         .sheet(isPresented: $isPresentedPaywall) {
             paywallView()
         }
-        .sheet(isPresented: $isPresentedDiscountedPaywall) {
-            discountedPaywallView()
-        }
+#warning("Legacy discount paywall implementation. May be returned in next versions. Lately declined my apple Code of Conduct")
+//        .sheet(isPresented: $isPresentedDiscountedPaywall) {
+//            discountedPaywallView()
+//        }
     }
 
     @ViewBuilder
     private func paywallView() -> some View {
-        if (Purchases.shared.cachedOfferings?.all ?? [:]).isEmpty {
-            PaywallView(displayCloseButton: true)
-                .onPurchaseCompleted { _ in endOnboarding() }
-                .onPurchaseCancelled { endOnboarding() }
-                .onRequestedDismissal { endOnboarding() }
-                .onPurchaseFailure { _ in endOnboarding() }
-                .interactiveDismissDisabled()
-        } else {
-            PaywallView(displayCloseButton: true)
-                .onPurchaseCompleted { _ in endOnboarding() }
-                .onPurchaseCancelled {
-                    isPresentedPaywall = false
-                    isPresentedDiscountedPaywall = true
-                }
-                .onRequestedDismissal {
-                    isPresentedPaywall = false
-                    isPresentedDiscountedPaywall = true
-                }
-                .onPurchaseFailure { _ in endOnboarding() }
-                .interactiveDismissDisabled()
-        }
+//        if (Purchases.shared.cachedOfferings?.all ?? [:]).isEmpty {
+        PaywallView(displayCloseButton: true)
+            .onPurchaseCompleted { _ in endOnboarding() }
+            .onPurchaseCancelled {
+                userDidDeclineOnboardingPaywall = true
+                endOnboarding()
+            }
+            .onRequestedDismissal {
+                userDidDeclineOnboardingPaywall = true
+                endOnboarding()
+            }
+            .onPurchaseFailure { _ in
+                userDidFailPaymentOnOnboardingPaywall = true
+                endOnboarding()
+            }
+            .interactiveDismissDisabled()
+        // TODO: Legacy discount paywall implementation. May be returned in next versions
+//        } else {
+//            PaywallView(displayCloseButton: true)
+//                .onPurchaseCompleted { _ in endOnboarding() }
+//                .onPurchaseCancelled {
+//                    isPresentedPaywall = false
+//                    isPresentedDiscountedPaywall = true
+//                }
+//                .onRequestedDismissal {
+//                    isPresentedPaywall = false
+//                    isPresentedDiscountedPaywall = true
+//                }
+//                .onPurchaseFailure { _ in endOnboarding() }
+//                .interactiveDismissDisabled()
+//        }
     }
 
-    @ViewBuilder
-    private func discountedPaywallView() -> some View {
-        if let discountedOffering = Purchases.shared.cachedOfferings?.all["annual_discounted"] {
-            PaywallView(
-                offering: discountedOffering,
-                displayCloseButton: true
-            )
-            .onPurchaseCompleted { _ in endOnboarding() }
-            .onPurchaseCancelled { endOnboarding() }
-            .onRequestedDismissal { endOnboarding() }
-            .onPurchaseFailure { _ in endOnboarding() }
-            .interactiveDismissDisabled()
-        }
-    }
+#warning("Legacy discount paywall implementation. May be returned in next versions. Lately declined my apple Code of Conduct")
+//    @ViewBuilder
+//    private func discountedPaywallView() -> some View {
+//        if let discountedOffering = Purchases.shared.cachedOfferings?.all["annual_discounted"] {
+//            PaywallView(
+//                offering: discountedOffering,
+//                displayCloseButton: true
+//            )
+//            .onPurchaseCompleted { _ in endOnboarding() }
+//            .onPurchaseCancelled { endOnboarding() }
+//            .onRequestedDismissal { endOnboarding() }
+//            .onPurchaseFailure { _ in endOnboarding() }
+//            .interactiveDismissDisabled()
+//        }
+//    }
 
     private func endOnboarding() {
         // Set the water goal based on the plan

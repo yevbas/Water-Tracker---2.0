@@ -13,20 +13,20 @@ struct WelcomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 8) {
                 LottieView(animation: .named("h2o-rocket"))
                     .animationSpeed(0.5)
                     .looping()
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     if #available(iOS 17.0, *) {
-                        (Text("Welcome to") + Text("  Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        (Text("Welcome to") + Text("   Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     } else {
-                        Text("Thanks for installing Aquio")
+                        Text("Welcome to Aquio")
                             font(.system(.largeTitle, design: .rounded, weight: .bold))
                     }
                     Text("Stay hydrated with a personalized daily water goal.")
-                        .font(.title2)
+                        .font(.title3)
                 }
                 .offset(y: -64)
             }
@@ -39,7 +39,7 @@ struct WelcomeView: View {
                 action: onContinue
             )
             .shimmer()
-            .padding(.horizontal)
+            .padding(.horizontal, 24)
         }
     }
 }
