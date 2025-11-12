@@ -164,6 +164,8 @@ struct TutorialButtonContent: View {
 }
 
 #Preview {
-    TutorialSettingsCard()
-        .padding()
+    NavigationStack {
+        TutorialSettingsCard()
+            .padding()
+    }
 }

@@ -5,9 +5,6 @@
 //  Created by AI Assistant
 //
 
-// AI CLIENT SYSTEM MESSAGE: AI comment sections must have max 200 symbols
-// This ensures concise, focused insights that fit within UI constraints
-
 import SwiftUI
 import WeatherKit
 import SwiftData
@@ -15,7 +12,8 @@ import RevenueCatUI
 
 struct WeatherCardView: View {
     // Current date rounded for saving
-    let selectedDate: Date
+    var selectedDate: Date = Date().rounded()
+
     @State var isLoading: Bool = false
 
     @Environment(\.modelContext) var modelContext
@@ -33,13 +31,6 @@ struct WeatherCardView: View {
     @State private var errorMessage: String?
     @State private var isPresentedPaywall = false
     @State private var aiGenerationFailedOnce = false
-    
-    // Task management for proper cleanup
-    @State private var refreshTask: Task<Void, Never>?
-    @State private var aiGenerationTask: Task<Void, Never>?
-    
-    // Error state management
-    @State private var hasError = false
 
     private var cachedAnalysis: WeatherAnalysisCache? {
         // Use rounded date for identification
@@ -89,29 +80,20 @@ struct WeatherCardView: View {
                 if isExpanded && weatherRecommendation != nil && aiComment.isEmpty && !aiGenerationFailedOnce {
                     generateAIComment()
                 }
-                
-                // Clear error state when expanding
-                if isExpanded {
-                    hasError = false
-                    errorMessage = nil
-                }
             }) {
                 HStack(spacing: 12) {
                     // Weather Icon - no background circle, just colored icon like Apple Health
                     if isLoading || isRefreshingWeather {
                         ProgressView()
                             .scaleEffect(0.8)
-                            .accessibilityLabel("Loading weather data")
                     } else if let recommendation = weatherRecommendation {
                         Image(systemName: weatherIcon(for: recommendation.condition))
                             .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(.blue)
-                            .accessibilityLabel("Weather condition: \(recommendation.condition.description)")
                     } else {
                         Image(systemName: revenueCatMonitor.userHasFullAccess ? "cloud.sun.fill" : "lock.fill")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(revenueCatMonitor.userHasFullAccess ? .blue : .gray)
-                            .accessibilityLabel(revenueCatMonitor.userHasFullAccess ? "Weather tracking" : "Premium feature locked")
                     }
 
                     // Weather Info
@@ -119,29 +101,24 @@ struct WeatherCardView: View {
                         Text("Weather")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(.primary)
-                            .accessibilityAddTraits(.isHeader)
                         
                         if isLoading || isRefreshingWeather {
                             Text(isRefreshingWeather ? "Refreshing..." : "Analyzing...")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
-                                .accessibilityLabel(isRefreshingWeather ? "Refreshing weather data" : "Analyzing weather conditions")
                         } else if let recommendation = weatherRecommendation {
                             let tempFormatter = TemperatureFormatter(unit: UserPreferencesHelper.getTemperatureUnit())
                             Text("\(tempFormatter.format(recommendation.currentTemperature)) • \(recommendation.condition.description)")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
-                                .accessibilityLabel("Current temperature: \(tempFormatter.format(recommendation.currentTemperature)), \(recommendation.condition.description)")
                         } else if errorMessage != nil {
                             Text("No Data")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
-                                .accessibilityLabel("No weather data available")
                         } else {
                             Text(revenueCatMonitor.userHasFullAccess ? "No Data" : "Premium feature")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
-                                .accessibilityLabel(revenueCatMonitor.userHasFullAccess ? "No weather data available" : "Premium feature - upgrade to access weather analysis")
                         }
                     }
 
@@ -168,9 +145,6 @@ struct WeatherCardView: View {
                             }
                             .buttonStyle(.plain)
                             .disabled(isRefreshingWeather)
-                            .accessibilityLabel("Refresh weather data")
-                            .accessibilityHint("Tap to refresh weather analysis")
-                            .accessibilityAddTraits(isRefreshingWeather ? [.isButton] : [])
                         }
 
                         // Expand/Collapse Icon
@@ -178,8 +152,6 @@ struct WeatherCardView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.gray)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                            .accessibilityLabel(isExpanded ? "Collapse weather details" : "Expand weather details")
-                            .accessibilityAddTraits(.isButton)
                     }
                 }
                 .padding(16)
@@ -197,12 +169,18 @@ struct WeatherCardView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            Label("Powered by Apple Weather", systemImage: "apple.logo")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Weather", systemImage: "apple.logo")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Link(destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!) {
+                    Text(verbatim: "https://weatherkit.apple.com/legal-attribution.html")
+                        .font(.system(size: 9))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
         }
         .background(Color(.systemBackground))
         .cornerRadius(CardViewConstants.Layout.cardCornerRadius)
@@ -214,11 +192,6 @@ struct WeatherCardView: View {
         )
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()
-        }
-        .onDisappear {
-            // Cancel any running tasks when view disappears
-            refreshTask?.cancel()
-            aiGenerationTask?.cancel()
         }
     }
 
@@ -287,7 +260,7 @@ struct WeatherCardView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
             } else {
-                if hasError, let errorMessage = errorMessage {
+                if let errorMessage = errorMessage {
                     errorView(errorMessage)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)
@@ -343,33 +316,16 @@ struct WeatherCardView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.title2)
                 .foregroundStyle(.orange)
-                .accessibilityLabel("Error icon")
 
             Text("Weather Error")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
-                .accessibilityAddTraits(.isHeader)
 
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .accessibilityLabel("Error message: \(message)")
-            
-            // Add retry button for better UX
-            Button(action: {
-                refreshWeatherData()
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.caption)
-                    Text("Retry")
-                        .font(.caption)
-                }
-                .foregroundStyle(.blue)
-            }
-            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
@@ -689,74 +645,52 @@ struct WeatherCardView: View {
     // MARK: - Weather Data Refresh
     
     private func refreshWeatherData() {
-        // Cancel any existing refresh task
+        isRefreshingWeather = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                // Fetch fresh weather data using the new service pattern
+                let recommendation = try await weatherService.fetchWeatherData()
 
-        weatherService.onAuthorizationAllowed {
-            refreshTask?.cancel()
+                isGeneratingAIComment = true
 
-            isRefreshingWeather = true
-            errorMessage = nil
-            hasError = false
+                let aiComment = try await aiClient.analyzeWeatherForHydration(
+                    weatherData: recommendation
+                )
 
-            refreshTask = Task {
-                do {
-                    // Fetch fresh weather data using the new service pattern
-                    let recommendation = try await weatherService.fetchWeatherData()
+                isGeneratingAIComment = false
 
-                    isGeneratingAIComment = true
+                // Get location name if available
+                var locationName: String?
 
-                    let aiComment = try await aiClient.analyzeWeatherForHydration(
-                        weatherData: recommendation
-                    )
-
-                    isGeneratingAIComment = false
-
-                    // Get location name if available
-                    var locationName: String?
-
-                    if let location = weatherService.locationManager.location {
-                        locationName = await weatherService.getLocationName(for: location)
-                    }
-
-                    // Create new cache entry with fresh data
-                    let cache = WeatherAnalysisCache.fromWeatherRecommendation(
-                        recommendation,
-                        aiComment: aiComment,
-                        locationName: locationName
-                    )
-                    cache.date = selectedDate.rounded()
-
-                    // Remove old cache for this date and clean up old data
-                    await cleanOldWeatherData()
-
-                    // Insert new cache
-                    modelContext.insert(cache)
-
-                    try modelContext.save()
-
-                    await MainActor.run {
-                        isRefreshingWeather = false
-                        currentAIComment = ""
-                        // Clear error state on success
-                        hasError = false
-                        errorMessage = nil
-                    }
-                } catch let weatherError as WeatherError {
-                    await MainActor.run {
-                        isRefreshingWeather = false
-                        hasError = true
-                        errorMessage = weatherError.localizedDescription
-                    }
-                } catch let error {
-                    await MainActor.run {
-                        isRefreshingWeather = false
-                        hasError = true
-                        errorMessage = String(localized: "Failed to fetch weather data: \(error.localizedDescription)")
-                    }
+                if let location = weatherService.locationManager.location {
+                    locationName = await weatherService.getLocationName(for: location)
                 }
-            }
-        }
 
+                // Create new cache entry with fresh data
+                let cache = WeatherAnalysisCache.fromWeatherRecommendation(
+                    recommendation,
+                    aiComment: aiComment,
+                    locationName: locationName
+                )
+                cache.date = selectedDate.rounded()
+                
+                // Remove old cache for this date and clean up old data
+                await cleanOldWeatherData()
+                
+                // Insert new cache
+                modelContext.insert(cache)
+
+                try? modelContext.save()
+            } catch let weatherError as WeatherError {
+                errorMessage = weatherError.localizedDescription
+            } catch let error {
+                errorMessage = String(localized: "Failed to fetch weather data: \(error.localizedDescription)")
+            }
+            isRefreshingWeather = false
+            currentAIComment = ""
+        }
     }
     
     @MainActor
@@ -785,14 +719,9 @@ struct WeatherCardView: View {
     private func generateAIComment() {
         guard let recommendation = weatherRecommendation else { return }
         
-        // Cancel any existing AI generation task
-        aiGenerationTask?.cancel()
-        
         isGeneratingAIComment = true
-        hasError = false
-        errorMessage = nil
         
-        aiGenerationTask = Task {
+        Task {
             do {
                 let aiComment = try await aiClient.analyzeWeatherForHydration(
                     weatherData: recommendation
@@ -804,15 +733,11 @@ struct WeatherCardView: View {
                     
                     // Cache the AI comment for future use
                     cacheAIComment(aiComment)
-                    
-                    // Reset failure flag on success
-                    aiGenerationFailedOnce = false
                 }
             } catch {
                 await MainActor.run {
                     isGeneratingAIComment = false
                     aiGenerationFailedOnce = true
-                    hasError = true
                     errorMessage = CardViewConstants.ErrorMessages.aiGenerationFailed
                 }
             }
@@ -834,11 +759,11 @@ struct WeatherCardView: View {
 }
 
 #Preview {
-    WeatherCardView(selectedDate: Date().rounded())
+    WeatherCardView()
         .modelContainer(for: WeatherAnalysisCache.self, inMemory: true)
         .environmentObject(WeatherService())
         .environmentObject(AIDrinkAnalysisClient())
-        .environmentObject(RevenueCatMonitor(state: .preview(true)))
+        .environmentObject(RevenueCatMonitor(state: .preview(false)))
         .padding()
 }
 

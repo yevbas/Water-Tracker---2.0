@@ -72,7 +72,7 @@ struct WeatherTutorialView: View {
             // Page Content
             TabView(selection: $currentPage) {
                 ForEach(0..<pages.count, id: \.self) { index in
-                    WeatherTutorialPageView(page: pages[index])
+                    WeatherTutorialPageView(page: pages[index], pageIndex: index)
                         .tag(index)
                 }
             }
@@ -137,6 +137,31 @@ struct WeatherTutorialView: View {
 
 struct WeatherTutorialPageView: View {
     let page: TutorialPage
+    let pageIndex: Int
+    
+    // Citations for medical information
+    private let weatherHydrationCitations: [MedicalCitation] = [
+        MedicalCitation(
+            title: String(localized: "Heat and Hydration: The Importance of Water"),
+            source: String(localized: "American Heart Association"),
+            url: "https://www.heart.org/en/healthy-living/fitness/fitness-basics/staying-hydrated-staying-healthy"
+        ),
+        MedicalCitation(
+            title: String(localized: "Heat Stress - Hydration"),
+            source: String(localized: "Centers for Disease Control and Prevention (CDC)"),
+            url: "https://www.cdc.gov/niosh/topics/heatstress/default.html"
+        ),
+        MedicalCitation(
+            title: String(localized: "Water and Healthier Drinks"),
+            source: String(localized: "Centers for Disease Control and Prevention (CDC)"),
+            url: "https://www.cdc.gov/healthyweight/healthy_eating/water-and-healthier-drinks.html"
+        ),
+        MedicalCitation(
+            title: String(localized: "Dehydration and Heat Illness"),
+            source: String(localized: "Mayo Clinic"),
+            url: "https://www.mayoclinic.org/diseases-conditions/dehydration/symptoms-causes/syc-20354086"
+        )
+    ]
 
     var body: some View {
         ScrollView {
@@ -173,7 +198,7 @@ struct WeatherTutorialPageView: View {
                     .lineSpacing(4)
 
                 // Weather Card Example (for first page)
-                if currentPage == 0 {
+                if pageIndex == 0 {
                     weatherCardExample
                 }
 
@@ -206,14 +231,18 @@ struct WeatherTutorialPageView: View {
                                 .stroke(page.iconColor.opacity(0.2), lineWidth: 1)
                         )
                 )
+                
+                // Citations for medical information (show on pages with health claims)
+                if pageIndex == 1 {
+                    CitationsView(citations: weatherHydrationCitations)
+                        .padding(.horizontal, 4)
+                }
 
                 Spacer(minLength: 50)
             }
             .padding(.horizontal, 24)
         }
     }
-
-    @State private var currentPage = 0
 
     private var weatherCardExample: some View {
         VStack(spacing: 0) {
@@ -300,6 +329,19 @@ struct WeatherTutorialPageView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Weather", systemImage: "apple.logo")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Link(destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!) {
+                    Text(verbatim: "https://weatherkit.apple.com/legal-attribution.html")
+                        .font(.system(size: 9))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
         }
         .background(Color(.systemBackground))
         .cornerRadius(10)

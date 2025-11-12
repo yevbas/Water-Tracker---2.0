@@ -138,6 +138,30 @@ struct SleepTutorialView: View {
 struct SleepTutorialPageView: View {
     let page: TutorialPage
     @Binding var currentPage: Int
+    
+    // Citations for medical information
+    private let sleepHydrationCitations: [MedicalCitation] = [
+        MedicalCitation(
+            title: String(localized: "Sleep Tips: 6 Steps to Better Sleep"),
+            source: String(localized: "Mayo Clinic"),
+            url: "https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/sleep/art-20048379"
+        ),
+        MedicalCitation(
+            title: String(localized: "How Sleep Works - Sleep Phases and Stages"),
+            source: String(localized: "National Heart, Lung, and Blood Institute (NHLBI)"),
+            url: "https://www.nhlbi.nih.gov/health/sleep/how-sleep-works"
+        ),
+        MedicalCitation(
+            title: String(localized: "Healthy Sleep Tips"),
+            source: String(localized: "Sleep Foundation"),
+            url: "https://www.sleepfoundation.org/sleep-hygiene/healthy-sleep-tips"
+        ),
+        MedicalCitation(
+            title: String(localized: "Caffeine and Sleep"),
+            source: String(localized: "Sleep Foundation"),
+            url: "https://www.sleepfoundation.org/nutrition/caffeine-and-sleep"
+        )
+    ]
 
     var body: some View {
         ScrollView {
@@ -212,6 +236,10 @@ struct SleepTutorialPageView: View {
                                 .stroke(page.iconColor.opacity(0.2), lineWidth: 1)
                         )
                 )
+                
+                // Citations for medical information (show on all pages as this tutorial contains health information)
+                CitationsView(citations: sleepHydrationCitations)
+                    .padding(.horizontal, 4)
 
                 Spacer(minLength: 50)
             }

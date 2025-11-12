@@ -72,7 +72,7 @@ struct HealthKitTutorialView: View {
             // Page Content
             TabView(selection: $currentPage) {
                 ForEach(0..<pages.count, id: \.self) { index in
-                    HKTutorialPageView(page: pages[index])
+                    HKTutorialPageView(page: pages[index], pageIndex: index)
                         .tag(index)
                 }
             }
@@ -146,6 +146,31 @@ struct TutorialPage {
 
 struct HKTutorialPageView: View {
     let page: TutorialPage
+    let pageIndex: Int
+    
+    // Citations for medical information
+    private let healthKitCitations: [MedicalCitation] = [
+        MedicalCitation(
+            title: String(localized: "Water: How much should you drink every day?"),
+            source: String(localized: "Mayo Clinic"),
+            url: "https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/water/art-20044256"
+        ),
+        MedicalCitation(
+            title: String(localized: "Get the Facts: Drinking Water and Intake"),
+            source: String(localized: "Centers for Disease Control and Prevention (CDC)"),
+            url: "https://www.cdc.gov/nutrition/data-statistics/plain-water-the-healthier-choice.html"
+        ),
+        MedicalCitation(
+            title: String(localized: "Dietary Reference Intakes for Water, Potassium, Sodium, Chloride, and Sulfate"),
+            source: String(localized: "National Academies of Sciences, Engineering, and Medicine"),
+            url: "https://www.nap.edu/catalog/10925/dietary-reference-intakes-for-water-potassium-sodium-chloride-and-sulfate"
+        ),
+        MedicalCitation(
+            title: String(localized: "Hydration for Athletes"),
+            source: String(localized: "American Heart Association"),
+            url: "https://www.heart.org/en/healthy-living/fitness/fitness-basics/staying-hydrated-staying-healthy"
+        )
+    ]
     
     var body: some View {
         ScrollView {
@@ -210,6 +235,12 @@ struct HKTutorialPageView: View {
                                 .stroke(page.iconColor.opacity(0.2), lineWidth: 1)
                         )
                 )
+                
+                // Citations for medical information (show on pages with health recommendations)
+                if pageIndex == 0 || pageIndex == 1 {
+                    CitationsView(citations: healthKitCitations)
+                        .padding(.horizontal, 4)
+                }
                 
                 Spacer(minLength: 50)
             }
