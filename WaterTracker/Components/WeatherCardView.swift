@@ -169,18 +169,10 @@ struct WeatherCardView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Label("Weather", systemImage: "apple.logo")
-                    .font(.system(size: 9))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Link(destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!) {
-                    Text(verbatim: "https://weatherkit.apple.com/legal-attribution.html")
-                        .font(.system(size: 9))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            WeatherAttribution()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(.systemBackground))
         .cornerRadius(CardViewConstants.Layout.cardCornerRadius)
