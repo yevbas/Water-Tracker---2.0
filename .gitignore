@@ -1,0 +1,91 @@
+# User-specific files
+*.xcuserstate
+*.xcuserdata
+*.swp
+*.swo
+localize_strings.py
+
+# User-specific folders
+.idea/
+.DS_Store
+.vscode/
+*.moved-aside
+*.xcworkspace
+
+# Objective-C/Swift specific
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/xcshareddata/*
+
+# Xcode-specific
+build/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.xcscmblueprint
+*.xcsettings
+
+# Swift Package Manager
+.build/
+Package.resolved
+# Add this if you have a Package.swift file
+# Package.pins
+# Add this if you have a Sources directory
+# Sources/**/Info.plist
+
+# CocoaPods
+Pods/
+# Add this line if you're using dynamic frameworks
+# Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/report.html
+
+# Carthage
+Carthage/Build/
+
+# Accio dependency manager
+Dependencies/
+.accio/
+
+# Archives
+*.xcarchive
+
+# App packaging
+*.ipa
+*.app.dSYM.zip
+*.app.dSYM
+*.framework.dSYM.zip
+*.framework.dSYM
+*.dSYM.zip
+*.bcsymbolmap
+*.dSYM
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Xcode automatically generated files
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/
+
+# Tuist generated projects
+.manifest/
+
+# Other generated files
+# *.plist
+
+# Exclude build and release directories
+.build/
