@@ -169,7 +169,7 @@ struct StatisticsCard: View {
         }
         .buttonStyle(.plain)
         .navigationDestination(isPresented: $isPresentedStatisticsView) {
-            StatisticsView()
+            StatisticsScreen()
         }
         .sheet(isPresented: $isPresentedPaywall) {
             PaywallView()

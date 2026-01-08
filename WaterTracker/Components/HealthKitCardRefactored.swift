@@ -68,10 +68,10 @@ struct HealthKitCardRefactored: View {
             viewModel.checkWritePermissions()
         }
         .sheet(isPresented: $viewModel.showingEnableTutorial) {
-            EnableHealthKitTutorialView()
+            EnableHealthKitTutorialScreen()
         }
         .sheet(isPresented: $viewModel.showingDisableTutorial) {
-            DisableHealthKitTutorialView()
+            DisableHealthKitTutorialScreen()
         }
         .alert("Water Intake Calculated", isPresented: $viewModel.showingCalculationResult) {
             Button("Update Goal") {

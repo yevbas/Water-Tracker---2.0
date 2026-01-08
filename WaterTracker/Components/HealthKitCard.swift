@@ -196,10 +196,10 @@ struct HealthKitCard: View {
             checkWritePermissions()
         }
         .sheet(isPresented: $showingEnableTutorial) {
-            EnableHealthKitTutorialView()
+            EnableHealthKitTutorialScreen()
         }
         .sheet(isPresented: $showingDisableTutorial) {
-            DisableHealthKitTutorialView()
+            DisableHealthKitTutorialScreen()
         }
         .alert("Water Intake Calculated", isPresented: $showingCalculationResult) {
             Button("Update Goal") {

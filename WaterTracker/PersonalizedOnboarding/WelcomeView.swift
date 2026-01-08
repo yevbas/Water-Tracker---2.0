@@ -19,13 +19,13 @@ struct WelcomeView: View {
                     .looping()
                 VStack(alignment: .leading, spacing: 8) {
                     if #available(iOS 17.0, *) {
-                        (Text("Welcome to") + Text("   Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        (Text("Welcome to") + Text("    Aquio").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     } else {
                         Text("Welcome to Aquio")
                             font(.system(.largeTitle, design: .rounded, weight: .bold))
                     }
-                    Text("Stay hydrated with a personalized daily water goal.")
+                    Text("Your body needs water to function properly. Start using Aquio to track your water intake and stay on track!")
                         .font(.title3)
                 }
                 .offset(y: -64)
@@ -34,12 +34,13 @@ struct WelcomeView: View {
         }
         .safeAreaInset(edge: .bottom) {
             PrimaryButton(
-                title: String(localized: "Start!"),
+                title: String(localized: "Let's start"),
                 colors: [.blue, .cyan],
                 action: onContinue
             )
             .shimmer()
             .padding(.horizontal, 24)
+            .buttonStyle(BreathingButtonStyle())
         }
     }
 }
@@ -47,3 +48,5 @@ struct WelcomeView: View {
 #Preview {
     WelcomeView()
 }
+
+

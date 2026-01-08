@@ -14,7 +14,7 @@ struct TutorialSettingsCard: View {
             tutorialCardHeader
             
             VStack(spacing: 12) {
-                NavigationLink(destination: HealthKitTutorialView()) {
+                NavigationLink(destination: HealthKitTutorialScreen()) {
                     TutorialButtonContent(
                         title: String(localized: "HealthKit Integration"),
                         subtitle: String(localized: "Sync health data & personalize goals"),
@@ -24,7 +24,7 @@ struct TutorialSettingsCard: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                NavigationLink(destination: WeatherTutorialView()) {
+                NavigationLink(destination: WeatherTutorialScreen()) {
                     TutorialButtonContent(
                         title: String(localized: "Weather Analysis"),
                         subtitle: String(localized: "Smart hydration based on conditions"),
@@ -34,7 +34,7 @@ struct TutorialSettingsCard: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                NavigationLink(destination: SleepTutorialView()) {
+                NavigationLink(destination: SleepTutorialScreen()) {
                     TutorialButtonContent(
                         title: String(localized: "Sleep Insights"),
                         subtitle: String(localized: "Optimize hydration for better sleep"),
@@ -44,7 +44,7 @@ struct TutorialSettingsCard: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                NavigationLink(destination: StatisticsTutorialView()) {
+                NavigationLink(destination: StatisticsTutorialScreen()) {
                     TutorialButtonContent(
                         title: String(localized: "Statistics & Analytics"),
                         subtitle: String(localized: "Track progress with detailed charts"),
@@ -95,7 +95,7 @@ struct TutorialSettingsCard: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.primary)
-                Text("Learn to use WaterTracker features")
+                Text("Learn about app features")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

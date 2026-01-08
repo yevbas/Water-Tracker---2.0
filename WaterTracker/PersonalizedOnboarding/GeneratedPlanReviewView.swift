@@ -48,7 +48,7 @@ struct GeneratedPlanReviewView: View {
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.primary)
                         
-                        Text("We've calculated your personalized daily water goal based on your preferences")
+                        Text("We've calculated your personalized daily water goal based on your answers")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -74,7 +74,7 @@ struct GeneratedPlanReviewView: View {
                     // Water Goals Display
                     HStack(spacing: 20) {
                         WaterCircleView(
-                            title: "Water",
+                            title: String(localized: "Water"),
                             emoji: "💧",
                             color: .blue,
                             value: Int(plantPreview.waterAmount.rounded()),
@@ -82,7 +82,7 @@ struct GeneratedPlanReviewView: View {
                         )
                         
                         WaterCircleView(
-                            title: "Cups",
+                            title: String(localized: "Cups"),
                             emoji: "🥤",
                             color: .teal,
                             value: plantPreview.cups,

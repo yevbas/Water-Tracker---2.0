@@ -20,12 +20,12 @@ struct UnitSelectionView: View {
                         .foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
 
                     if #available(iOS 17.0, *) {
-                        (Text("Choose your ") + Text("measurement system").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        (Text("Select ") + Text(" measurement system").foregroundStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     } else {
-                        Text("Choose your measurement system")
+                        Text("Select measurement system")
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -104,9 +104,9 @@ struct UnitSelectionCard: View {
     private func unitDescription(for unit: WaterUnit) -> String {
         switch unit {
         case .millilitres:
-            return "Metric system - commonly used worldwide"
+            return String(localized: "Metric system - commonly used worldwide")
         case .ounces:
-            return "Imperial system - commonly used in the US"
+            return String(localized: "Imperial system - commonly used in the US")
         }
     }
 }

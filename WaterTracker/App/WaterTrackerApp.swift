@@ -42,7 +42,7 @@ struct WaterTrackerApp: App {
             Group {
                 if isConfigured {
                     if onboardingPassed {
-                        MainTabView()
+                        MainTabScreen()
                             .modelContainer(sharedModelContainer)
                             .environmentObject(revenueCatMonitor)
                             .environmentObject(healthKitService)
@@ -55,14 +55,16 @@ struct WaterTrackerApp: App {
                                 SleepAnalysisCache.cleanupOldData(modelContext: context)
                             }
                     } else {
-                        PersonalizedOnboarding()
+                        OnboardingScreen()
                             .modelContainer(sharedModelContainer)
                             .environmentObject(revenueCatMonitor)
                             .environmentObject(healthKitService)
                     }
                 } else {
-                    ConfigureView(container: sharedModelContainer, healthKitService: healthKitService) {
+                    ConfigureScreen(container: sharedModelContainer, healthKitService: healthKitService) {
                         isConfigured = true
+
+                        onboardingPassed = true
                     }
                 }
             }

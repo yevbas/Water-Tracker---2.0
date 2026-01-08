@@ -53,12 +53,12 @@ struct HealthKitPermissionView: View {
                     }
 
                     VStack(spacing: 12) {
-                        Text("Connect with Health")
+                        Text("Connect to HealthKit")
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.center)
 
-                        Text("Get personalized hydration recommendations based on your health data")
+                        Text("Share your age, weight, height and sleep data to get personalized insights and recommendations for your water intake.")
                             .font(.system(.body, design: .rounded))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -98,7 +98,7 @@ struct HealthKitPermissionView: View {
         }
         .safeAreaInset(edge: .bottom, content: {
             // Action Buttons
-            VStack(spacing: 16) {
+            VStack(spacing: 8) {
                 Button {
                     isRequestingHealthKitPermission = true
                 } label: {
@@ -125,15 +125,15 @@ struct HealthKitPermissionView: View {
                 }
                 .disabled(isRequestingHealthKitPermission)
 
-//                Button {
-//                    onPermissionDenied()
-//                } label: {
-//                    Text("Skip for now")
-//                        .font(.system(.body, design: .rounded, weight: .medium))
-//                        .foregroundStyle(.secondary)
-//                        .frame(maxWidth: .infinity)
-//                }
-//                .disabled(isRequestingHealthKitPermission)
+                Button {
+                    onPermissionDenied()
+                } label: {
+                    Text("Skip for now")
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(isRequestingHealthKitPermission)
             }
             .padding(.horizontal, 24)
         })
@@ -276,7 +276,7 @@ struct HealthKitPermissionPreviewView: View {
                     }
 
                     VStack(spacing: 12) {
-                        Text("Connect with Health")
+                        Text("Connect HealthKit")
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.center)
@@ -321,7 +321,7 @@ struct HealthKitPermissionPreviewView: View {
         }
         .safeAreaInset(edge: .bottom, content: {
             // Action Buttons
-            VStack(spacing: 16) {
+            VStack(spacing: 18) {
                 Button {
                     print("Connect with Health tapped (Preview)")
                 } label: {
@@ -346,14 +346,14 @@ struct HealthKitPermissionPreviewView: View {
                             )
                     }
                 }
-//                Button {
-//                    print("Skip for now tapped (Preview)")
-//                } label: {
-//                    Text("Skip for now")
-//                        .font(.system(.body, design: .rounded, weight: .medium))
-//                        .foregroundStyle(.secondary)
-//                        .frame(maxWidth: .infinity)
-//                }
+                Button {
+                    print("Skip for now tapped (Preview)")
+                } label: {
+                    Text("Skip for now")
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
             }
             .padding(.horizontal, 24)
         })

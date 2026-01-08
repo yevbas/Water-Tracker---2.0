@@ -1,0 +1,432 @@
+//
+//  WaterScheduleScreen.swift
+//  WaterTracker
+//
+//  Created by Jackson  on 10/09/2025.
+//
+
+import SwiftUI
+import UserNotifications
+import RevenueCatUI
+
+struct WaterScheduleScreen: View {
+    @StateObject var notifications = NotificationsManager.shared
+    @EnvironmentObject var revenueCat: RevenueCatMonitor
+
+    @State var isPresentingAdd: Bool = false
+    @State var newTime: Date = .init()
+    @State var reminders: [Reminder] = []
+    @State var loading: Bool = false
+    @State var isShowingPaywall: Bool = false
+    @State var showingDuplicateAlert: Bool = false
+    @State var isShowingAutoSchedule: Bool = false
+
+    struct Reminder: Identifiable, Hashable {
+        let id: String
+        var hour: Int
+        var minute: Int
+
+        var date: Date {
+            var comps = DateComponents()
+            comps.hour = hour
+            comps.minute = minute
+            return Calendar.current.date(from: comps) ?? Date()
+        }
+
+        var timeString: String {
+            date.formatted(date: .omitted, time: .shortened)
+        }
+    }
+
+    var body: some View {
+        Group {
+            switch notifications.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                content
+            case .denied:
+                deniedView
+            case .notDetermined:
+                requestView
+            @unknown default:
+                requestView
+            }
+        }
+        .navigationTitle("Water Reminders")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    isShowingAutoSchedule = true
+                } label: {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 16, weight: .medium))
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await handleAddTapped() }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .medium))
+                }
+            }
+        }
+        .task { await loadReminders() }
+        .onReceive(notifications.$authorizationStatus) { _ in
+            Task { await loadReminders() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .applyGeneratedSchedule)) { notification in
+            if let times = notification.userInfo?["times"] as? [ScheduleTime] {
+                Task { await applyGeneratedSchedule(times) }
+            }
+        }
+        .sheet(isPresented: $isPresentingAdd) { addReminderSheet }
+        .sheet(isPresented: $isShowingPaywall) { PaywallView() }
+        .sheet(isPresented: $isShowingAutoSchedule) { WaterScheduleFromSleepDataGeneratorScreen() }
+        .alert("Reminder Already Exists", isPresented: $showingDuplicateAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("You already have a reminder set for this time. Please choose a different time.")
+        }
+    }
+
+    private var content: some View {
+        VStack(spacing: 20) {
+            headerCard
+            if !revenueCat.userHasFullAccess {
+                buildAdBannerView(.addReminder)
+                    .padding(.horizontal)
+            }
+            if loading {
+                ProgressView()
+            }
+            if reminders.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(reminders) { reminder in
+                            reminderRow(reminder)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                }
+            }
+            Spacer()
+        }
+    }
+
+    private var requestView: some View {
+        VStack(spacing: 24) {
+            headerCard
+            
+            VStack(spacing: 20) {
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(.blue)
+                
+                VStack(spacing: 8) {
+                    Text("Stay on track with friendly reminders")
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal)
+                }
+                
+                PrimaryButton(
+                    title: String(localized: "Enable Notifications"),
+                    systemImage: "bell.fill",
+                    colors: [.blue, .cyan]
+                ) {
+                    Task { let _ = await notifications.requestAuthorization() }
+                }
+                .padding(.horizontal)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+    }
+
+    private var deniedView: some View {
+        VStack(spacing: 24) {
+            headerCard
+            
+            VStack(spacing: 20) {
+                Image(systemName: "bell.slash.fill")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(.red)
+                
+                VStack(spacing: 8) {
+                    Text("Notifications are turned off")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    
+                    Text("Turn on notifications in Settings to receive water reminders.")
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                }
+                
+                PrimaryButton(
+                    title: String(localized: "Open Settings"),
+                    systemImage: "gear",
+                    colors: [.blue, .cyan]
+                ) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+    }
+
+    private var headerCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                // Bell icon like Apple Health
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.blue)
+                
+                Text("Hydration Schedule")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+            }
+            
+            Text("Add times to get a nudge to drink water throughout your day.")
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.horizontal)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 12) {
+                Text("No reminders yet")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text("Tap Add Reminder to choose your first time.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.horizontal)
+    }
+
+    private func reminderRow(_ reminder: Reminder) -> some View {
+        HStack(spacing: 12) {
+            // Bell icon without background circle, like Apple Health
+            Image(systemName: "bell.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.blue)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(reminder.timeString)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(String(localized: "Daily"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            Menu {
+                Button(role: .destructive) {
+                    deleteReminder(reminder)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.gray)
+            }
+        }
+        .padding(16)
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+
+
+    private var addReminderSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    DatePicker("Time", selection: $newTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .environment(\ .locale, Locale(identifier: Locale.current.identifier))
+                        .padding(.top)
+                }
+                .padding(.horizontal)
+            }
+            .safeAreaInset(edge: .bottom, content: {
+                PrimaryButton(
+                    title: String(localized: "Save"),
+                    systemImage: "checkmark.circle.fill",
+                    colors: [.blue, .cyan],
+                    isDisabled: !canSchedule
+                ) {
+                    Task { await addReminder() }
+                }
+                .padding(.horizontal)
+            })
+            .navigationTitle("New Reminder")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresentingAdd = false }
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func handleAddTapped() async {
+        // If user is not subscribed and already has >= 1 reminder, show paywall
+        if revenueCat.userHasFullAccess == false {
+            let current = await notifications.listPendingReminders()
+            if current.count >= 1 {
+                await MainActor.run { isShowingPaywall = true }
+                return
+            }
+        }
+        await MainActor.run {
+            newTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+            isPresentingAdd = true
+        }
+    }
+
+    private var canSchedule: Bool {
+        switch notifications.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return true
+        default: return false
+        }
+    }
+
+    private func addReminder() async {
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: newTime)
+        guard let hour = comps.hour, let minute = comps.minute else { return }
+        
+        // Check if a reminder already exists for this time
+        if reminderExistsForTime(hour: hour, minute: minute) {
+            await MainActor.run {
+                showingDuplicateAlert = true
+            }
+            return
+        }
+        
+        do {
+            let newId = UUID().uuidString
+            let id = try await notifications.scheduleDailyReminder(id: newId, hour: hour, minute: minute)
+            reminders.append(.init(id: id, hour: hour, minute: minute))
+            reminders.sort(by: { $0.hour * 60 + $0.minute < $1.hour * 60 + $1.minute })
+            isPresentingAdd = false
+        } catch {
+            // silently fail for now
+        }
+    }
+    
+    private func reminderExistsForTime(hour: Int, minute: Int) -> Bool {
+        return reminders.contains { reminder in
+            reminder.hour == hour && reminder.minute == minute
+        }
+    }
+
+    private func deleteReminder(_ reminder: Reminder) {
+        notifications.cancelReminder(id: reminder.id)
+        reminders.removeAll { $0.id == reminder.id }
+    }
+
+    private func loadReminders() async {
+        loading = true
+        let requests = await notifications.listPendingReminders()
+        let calendar = Calendar.current
+        var mapped: [Reminder] = []
+        for r in requests {
+            if let trigger = r.trigger as? UNCalendarNotificationTrigger,
+               let hour = trigger.dateComponents.hour,
+               let minute = trigger.dateComponents.minute,
+               trigger.repeats {
+                mapped.append(.init(id: r.identifier, hour: hour, minute: minute))
+            }
+        }
+        mapped.sort(by: { $0.hour * 60 + $0.minute < $1.hour * 60 + $1.minute })
+        await MainActor.run {
+            self.reminders = mapped
+            self.loading = false
+        }
+    }
+    
+    private func applyGeneratedSchedule(_ times: [ScheduleTime]) async {
+        for time in times {
+            // Check if a reminder already exists for this time
+            if reminderExistsForTime(hour: time.hour, minute: time.minute) {
+                continue // Skip duplicates
+            }
+            
+            do {
+                let newId = UUID().uuidString
+                let id = try await notifications.scheduleDailyReminder(
+                    id: newId,
+                    hour: time.hour,
+                    minute: time.minute
+                )
+                await MainActor.run {
+                    reminders.append(.init(id: id, hour: time.hour, minute: time.minute))
+                }
+            } catch {
+                print("Failed to schedule reminder: \(error)")
+            }
+        }
+        
+        // Sort reminders after adding new ones
+        await MainActor.run {
+            reminders.sort(by: { $0.hour * 60 + $0.minute < $1.hour * 60 + $1.minute })
+        }
+    }
+
+}
+
+extension WaterScheduleScreen {
+    @ViewBuilder
+    var paywallSheet: some View {
+        PaywallView()
+    }
+}
+
+#Preview {
+    NavigationStack {
+        WaterScheduleScreen()
+    }
+}

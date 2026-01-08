@@ -55,7 +55,7 @@ enum WaterPlanner {
     static func climateBonus(climate: String) -> Double {
         if climate.contains("hot")       { return 300 } // was 500
         if climate.contains("temperate") { return 150 } // was 250
-        return 0 // cool (unchanged)
+        return 0 // cold (unchanged)
     }
 
     static func roundMl(_ x: Double) -> Int {

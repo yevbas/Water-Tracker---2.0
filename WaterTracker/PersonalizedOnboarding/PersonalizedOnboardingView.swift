@@ -1,5 +1,5 @@
 //
-//  PersonalizedOnboardingView.swift
+//  OnboardingScreen.swift
 //  PlateAI
 //
 //  Created by Jackson  on 21/08/2025.
@@ -11,7 +11,7 @@ import Lottie
 import HealthKit
 import HealthKitUI
 
-struct PersonalizedOnboarding: View {
+struct OnboardingScreen: View {
     @EnvironmentObject private var healthKitService: HealthKitService
     @Environment(\.modelContext) private var modelContext
 
@@ -54,23 +54,23 @@ struct PersonalizedOnboarding: View {
             answerType: .strings([
                 .init(
                     value: "Sedentary (little or no exercise)",
-                    title: String(localized: "Sedentary (little or no exercise)")
+                    title: String(localized: "Sedentary activity (little or no exercise)")
                 ),
                 .init(
                     value: "Light (1–3 days/week)",
-                    title: String(localized: "Light (1–3 days/week)")
+                    title: String(localized: "Light activity (1–3 days/week)")
                 ),
                 .init(
                     value: "Moderate (3–5 days/week)",
-                    title: String(localized: "Moderate (3–5 days/week)")
+                    title: String(localized: "Moderately active (3–5 days/week)")
                 ),
                 .init(
                     value: "Very (6–7 days/week)",
-                    title: String(localized: "Very (6–7 days/week)")
+                    title: String(localized: "Very active (6–7 days/week)")
                 ),
                 .init(
                     value: "Extra (physical job + training)",
-                    title: String(localized: "Extra (physical job + training)")
+                    title: String(localized: "Extra active (physical job + training)")
                 )
             ])
         ),
@@ -83,7 +83,7 @@ struct PersonalizedOnboarding: View {
                 localized: "Your climate?"
             ),
             answerType: .strings([
-                .init(value: "cool", title: String(localized: "Cool")),
+                .init(value: "cold", title: String(localized: "Cold")),
                 .init(value: "temperate", title: String(localized: "Temperate")),
                 .init(value: "hot", title: String(localized: "Hot"))
             ])
@@ -99,11 +99,11 @@ struct PersonalizedOnboarding: View {
             answerType: .strings([
                 .init(
                     value: Gender.male.rawValue,
-                    title: String(localized: "Male")
+                    title: String(localized: "Man")
                 ),
                 .init(
                     value: Gender.female.rawValue,
-                    title: String(localized: "Female")
+                    title: String(localized: "Woman")
                 ),
                 .init(
                     value: Gender.other.rawValue,
@@ -411,7 +411,7 @@ struct PersonalizedOnboarding: View {
 }
 
 #Preview {
-    PersonalizedOnboarding()
+    OnboardingScreen()
 }
 
 extension Array {
