@@ -298,13 +298,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WaterTracker/WaterTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"WaterTracker/Preview Content\"";
 				DEVELOPMENT_TEAM = 7SVA3R34P5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WaterTracker/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Water Tracker";
+				INFOPLIST_KEY_CFBundleDisplayName = Aquio;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "To analyze your drinks from photos";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aquio uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.";
@@ -322,7 +322,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yevbas.aquioapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -341,13 +341,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WaterTracker/WaterTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"WaterTracker/Preview Content\"";
 				DEVELOPMENT_TEAM = 7SVA3R34P5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WaterTracker/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Water Tracker";
+				INFOPLIST_KEY_CFBundleDisplayName = Aquio;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "To analyze your drinks from photos";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aquio uses your health data to provide personalized hydration recommendations. We access your age, height, weight, and sleep data to calculate your optimal daily water intake and suggest adjustments based on your sleep patterns.";
@@ -365,7 +365,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yevbas.aquioapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

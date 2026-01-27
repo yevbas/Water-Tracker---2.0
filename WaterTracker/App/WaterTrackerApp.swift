@@ -63,8 +63,6 @@ struct WaterTrackerApp: App {
                 } else {
                     ConfigureScreen(container: sharedModelContainer, healthKitService: healthKitService) {
                         isConfigured = true
-
-                        onboardingPassed = true
                     }
                 }
             }

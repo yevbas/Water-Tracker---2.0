@@ -10,17 +10,18 @@ import SwiftData
 import Lottie
 import HealthKit
 import HealthKitUI
+import RevenueCatUI
 
 struct OnboardingScreen: View {
     @EnvironmentObject private var healthKitService: HealthKitService
     @Environment(\.modelContext) private var modelContext
 
-    @State var selectedMetric: MetricView.Configuration?
-    @State var answers: [String: MetricView.Answer] = [:]
-    @State var selectedAnswer: String?
-    @State var selectedUnit: WaterUnit = .millilitres
-    @State var planPreview: PlanPreviewModel?
-    @State var stage = Stage.welcome
+    @State private var selectedMetric: MetricView.Configuration?
+    @State private var answers: [String: MetricView.Answer] = [:]
+    @State private var selectedAnswer: String?
+    @State private var selectedUnit: WaterUnit = .millilitres
+    @State private var planPreview: PlanPreviewModel?
+    @State private var stage = Stage.welcome
     @State private var hasHealthKitData = false
     
     // HealthKit data properties
@@ -29,6 +30,14 @@ struct OnboardingScreen: View {
     @State private var userAge: Int?
     @State private var userGender: HKBiologicalSex?
     @State private var averageSleepHours: Double?
+
+    @State private var isPresentedPaywall = false
+
+    @AppStorage("user_did_decline_onboarding_paywall")
+    private var userDidDeclineOnboardingPaywall = false
+
+    @AppStorage("user_did_fail_payment_on_onboarding_paywall")
+    private var userDidFailPaymentOnOnboardingPaywall = false
 
     enum Stage {
         case welcome
@@ -39,7 +48,6 @@ struct OnboardingScreen: View {
         case calculating
         case planPreview(PlanPreviewModel)
         case askingForReview
-        case convertUser
     }
 
     var metrics: [MetricView.Configuration] = [
@@ -222,10 +230,11 @@ struct OnboardingScreen: View {
             }
         case .askingForReview:
             RateUsView {
-                stage = .convertUser
+                isPresentedPaywall = true
             }
-        case .convertUser:
-            ConvertUserView(planPreview: planPreview)
+            .sheet(isPresented: $isPresentedPaywall) {
+                paywallView()
+            }
         }
     }
 
@@ -290,6 +299,49 @@ struct OnboardingScreen: View {
         .onAppear {
             selectedMetric = metrics.first
         }
+    }
+
+    @ViewBuilder
+    private func paywallView() -> some View {
+//        if (Purchases.shared.cachedOfferings?.all ?? [:]).isEmpty {
+        PaywallView(displayCloseButton: true)
+            .onPurchaseCompleted { _ in endOnboarding() }
+            .onPurchaseCancelled {
+                userDidDeclineOnboardingPaywall = true
+                endOnboarding()
+            }
+            .onRequestedDismissal {
+                userDidDeclineOnboardingPaywall = true
+                endOnboarding()
+            }
+            .onPurchaseFailure { _ in
+                userDidFailPaymentOnOnboardingPaywall = true
+                endOnboarding()
+            }
+            .interactiveDismissDisabled()
+        // TODO: Legacy discount paywall implementation. May be returned in next versions
+//        } else {
+//            PaywallView(displayCloseButton: true)
+//                .onPurchaseCompleted { _ in endOnboarding() }
+//                .onPurchaseCancelled {
+//                    isPresentedPaywall = false
+//                    isPresentedDiscountedPaywall = true
+//                }
+//                .onRequestedDismissal {
+//                    isPresentedPaywall = false
+//                    isPresentedDiscountedPaywall = true
+//                }
+//                .onPurchaseFailure { _ in endOnboarding() }
+//                .interactiveDismissDisabled()
+//        }
+    }
+
+    private func endOnboarding() {
+        // Set the water goal based on the plan
+        if let plan = planPreview {
+            UserDefaults.standard.set(plan.waterMl, forKey: "water_goal_ml")
+        }
+        UserDefaults.standard.set(true, forKey: "onboarding_passed")
     }
 
     func nextMetric() {
